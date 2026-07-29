@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Categories=Applications;
+Exec=benchymark
+Icon=benchymark
+X-Asteroid-Center-Color=#58A6FF
+X-Asteroid-Outer-Color=#0B1B2E

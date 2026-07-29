@@ -1,0 +1,5 @@
+# Build output — this is built out-of-tree via devtool/bitbake.
+build/
+*.o
+*.so
+*.ipk

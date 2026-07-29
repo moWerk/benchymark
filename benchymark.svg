@@ -1,0 +1,27 @@
+<!-- SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  benchymark app icon — 3DBenchy reduced to the marks that identify it: the
+  swept hull, the box cabin, the round porthole and the chimney. Drawn on the
+  512 grid the AsteroidOS icon set uses (asteroid-icons-ion), stroked rather
+  than filled so it sits beside the ios-* outline icons without shouting.
+  3DBenchy is public domain (NTI Group, 2025-02-14).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g fill="none" stroke="currentColor" stroke-width="16"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- hull: flat deck, curved forefoot rising to a raked bow -->
+    <path d="M92 300 h328 l-34 76 a40 40 0 0 1 -34 20 H150
+             a40 40 0 0 1 -34 -20 z"/>
+    <!-- bow post -->
+    <path d="M420 300 L392 236"/>
+    <!-- cabin box -->
+    <path d="M168 300 v-84 h132 v84"/>
+    <!-- porthole -->
+    <circle cx="234" cy="256" r="26"/>
+    <!-- chimney -->
+    <path d="M330 300 v-56 h34 v56"/>
+    <!-- waterline -->
+    <path d="M120 412 h272" stroke-width="12" opacity="0.55"/>
+  </g>
+</svg>

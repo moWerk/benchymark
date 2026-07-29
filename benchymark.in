@@ -1,0 +1,5 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Timo Könnecke (moWerk) <mo@mowerk.net>
+
+exec invoker --single-instance --type=asteroid-qt6 @CMAKE_INSTALL_FULL_LIBDIR@/benchymark.so
