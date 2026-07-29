@@ -154,7 +154,58 @@ Application {
     // Workloads compare against THIS, not `phase`: during a gap it matches
     // nothing, so every animation and every visible item switches off without
     // needing its own gap condition.
-    readonly property int activePhase: inGap ? -2 : phase
+    // True while phase `n` should EXIST: the phase itself, or the one about
+    // to start while we sit in the gap. Building one phase ahead is what lets
+    // a heavy scene be ready before its clock starts.
+    function wants(n) {
+        return phase === n || (inGap && phase + 1 === n);
+    }
+    // The gap holds until the next scene is actually built. A fixed gap that
+    // expires mid-construction hands the next phase a stall to measure, which
+    // shows up as a bad number for a phase that was merely still loading.
+    readonly property bool nextBuilt: !inGap || phase + 1 >= phases.length
+                                      || sceneBuilt
+    // The heavy phases are the ones worth waiting for; everything else is
+    // ready as soon as it is asked for.
+    readonly property bool sceneBuilt: {
+        var n = phase + 1;
+        if (n === 5)
+            return iconRep.count === 96;
+        if (n === 6)
+            return glyphRep.count === 96;
+        if (n === 8)
+            return cascRep.count === 160 && cascBRep.count === 160;
+        return true;
+    }
+
+    // Workloads keep rendering through a 400 ms fade, then switch off. Without
+    // this a phase cuts to black and the next cuts in — the gap reads as a
+    // glitch rather than as a pause (moWerk).
+    property real workOpacity: 1
+    property bool fadedOut: false
+
+    Behavior on workOpacity {
+        NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+    }
+
+    onInGapChanged: {
+        if (inGap) {
+            workOpacity = 0;
+            fadeOut.restart();
+        } else {
+            fadedOut = false;
+            workOpacity = 1;
+        }
+    }
+
+    Timer {
+        id: fadeOut
+
+        interval: 420
+        onTriggered: root.fadedOut = true
+    }
+
+    readonly property int activePhase: fadedOut ? -2 : phase
     readonly property string nextName: (phase + 1) < phases.length
                                        ? phases[phase + 1].name : "DONE"
     // ── run modes ─────────────────────────────────────────────────────────
@@ -219,7 +270,9 @@ Application {
             return;
         if (inGap) {
             gapLeft--;
-            if (gapLeft <= 0) {
+            // Never shorter than gapSeconds, but longer if the next scene is
+            // still coming up.
+            if (gapLeft <= 0 && nextBuilt) {
                 inGap = false;
                 phase++;
                 phaseElapsed = 0;
@@ -347,6 +400,7 @@ Application {
     Item {
         anchors.fill: parent
         visible: root.activePhase === 4 && root.awake
+        opacity: root.workOpacity
 
         Repeater {
             model: 24
@@ -376,9 +430,12 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 5 && root.awake
+        opacity: root.workOpacity
 
         Repeater {
-            model: 96
+            id: iconRep
+
+            model: root.wants(5) ? 96 : 0
 
             delegate: Icon {
                 readonly property real a: index / 96 * 2 * Math.PI * 3
@@ -420,9 +477,12 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 6 && root.awake
+        opacity: root.workOpacity
 
         Repeater {
-            model: 96
+            id: glyphRep
+
+            model: root.wants(6) ? 96 : 0
 
             delegate: Text {
                 readonly property real a: index / 96 * 2 * Math.PI * 3
@@ -455,6 +515,7 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 7 && root.awake
+        opacity: root.workOpacity
         preferredRendererType: Shape.CurveRenderer
 
         NumberAnimation on t {
@@ -604,10 +665,13 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 8 && root.awake
+        opacity: root.workOpacity
         transformOrigin: Item.Center
 
         Repeater {
-            model: 160
+            id: cascRep
+
+            model: root.wants(8) ? 160 : 0
 
             delegate: Rectangle {
                 readonly property real a: index / 160 * 2 * Math.PI * 5
@@ -644,10 +708,13 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 8 && root.awake
+        opacity: root.workOpacity
         transformOrigin: Item.Center
 
         Repeater {
-            model: 160
+            id: cascBRep
+
+            model: root.wants(8) ? 160 : 0
 
             delegate: Rectangle {
                 readonly property real a: -index / 160 * 2 * Math.PI * 4
@@ -700,11 +767,12 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 9 && root.awake
+        opacity: root.workOpacity
         fragmentShader: "file:///usr/share/benchymark/cloud-frugal.frag.qsb"
 
         property real t: 0
-        property color centerColor: "#58a6ff"
-        property color outerColor: "#0b1b2e"
+        property color centerColor: "#666666"
+        property color outerColor: "#000000"
 
         NumberAnimation on t {
             from: 0
@@ -721,11 +789,12 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 10 && root.awake
+        opacity: root.workOpacity
         fragmentShader: "file:///usr/share/benchymark/cloud-mid.frag.qsb"
 
         property real t: 0
-        property color centerColor: "#58a6ff"
-        property color outerColor: "#0b1b2e"
+        property color centerColor: "#666666"
+        property color outerColor: "#000000"
 
         NumberAnimation on t {
             from: 0
@@ -749,6 +818,7 @@ Application {
 
         anchors.fill: parent
         visible: root.activePhase === 11 && root.awake
+        opacity: root.workOpacity
         fragmentShader: "file:///usr/share/benchymark/benchy-shader.frag.qsb"
 
         property real t: 0
@@ -875,7 +945,7 @@ Application {
     // route as the centre glyph in each phase, so the SCALE:RERASTER ratio
     // still isolates the glyph-cache path — only the magnitude changed.
     Repeater {
-        model: 10
+        model: root.wants(1) || root.wants(2) ? 10 : 0
 
         delegate: Text {
             readonly property real a: index / 10 * 2 * Math.PI
@@ -967,6 +1037,14 @@ Application {
         id: rotor
 
         anchors.fill: parent
+        // Nothing to report during the countdown, and a 0 sitting on the rim
+        // reads as a measurement rather than as an absence. It arrives when
+        // IDLE does.
+        opacity: root.running || root.done ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+        }
 
         Repeater {
             model: root.trailCount + 1
@@ -998,6 +1076,7 @@ Application {
         source: rotor
         anchors.fill: rotor
         visible: root.activePhase === 3
+        opacity: root.workOpacity
         shadowEnabled: true
         shadowColor: "#e0f0c30e"
         shadowHorizontalOffset: 0
