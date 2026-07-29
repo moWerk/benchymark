@@ -41,6 +41,10 @@ install(
 install(
 	FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/benchy-shader.frag.qsb
 	      ${CMAKE_CURRENT_SOURCE_DIR}/src/benchy-shader.frag
+	      ${CMAKE_CURRENT_SOURCE_DIR}/src/cloud-frugal.frag.qsb
+	      ${CMAKE_CURRENT_SOURCE_DIR}/src/cloud-frugal.frag
+	      ${CMAKE_CURRENT_SOURCE_DIR}/src/cloud-mid.frag.qsb
+	      ${CMAKE_CURRENT_SOURCE_DIR}/src/cloud-mid.frag
 	DESTINATION ${CMAKE_INSTALL_DATADIR}/benchymark
 )
 

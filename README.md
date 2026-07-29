@@ -3,7 +3,7 @@
 <img src="benchymark.svg" width="88" align="right" alt="benchymark icon">
 
 **A rendering benchmark for [AsteroidOS](https://asteroidos.org/) watches.**
-Install it, tap it, and eleven fixed phases tell you what your watch is actually
+Install it, tap it, and fourteen fixed phases tell you what your watch is actually
 good and bad at — with the frame rate live on the screen and a result file you
 can keep.
 
@@ -28,14 +28,21 @@ goes last.
 ## What you see
 
 1. A **5→0 countdown**, so you can get to the watch before it starts.
-2. **Eleven phases**, back to back, each with a quiet second between them. The
-   phase name sits under the clock so you always know what is being tested.
+2. **Fourteen phases**, back to back, with a quiet two seconds between them.
+   The name of the phase about to run fades up in the middle of that gap.
 3. The **live FPS travels the screen rim**, trailing older readings behind it —
    the trail *is* the history, no graph needed. Numerals drop to **red below
    45 fps**, so a bad phase is obvious from across a room.
 4. A **BENCH COMPLETE** screen. Tap to run it again.
 
-The whole run takes about two minutes and holds the screen awake by itself.
+The whole run takes about three minutes and holds the screen awake by itself.
+
+**Or take control.** Tap during the countdown and it pauses, offering two
+buttons: **continue** (for a mis-tap) or **phase control**. In phase control the
+current phase runs *indefinitely* and a tap moves to the next one — so you can
+park on the one test you actually care about instead of waiting for it to come
+round. Results from a manually-cut phase are marked `"manual": true`, because a
+window you ended by hand is not comparable with a full one.
 
 ## Install
 
@@ -60,12 +67,20 @@ handing you a score:
 | `RERASTER` | the **same picture**, resized the expensive way |
 | `ORBIT` | a moving element with a pulsing shadow |
 | `OVERDRAW` | stacked translucent layers — raw fill rate |
-| `DRAWCALLS` | many separate icons in motion |
+| `DRAWCALLS` | many separate SVG icons in motion |
+| `DRAWFONT` | the same storm as colour emoji glyphs |
 | `SHAPES` | a vector path rebuilt every frame |
-| `CASCADE` | one animation driving many children |
-| `SHADER` | a fragment shader — the pure GPU phase |
+| `CASCADE` | two counter-rotating trees of moving children |
+| `CLOUDLITE` | the frugal cloud — the **GPU baseline** |
+| `CLOUDMID` | the same cloud with one domain warp |
+| `CLOUDHEAVY` | the cloud that exists to hurt |
 | `BENCHYLITE` | the boat, 438 vertices |
 | `BENCHY` | the boat, 1118 vertices |
+
+The three **cloud** phases are one scene at three costs — 12, 48 and 140 hash
+evaluations per pixel — so the ladder separates domain-warp cost from the cost
+of the `sin()`-based hash. `CLOUDLITE` doubles as the GPU baseline: if it is
+not near 60, nothing above it will be.
 
 `SCALE` and `RERASTER` look **identical on screen** and differ only in how the
 resize is done. Comparing them tells you what text animation really costs on
@@ -78,7 +93,7 @@ Each completed run is written to
 
 ```json
 {
- "scene": "0.1",
+ "scene": "0.2",
  "finished": "2026-07-28T23:11:04.000Z",
  "resolution": "320x300",
  "phases": [ { "phase": "IDLE", "avg": 60.0, "min": 59.0, "max": 60.0 } ]
@@ -102,7 +117,7 @@ install, launch and read it back over ADB or SSH.
 
 Full technical detail — architecture, measurement technique, the phase
 rationale, and the meta-asteroid cleanup run this was built to serve — is in the
-[v0.1 release notes](../../releases/tag/v0.1).
+[latest release notes](../../releases/latest).
 
 ## Credits
 

@@ -82,7 +82,7 @@ Application {
     // Shown during the countdown so a screenshot or a spoken result can be
     // tied to an exact scene. Starts at 0.1 and steps by 0.01 per change
     // (moWerk) — results only compare within one version.
-    readonly property string sceneVersion: "0.1"
+    readonly property string sceneVersion: "0.2"
     // The run holds the screen itself — same mechanism asteroid-flashlight
     // uses to stay lit only while a feature is active (moWerk). Held through
     // the countdown, because that exists so you can reach the rig, and dropped
@@ -105,6 +105,15 @@ Application {
     readonly property color fg: Qt.rgba(1, 1, 1, 1)
     readonly property color dim: Qt.rgba(1, 1, 1, 0.7)
     readonly property color hot: "#f85149"
+    // The AsteroidOS logo ramp (visual_design_guide.json, color_system).
+    // Used wherever this app invents colour of its own, so the benchmark
+    // looks like it belongs to the OS rather than to a test harness.
+    readonly property var ramp: ["#be3729", "#dc2919", "#e54b3a", "#e56934",
+                                 "#e57c21", "#e58a21", "#f19a11", "#f0ae0e",
+                                 "#f0c30e"]
+    // The gold end of the ramp: pairs with the Benchy wireframe's cyan
+    // without competing with the red the rotator turns below 45 fps.
+    readonly property color gold: "#f0c30e"
 
     // ── frame counting ────────────────────────────────────────────────────
     // An animation ticks once per RENDERED frame, so dropped frames simply do
@@ -119,24 +128,27 @@ Application {
 
     // ── phase machine ─────────────────────────────────────────────────────
     readonly property var phases: [
-        { name: "IDLE",      dur: 10 },  // the sanity floor: must be flat 60
-        { name: "SCALE",     dur: 10 },  // distance-field text, scale transform
-        { name: "RERASTER",  dur: 10 },  // same visual, animated pixelSize
-        { name: "ORBIT",     dur: 10 },  // rim numeral + pulsing shadow
-        { name: "OVERDRAW",  dur: 10 },  // stacked translucent full-screen fills
-        { name: "DRAWCALLS", dur: 10 },  // unbatchable Icons in motion
-        { name: "SHAPES",    dur: 10 },  // re-tessellated Shape path
-        { name: "CASCADE",   dur: 10 },  // scale on an Item with many children
-        { name: "SHADER",    dur: 10 },  // fragment-bound: 28 noise lookups/pixel
-        { name: "BENCHYLITE", dur: 10 }, // the boat at 438 vertices / 1545 segments
-        { name: "BENCHY",    dur: 12 }   // the boat at 1118 vertices / 3720 segments
+        { name: "IDLE",       dur: 10 },  // the sanity floor: must be flat 60
+        { name: "SCALE",      dur: 10 },  // distance-field text, scale transform
+        { name: "RERASTER",   dur: 10 },  // same visual, animated pixelSize
+        { name: "ORBIT",      dur: 10 },  // rim numeral + pulsing shadow
+        { name: "OVERDRAW",   dur: 10 },  // stacked translucent full-screen fills
+        { name: "DRAWCALLS",  dur: 10 },  // unbatchable SVG Icons in motion
+        { name: "DRAWFONT",   dur: 10 },  // the same count as COLOUR GLYPHS
+        { name: "SHAPES",     dur: 10 },  // re-tessellated Shape path
+        { name: "CASCADE",    dur: 10 },  // scale on Items with many children
+        { name: "CLOUDLITE",  dur: 10 },  // GPU baseline: 12 hashes/fragment
+        { name: "CLOUDMID",   dur: 10 },  // one domain warp: 48 hashes/fragment
+        { name: "CLOUDHEAVY", dur: 10 },  // the beast: 140 sin-hashes/fragment
+        { name: "BENCHYLITE", dur: 10 },  // the boat at 438 vertices / 1545 segments
+        { name: "BENCHY",     dur: 10 }   // the boat at 1118 vertices / 3720 segments
     ]
-    // A quiet second between phases: watches enter a phase carrying the
+    // A quiet TWO seconds between phases: watches enter a phase carrying the
     // previous one's backlog, and the frame rate is still falling when a short
     // phase ends, so the number recorded is a blend of two workloads rather
     // than a measurement of one (moWerk). Nothing animates during the gap; it
     // shows the NAME of the phase about to start.
-    readonly property int gapSeconds: 1
+    readonly property int gapSeconds: 2
     property bool inGap: false
     property int gapLeft: 0
     // Workloads compare against THIS, not `phase`: during a gap it matches
@@ -145,6 +157,14 @@ Application {
     readonly property int activePhase: inGap ? -2 : phase
     readonly property string nextName: (phase + 1) < phases.length
                                        ? phases[phase + 1].name : "DONE"
+    // ── run modes ─────────────────────────────────────────────────────────
+    // AUTO is the default: countdown, then every phase back to back. Tapping
+    // during the countdown does not switch mode by itself — it PAUSES and
+    // offers the choice, so a mis-tap has a way back (moWerk). MANUAL holds a
+    // phase indefinitely and advances only when told, which is how you reach
+    // one specific test without sitting through the run before it.
+    property bool manual: false
+    property bool choosing: false
     property int countdown: 5
     property int phase: -1                         // -1 = counting down
     property int phaseElapsed: 0
@@ -183,6 +203,8 @@ Application {
     function tickSecond() {
         if (done)
             return;                 // parked on the results until the next wake
+        if (choosing)
+            return;                 // the countdown is held while you decide
         if (countdown > 0) {
             countdown--;
             return;
@@ -206,7 +228,9 @@ Application {
             return;
         }
         phaseElapsed++;
-        if (phaseElapsed >= phases[phase].dur) {
+        // In manual mode the clock still counts (the label needs it) but the
+        // phase never closes on its own — only advancePhase() ends it.
+        if (!manual && phaseElapsed >= phases[phase].dur) {
             var s = _cur.slice();
             var sum = 0, mn = 999;
             for (var i = 0; i < s.length; i++) {
@@ -227,6 +251,37 @@ Application {
             inGap = true;              // settle before the next phase starts
             gapLeft = gapSeconds;
         }
+    }
+
+    // Close the current phase and move on. The clock calls this in auto mode;
+    // the tap target calls it in manual mode. Skip and Next are the SAME
+    // action — they differ only in when you press, so there is one code path
+    // and one button, and the label reads whichever the moment deserves.
+    function advancePhase() {
+        if (!running || inGap)
+            return;
+        var s2 = _cur.slice();
+        var sum = 0, mn = 999;
+        for (var i = 0; i < s2.length; i++) {
+            sum += s2[i];
+            if (s2[i] < mn)
+                mn = s2[i];
+        }
+        var r = results.slice();
+        r.push({
+            "phase": phases[phase].name,
+            "avg": s2.length ? Math.round(sum / s2.length) : 0,
+            "min": s2.length ? mn : 0,
+            "samples": s2.length,
+            // A manually-cut phase is NOT comparable with a full 10 s window,
+            // and a result file that hid that would be worse than no file.
+            "manual": root.manual
+        });
+        results = r;
+        if (phase + 1 >= phases.length)
+            root.writeResults();
+        inGap = true;
+        gapLeft = gapSeconds;
     }
 
     anchors.fill: parent
@@ -286,92 +341,6 @@ Application {
     // (the anti-pattern it warns about — every size churns the glyph cache
     // with a CPU rasterisation and a texture upload). Their ratio IS the
     // measurement.
-    readonly property real baseGlyph: maxSize * 0.28
-    readonly property real glyphPeak: 1.8
-
-    // Both text phases drive a RING of glyphs as well as the centre one: a
-    // single Text barely troubled any watch (moWerk). The ring uses the same
-    // route as the centre glyph in each phase, so the SCALE:RERASTER ratio
-    // still isolates the glyph-cache path — only the magnitude changed.
-    Repeater {
-        model: 10
-
-        delegate: Text {
-            readonly property real a: index / 10 * 2 * Math.PI
-            readonly property bool ring: root.activePhase === 1 || root.activePhase === 2
-
-            visible: ring
-            text: root.mmStr
-            color: root.fg
-            opacity: 0.5
-            renderType: root.activePhase === 2 ? Text.NativeRendering : Text.QtRendering
-            x: root.width / 2 + root.rootRadius * 0.62 * Math.cos(a) - width / 2
-            y: root.height / 2 + root.rootRadius * 0.62 * Math.sin(a) - height / 2
-            font.family: "Inter Tight"
-            font.weight: Font.Light
-            font.pixelSize: root.maxSize * 0.13
-
-            SequentialAnimation on scale {
-                running: root.activePhase === 1 && parent.visible && root.awake
-                loops: Animation.Infinite
-                NumberAnimation { from: 0.7; to: 2.1; duration: 800 + index * 40; easing.type: Easing.InOutSine }
-                NumberAnimation { from: 2.1; to: 0.7; duration: 800 + index * 40; easing.type: Easing.InOutSine }
-            }
-
-            SequentialAnimation on font.pixelSize {
-                running: root.activePhase === 2 && parent.visible && root.awake
-                loops: Animation.Infinite
-                NumberAnimation { from: root.maxSize * 0.09; to: root.maxSize * 0.27; duration: 800 + index * 40; easing.type: Easing.InOutSine }
-                NumberAnimation { from: root.maxSize * 0.27; to: root.maxSize * 0.09; duration: 800 + index * 40; easing.type: Easing.InOutSine }
-            }
-
-        }
-
-    }
-
-    Text {
-        id: centreText
-
-        readonly property bool scaling: root.activePhase === 1
-        readonly property bool rerastering: root.activePhase === 2
-
-        text: root.countdown > 0 ? root.countdown : root.mmStr
-        visible: !root.done
-        color: root.countdown > 0 ? root.hot : root.fg
-        anchors.centerIn: parent
-        renderType: rerastering ? Text.NativeRendering : Text.QtRendering
-        font.family: "Inter Tight"
-        // Light, not Black: moWerk wants this beautiful first and expensive
-        // second — Nutty Null's thin elegance survives the benchmark.
-        font.weight: Font.Light
-        font.letterSpacing: -root.maxSize * 0.02
-        font.pixelSize: root.baseGlyph
-
-        SequentialAnimation on scale {
-            running: centreText.scaling && centreText.visible && root.awake
-            loops: Animation.Infinite
-            alwaysRunToEnd: false
-            NumberAnimation { from: 1; to: root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { from: root.glyphPeak; to: 1; duration: 900; easing.type: Easing.InOutSine }
-        }
-
-        SequentialAnimation on font.pixelSize {
-            running: centreText.rerastering && centreText.visible && root.awake
-            loops: Animation.Infinite
-            NumberAnimation { from: root.baseGlyph; to: root.baseGlyph * root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { from: root.baseGlyph * root.glyphPeak; to: root.baseGlyph; duration: 900; easing.type: Easing.InOutSine }
-        }
-
-        // The countdown reads as a pulse so it is obvious across the room.
-        SequentialAnimation on opacity {
-            running: root.countdown > 0 && root.awake
-            loops: Animation.Infinite
-            NumberAnimation { from: 1; to: 0.35; duration: 500 }
-            NumberAnimation { from: 0.35; to: 1; duration: 500 }
-        }
-
-    }
-
     // ── OVERDRAW: stacked translucent full-screen fills, the compositor must
     // blend every one of them every frame. Pure fill rate; scales with panel
     // pixels, which is why results are also reported per megapixel.
@@ -438,13 +407,54 @@ Application {
 
     // ── SHAPES: a stroked path whose geometry changes every frame, so it is
     // re-tessellated continuously — the geometry pipeline, not fill or glyphs.
+    // ── DRAWFONT: the same storm rendered as COLOUR GLYPHS ────────────────
+    // Not a second draw-call phase, and the difference is the finding. Text
+    // batches: Qt packs glyphs into an atlas and draws many in one call, which
+    // is exactly why DRAWCALLS uses Icons (each a QQuickPaintedItem with its
+    // own texture, unbatchable). Colour-emoji glyphs sit between the two —
+    // they carry their own bitmap/COLR data rather than joining the
+    // distance-field atlas, so this measures coloured-glyph upload against
+    // DRAWCALLS' per-item textures at an identical item count and motion.
+    Item {
+        id: glyphStorm
+
+        anchors.fill: parent
+        visible: root.activePhase === 6 && root.awake
+
+        Repeater {
+            model: 96
+
+            delegate: Text {
+                readonly property real a: index / 96 * 2 * Math.PI * 3
+                readonly property real rad: root.rootRadius * (0.18 + (index % 7) * 0.13)
+
+                text: "\uD83D\uDE80"                 // 🚀
+                font.pixelSize: root.maxSize * 0.075
+                x: root.width / 2 + rad * Math.cos(a + glyphStorm.spin) - width / 2
+                y: root.height / 2 + rad * Math.sin(a + glyphStorm.spin) - height / 2
+            }
+
+        }
+
+        property real spin: 0
+
+        NumberAnimation on spin {
+            from: 0
+            to: 2 * Math.PI
+            duration: 5200
+            loops: Animation.Infinite
+            running: glyphStorm.visible && root.awake
+        }
+
+    }
+
     Shape {
         id: spiro
 
         property real t: 0
 
         anchors.fill: parent
-        visible: root.activePhase === 6 && root.awake
+        visible: root.activePhase === 7 && root.awake
         preferredRendererType: Shape.CurveRenderer
 
         NumberAnimation on t {
@@ -549,7 +559,7 @@ Application {
         id: cascade
 
         anchors.fill: parent
-        visible: root.activePhase === 7 && root.awake
+        visible: root.activePhase === 8 && root.awake
         transformOrigin: Item.Center
 
         Repeater {
@@ -562,7 +572,7 @@ Application {
                 height: width
                 radius: width * 0.3
                 antialiasing: true
-                color: index % 3 ? "#58a6ff" : "#d29922"
+                color: root.ramp[index % root.ramp.length]
                 opacity: 0.75
                 x: root.width / 2 + root.rootRadius * (0.3 + (index % 5) * 0.16) * Math.cos(a) - width / 2
                 y: root.height / 2 + root.rootRadius * (0.3 + (index % 5) * 0.16) * Math.sin(a) - height / 2
@@ -580,9 +590,113 @@ Application {
 
     }
 
-    // ── SHADER: the one phase that is purely fragment-bound ───────────────
+    // A SECOND cascade, counter-phase and counter-rotating. One cascade held a
+    // flat 60 on every watch tried (moWerk), so the phase was measuring
+    // nothing: two independent transform trees double the per-frame
+    // recalculation without making the picture look busier, because this one
+    // turns the other way and breathes on the opposite beat.
+    Item {
+        id: cascadeB
+
+        anchors.fill: parent
+        visible: root.activePhase === 8 && root.awake
+        transformOrigin: Item.Center
+
+        Repeater {
+            model: 160
+
+            delegate: Rectangle {
+                readonly property real a: -index / 160 * 2 * Math.PI * 4
+
+                width: root.maxSize * 0.045
+                height: width
+                radius: width * 0.5
+                antialiasing: true
+                color: root.ramp[(index + 4) % root.ramp.length]
+                opacity: 0.55
+                x: root.width / 2 + root.rootRadius * (0.22 + (index % 6) * 0.14) * Math.cos(a) - width / 2
+                y: root.height / 2 + root.rootRadius * (0.22 + (index % 6) * 0.14) * Math.sin(a) - height / 2
+                rotation: -index * 7
+            }
+
+        }
+
+        SequentialAnimation on scale {
+            running: cascadeB.visible && root.awake
+            loops: Animation.Infinite
+            NumberAnimation { from: 1.2; to: 0.5; duration: 800; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.5; to: 1.2; duration: 800; easing.type: Easing.InOutSine }
+        }
+
+        NumberAnimation on rotation {
+            running: cascadeB.visible && root.awake
+            from: 0
+            to: -360
+            duration: 9000
+            loops: Animation.Infinite
+        }
+
+    }
+
+    // ── THE CLOUD LADDER ──────────────────────────────────────────────────
+    // Three renderings of one scene, separating the three things that make a
+    // procedural cloud expensive. Per fragment, in lattice-hash evaluations:
+    //
+    //   CLOUDLITE   12   cheap fract hash, 3 octaves, NO domain warp
+    //   CLOUDMID    48   same hash, 4 octaves, ONE warp (a SERIAL dependency)
+    //   CLOUDHEAVY 140   sin() hash, 7 octaves, TWO warps
+    //
+    // So LITE vs MID isolates warp cost, and MID vs HEAVY isolates the
+    // transcendental hash. LITE is the GPU baseline — what IDLE is for the
+    // whole app, LITE is for the GPU alone: if it is not near 60, nothing
+    // above it will be. It is also the candidate stock wallpaper, which is why
+    // it carries centerColor/outerColor with FlatMesh's exact property names.
+    ShaderEffect {
+        id: cloudLite
+
+        anchors.fill: parent
+        visible: root.activePhase === 9 && root.awake
+        fragmentShader: "file:///usr/share/benchymark/cloud-frugal.frag.qsb"
+
+        property real t: 0
+        property color centerColor: "#58a6ff"
+        property color outerColor: "#0b1b2e"
+
+        NumberAnimation on t {
+            from: 0
+            to: 10000
+            duration: 10000000
+            loops: Animation.Infinite
+            running: cloudLite.visible
+        }
+
+    }
+
+    ShaderEffect {
+        id: cloudMid
+
+        anchors.fill: parent
+        visible: root.activePhase === 10 && root.awake
+        fragmentShader: "file:///usr/share/benchymark/cloud-mid.frag.qsb"
+
+        property real t: 0
+        property color centerColor: "#58a6ff"
+        property color outerColor: "#0b1b2e"
+
+        NumberAnimation on t {
+            from: 0
+            to: 10000
+            duration: 10000000
+            loops: Animation.Infinite
+            running: cloudMid.visible
+        }
+
+    }
+
+    // ── CLOUDHEAVY: the one phase that is purely fragment-bound ───────────
     // Everything else here is CPU, geometry or draw-call work; this is the GPU
-    // doing ~28 noise lookups per pixel per frame, so it scales with PANEL
+    // doing 35 noise lookups (140 sin-based hashes) per pixel per frame, so
+    // it scales with PANEL
     // AREA rather than scene complexity — the phase that most needs Mpix/s
     // reported beside raw FPS. Qt6 loads the pre-compiled .qsb (inline GLSL
     // crashes it); the .frag source ships beside it so this can be rebuilt.
@@ -590,7 +704,7 @@ Application {
         id: shaderPhase
 
         anchors.fill: parent
-        visible: root.activePhase === 8 && root.awake
+        visible: root.activePhase === 11 && root.awake
         fragmentShader: "file:///usr/share/benchymark/benchy-shader.frag.qsb"
 
         property real t: 0
@@ -627,7 +741,7 @@ Application {
     // 1545 segments; BENCHY (phase 9) is the full 1118 / 3720. Same code path,
     // so the pair measures how frame time scales with segment count.
     function projectBenchy() {
-        var M = root.activePhase === 9 ? MeshLite : Mesh;
+        var M = root.activePhase === 12 ? MeshLite : Mesh;
         var V = M.V, S = M.S;
         var a = root.benchyAngle * Math.PI / 180;
         var ca = Math.cos(a), sa = Math.sin(a);
@@ -670,7 +784,7 @@ Application {
         id: benchyShape
 
         anchors.fill: parent
-        visible: (root.activePhase === 9 || root.activePhase === 10) && root.awake
+        visible: (root.activePhase === 12 || root.activePhase === 13) && root.awake
         onVisibleChanged: if (visible) root.projectBenchy()
 
         ShapePath { id: bp0; fillColor: "#2258a6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#58a6ff"; strokeWidth: 1; PathPolyline { id: pl0 } }
@@ -683,7 +797,7 @@ Application {
         NumberAnimation on rotationDriver {
             from: 0
             to: 360
-            duration: root.activePhase === 9 ? 4000 : 6000
+            duration: root.activePhase === 12 ? 4000 : 6000
             loops: Animation.Infinite
             running: benchyShape.visible && root.awake
         }
@@ -703,6 +817,98 @@ Application {
     // head shows the live FPS at the leading rim position; each trail numeral
     // sits BEHIND it holding an older reading, so values push backwards
     // through the tail as the head sweeps on.
+    // ── the clock, moved ABOVE every workload ─────────────────────────────
+    // Declaration order is paint order. The tests now run BEHIND the thing
+    // that tells the time, like a wallpaper (moWerk) — which also means the
+    // glyph never disappears under a phase, so the watch stays a watch while
+    // it is being tortured. It is still a test subject itself: SCALE and
+    // RERASTER drive this very glyph.
+    readonly property real baseGlyph: maxSize * 0.28
+    readonly property real glyphPeak: 1.8
+
+    // Both text phases drive a RING of glyphs as well as the centre one: a
+    // single Text barely troubled any watch (moWerk). The ring uses the same
+    // route as the centre glyph in each phase, so the SCALE:RERASTER ratio
+    // still isolates the glyph-cache path — only the magnitude changed.
+    Repeater {
+        model: 10
+
+        delegate: Text {
+            readonly property real a: index / 10 * 2 * Math.PI
+            readonly property bool ring: root.activePhase === 1 || root.activePhase === 2
+
+            visible: ring
+            text: root.mmStr
+            color: root.fg
+            opacity: 0.5
+            renderType: root.activePhase === 2 ? Text.NativeRendering : Text.QtRendering
+            x: root.width / 2 + root.rootRadius * 0.62 * Math.cos(a) - width / 2
+            y: root.height / 2 + root.rootRadius * 0.62 * Math.sin(a) - height / 2
+            font.family: "Inter Tight"
+            font.weight: Font.Light
+            font.pixelSize: root.maxSize * 0.13
+
+            SequentialAnimation on scale {
+                running: root.activePhase === 1 && parent.visible && root.awake
+                loops: Animation.Infinite
+                NumberAnimation { from: 0.7; to: 2.1; duration: 800 + index * 40; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 2.1; to: 0.7; duration: 800 + index * 40; easing.type: Easing.InOutSine }
+            }
+
+            SequentialAnimation on font.pixelSize {
+                running: root.activePhase === 2 && parent.visible && root.awake
+                loops: Animation.Infinite
+                NumberAnimation { from: root.maxSize * 0.09; to: root.maxSize * 0.27; duration: 800 + index * 40; easing.type: Easing.InOutSine }
+                NumberAnimation { from: root.maxSize * 0.27; to: root.maxSize * 0.09; duration: 800 + index * 40; easing.type: Easing.InOutSine }
+            }
+
+        }
+
+    }
+
+    Text {
+        id: centreText
+
+        readonly property bool scaling: root.activePhase === 1
+        readonly property bool rerastering: root.activePhase === 2
+
+        text: root.countdown > 0 ? root.countdown : root.mmStr
+        visible: !root.done
+        color: root.countdown > 0 ? root.hot : root.fg
+        anchors.centerIn: parent
+        renderType: rerastering ? Text.NativeRendering : Text.QtRendering
+        font.family: "Inter Tight"
+        // Light, not Black: moWerk wants this beautiful first and expensive
+        // second — Nutty Null's thin elegance survives the benchmark.
+        font.weight: Font.Light
+        font.letterSpacing: -root.maxSize * 0.02
+        font.pixelSize: root.baseGlyph
+
+        SequentialAnimation on scale {
+            running: centreText.scaling && centreText.visible && root.awake
+            loops: Animation.Infinite
+            alwaysRunToEnd: false
+            NumberAnimation { from: 1; to: root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
+            NumberAnimation { from: root.glyphPeak; to: 1; duration: 900; easing.type: Easing.InOutSine }
+        }
+
+        SequentialAnimation on font.pixelSize {
+            running: centreText.rerastering && centreText.visible && root.awake
+            loops: Animation.Infinite
+            NumberAnimation { from: root.baseGlyph; to: root.baseGlyph * root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
+            NumberAnimation { from: root.baseGlyph * root.glyphPeak; to: root.baseGlyph; duration: 900; easing.type: Easing.InOutSine }
+        }
+
+        // The countdown reads as a pulse so it is obvious across the room.
+        SequentialAnimation on opacity {
+            running: root.countdown > 0 && root.awake
+            loops: Animation.Infinite
+            NumberAnimation { from: 1; to: 0.35; duration: 500 }
+            NumberAnimation { from: 0.35; to: 1; duration: 500 }
+        }
+
+    }
+
     property real rotorAngle: 0
 
     NumberAnimation on rotorAngle {
@@ -749,18 +955,18 @@ Application {
         anchors.fill: rotor
         visible: root.activePhase === 3
         shadowEnabled: true
-        shadowColor: "#c00090ff"
+        shadowColor: "#e0f0c30e"
         shadowHorizontalOffset: 0
         shadowVerticalOffset: 0
 
         blurEnabled: true
-        blurMax: 48
+        blurMax: 72          // a heavier halo: the glow IS the phase
 
         SequentialAnimation on shadowBlur {
             running: root.activePhase === 3 && root.awake
             loops: Animation.Infinite
-            NumberAnimation { from: 0.3; to: 1; duration: 500; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1; to: 0.3; duration: 500; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.5; to: 1; duration: 500; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1; to: 0.5; duration: 500; easing.type: Easing.InOutSine }
         }
 
         // A pulsing blur on top of the shadow: the effect is recomputed over
@@ -770,6 +976,109 @@ Application {
             loops: Animation.Infinite
             NumberAnimation { from: 0; to: 0.6; duration: 500; easing.type: Easing.InOutSine }
             NumberAnimation { from: 0.6; to: 0; duration: 500; easing.type: Easing.InOutSine }
+        }
+
+    }
+
+    // ── tap to take control ───────────────────────────────────────────────
+    // Covers the screen only while counting down. Tapping opens the choice
+    // below rather than switching mode outright: the whole point is that a
+    // stray tap costs nothing.
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.countdown > 0 && !root.choosing
+        onClicked: root.choosing = true
+    }
+
+    // Advancing in manual mode. Declared BEFORE the readouts so it can never
+    // sit over the numbers, and enabled only while a manual phase is live.
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.manual && root.running && !root.inGap
+        onClicked: root.advancePhase()
+    }
+
+    // ── the choice ────────────────────────────────────────────────────────
+    Item {
+        anchors.fill: parent
+        visible: root.choosing
+
+        Rectangle {
+            anchors.fill: parent
+            color: "#000000"
+            opacity: 0.72
+        }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: root.maxSize * 0.045
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "PAUSED"
+                color: root.dim
+                font.family: "Inter Tight"
+                font.weight: Font.Medium
+                font.pixelSize: root.maxSize * 0.06
+                font.letterSpacing: root.maxSize * 0.01
+            }
+
+            // Continue standard — the remorse path for a mis-tap.
+            Rectangle {
+                width: root.maxSize * 0.62
+                height: root.maxSize * 0.155
+                radius: height / 2
+                color: "#1f2733"
+                border.color: root.dim
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "continue"
+                    color: root.fg
+                    font.family: "Inter Tight"
+                    font.weight: Font.Medium
+                    font.pixelSize: root.maxSize * 0.058
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        root.manual = false;
+                        root.choosing = false;
+                    }
+                }
+
+            }
+
+            // Phase control — indefinite phases, advanced by tapping.
+            Rectangle {
+                width: root.maxSize * 0.62
+                height: root.maxSize * 0.155
+                radius: height / 2
+                color: root.gold
+                opacity: 0.92
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "phase control"
+                    color: "#101418"
+                    font.family: "Inter Tight"
+                    font.weight: Font.DemiBold
+                    font.pixelSize: root.maxSize * 0.055
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        root.manual = true;
+                        root.choosing = false;
+                        root.countdown = 0;      // straight in; you are here
+                    }
+                }
+
+            }
+
         }
 
     }
@@ -814,45 +1123,88 @@ Application {
 
     }
 
-    // ── whisper line: phase name and progress (Nutty Null's date slot) ─────
-    Text {
-        text: root.countdown > 0 ? "GET TO THE RIG \u00b7 v" + root.sceneVersion
-                                 : (root.done ? "BENCH COMPLETE · v" + root.sceneVersion
-                                              : root.phaseName + " · " + (root.phase + 1) + "/" + root.phases.length)
-        color: root.dim
-
+    // ── whisper line: phase name and progress (Nutty Null's date slot) ────
+    // Two lines, not one: at arm's length the single line was too slim to
+    // register at all, and a long phase name wrapped into itself (moWerk).
+    // The counter moved to its own line so the name never has to compete with
+    // it for width, and the separator dot went with it.
+    Column {
         anchors {
             bottom: parent.bottom
-            bottomMargin: parent.height * 0.18
+            bottomMargin: parent.height * 0.15
             horizontalCenter: parent.horizontalCenter
         }
+        width: parent.width * 0.86
+        spacing: root.maxSize * 0.012
 
-        font {
-            family: "Inter Tight"
-            weight: Font.Light
-            pixelSize: root.maxSize * 0.054
-            letterSpacing: root.maxSize * 0.012
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            // Wrapped lines used to clip into one another; distance-field text
+            // needs the leading set explicitly at this weight.
+            lineHeight: 1.25
+            text: root.countdown > 0 ? "GET TO THE RIG"
+                                     : (root.done ? "BENCH COMPLETE" : root.phaseName)
+            color: root.dim
+            font.family: "Inter Tight"
+            font.weight: Font.Medium
+            font.pixelSize: root.maxSize * 0.054
+            font.letterSpacing: root.maxSize * 0.010
+        }
+
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            text: root.running ? (root.phase + 1) + "/" + root.phases.length
+                                 + (root.manual ? "  \u00b7  phase control" : "")
+                               : "v" + root.sceneVersion
+            color: root.dim
+            opacity: 0.75
+            font.family: "Inter Tight"
+            font.weight: Font.Normal
+            font.pixelSize: root.maxSize * 0.042
+            font.letterSpacing: root.maxSize * 0.008
         }
 
     }
 
-    // ── phase name ────────────────────────────────────────────────────────
-    // ONE WORD, centred, and the very last thing declared: declaration order
-    // is paint order, so this cannot be covered by any workload, the rotator
-    // or the end screen. It exists so a phase can be named out loud —
-    // "RERASTER dropped to 20" means something; "the fifth one" does not.
+    // ── phase name: announced in the GAPS only ────────────────────────────
+    // It used to stand through the whole phase, which duplicated the line at
+    // the bottom — invisible as a duplicate only because that line was too
+    // slim to read from arm's length (moWerk). Now it does one job: announce
+    // what is about to run, during the quiet gap, then get out of the way.
+    //
+    // The fade fills the 2 s gap exactly: 200 in, 1200 held, 600 out. Gold
+    // from the logo ramp, which reads against the Benchy wireframe's cyan
+    // without competing with the red the rotator turns below 45 fps.
+    //
+    // Declared LAST so nothing can cover it — declaration order is paint
+    // order, and the minute glyph now sits above every workload.
     Text {
+        id: gapTitle
+
         anchors.centerIn: parent
-        visible: root.running
-        // In the settle gap this announces what is ABOUT to run, so the name
-        // is already on screen when the phase starts.
-        text: root.inGap ? root.nextName : root.phaseName
-        opacity: root.inGap ? 0.45 : 0.9
-        color: root.fg
+        text: root.inGap ? root.nextName
+                         : (root.manual && root.running ? root.phaseName : "")
+        color: root.gold
+        // In manual mode the phase never ends by itself, so the announcement
+        // has nothing to announce — it holds the CURRENT name instead, dimmed,
+        // as the label for the tap target.
+        opacity: root.manual && !root.inGap ? 0.30 : 0
+        visible: opacity > 0.01
         font.family: "Inter Tight"
-        font.weight: Font.Medium
+        font.weight: Font.DemiBold
         font.pixelSize: root.maxSize * 0.1
         font.letterSpacing: root.maxSize * 0.008
+
+        SequentialAnimation on opacity {
+            running: root.inGap && root.awake
+            NumberAnimation { to: 0.95; duration: 200; easing.type: Easing.OutQuad }
+            PauseAnimation { duration: 1200 }
+            NumberAnimation { to: 0; duration: 600; easing.type: Easing.InQuad }
+        }
+
     }
 
 }
