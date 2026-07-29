@@ -771,8 +771,8 @@ Application {
         fragmentShader: "file:///usr/share/benchymark/cloud-frugal.frag.qsb"
 
         property real t: 0
-        property color centerColor: "#666666"
-        property color outerColor: "#000000"
+        property color centerColor: "#58a6ff"
+        property color outerColor: "#0b1b2e"
 
         NumberAnimation on t {
             from: 0
@@ -793,8 +793,8 @@ Application {
         fragmentShader: "file:///usr/share/benchymark/cloud-mid.frag.qsb"
 
         property real t: 0
-        property color centerColor: "#666666"
-        property color outerColor: "#000000"
+        property color centerColor: "#58a6ff"
+        property color outerColor: "#0b1b2e"
 
         NumberAnimation on t {
             from: 0
