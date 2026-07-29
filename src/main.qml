@@ -482,6 +482,28 @@ Application {
                 control2Y: root.height / 2 + root.rootRadius * 1.6 * Math.cos(spiro.t * 2)
             }
 
+            // Added control points: the phase held a flat 60 everywhere, so it
+            // was measuring nothing (moWerk). More cubics per lobe multiply the
+            // per-frame tessellation without widening the figure — the extra
+            // points ride the same radius, so the silhouette barely changes.
+            PathCubic {
+                x: root.width / 2 + root.rootRadius * 0.95 * Math.cos(spiro.t * 3 + 2)
+                y: root.height / 2 + root.rootRadius * 0.95 * Math.sin(spiro.t * 5 + 2)
+                control1X: root.width / 2 + root.rootRadius * 1.15 * Math.sin(spiro.t * 5)
+                control1Y: root.height / 2 - root.rootRadius * 1.15 * Math.cos(spiro.t * 3)
+                control2X: root.width / 2 - root.rootRadius * 1.15 * Math.cos(spiro.t * 3)
+                control2Y: root.height / 2 + root.rootRadius * 1.15 * Math.sin(spiro.t * 5)
+            }
+
+            PathCubic {
+                x: root.width / 2 + root.rootRadius * 0.95 * Math.cos(spiro.t * 5 - 2)
+                y: root.height / 2 - root.rootRadius * 0.95 * Math.sin(spiro.t * 3 - 2)
+                control1X: root.width / 2 - root.rootRadius * 1.15 * Math.sin(spiro.t * 3)
+                control1Y: root.height / 2 + root.rootRadius * 1.15 * Math.cos(spiro.t * 5)
+                control2X: root.width / 2 + root.rootRadius * 1.15 * Math.cos(spiro.t * 5)
+                control2Y: root.height / 2 - root.rootRadius * 1.15 * Math.sin(spiro.t * 3)
+            }
+
             PathCubic {
                 x: root.width / 2
                 y: root.height / 2 - root.rootRadius
@@ -510,6 +532,28 @@ Application {
                 control1Y: root.height / 2 + root.rootRadius * 1.7 * Math.sin(spiro.t * 2)
                 control2X: root.width / 2 + root.rootRadius * 1.7 * Math.sin(spiro.t * 2)
                 control2Y: root.height / 2 - root.rootRadius * 1.7 * Math.cos(spiro.t * 4)
+            }
+
+            // Added control points: the phase held a flat 60 everywhere, so it
+            // was measuring nothing (moWerk). More cubics per lobe multiply the
+            // per-frame tessellation without widening the figure — the extra
+            // points ride the same radius, so the silhouette barely changes.
+            PathCubic {
+                x: root.width / 2 + root.rootRadius * 1.1 * Math.cos(spiro.t * 2 + 1)
+                y: root.height / 2 + root.rootRadius * 1.1 * Math.sin(spiro.t * 3 + 1)
+                control1X: root.width / 2 + root.rootRadius * 0.9 * Math.sin(spiro.t * 3)
+                control1Y: root.height / 2 - root.rootRadius * 0.9 * Math.cos(spiro.t * 2)
+                control2X: root.width / 2 - root.rootRadius * 0.9 * Math.cos(spiro.t * 2)
+                control2Y: root.height / 2 + root.rootRadius * 0.9 * Math.sin(spiro.t * 3)
+            }
+
+            PathCubic {
+                x: root.width / 2 + root.rootRadius * 1.1 * Math.cos(spiro.t * 3 - 1)
+                y: root.height / 2 - root.rootRadius * 1.1 * Math.sin(spiro.t * 2 - 1)
+                control1X: root.width / 2 - root.rootRadius * 0.9 * Math.sin(spiro.t * 2)
+                control1Y: root.height / 2 + root.rootRadius * 0.9 * Math.cos(spiro.t * 3)
+                control2X: root.width / 2 + root.rootRadius * 0.9 * Math.cos(spiro.t * 3)
+                control2Y: root.height / 2 - root.rootRadius * 0.9 * Math.sin(spiro.t * 2)
             }
 
             PathCubic {
