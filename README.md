@@ -1,187 +1,113 @@
 # benchymark
 
-A GPU/UI benchmark for [AsteroidOS](https://asteroidos.org/) watches. It runs a
-fixed scene through eleven phases, each isolating **one** rendering cost path,
-shows the live frame rate on the watch, and writes a machine-readable result to
-disk so a host tool can collect it.
+<img src="benchymark.svg" width="88" align="right" alt="benchymark icon">
 
-The point is not a score. It is to make a number mean something: *this* watch,
-on *this* image, is slow at *this specific thing* — and to be able to prove it
-again next week.
+**A rendering benchmark for [AsteroidOS](https://asteroidos.org/) watches.**
+Install it, tap it, and eleven fixed phases tell you what your watch is actually
+good and bad at — with the frame rate live on the screen and a result file you
+can keep.
 
-<img src="benchymark.svg" width="96" align="right" alt="benchymark icon">
+## The loop
 
-## Why an app and not a watchface
+3DBenchy exists to benchmark **3D printers**. This community 3D-prints
+**custom docks** for its watches, and posts finished ones to members who have no
+printer. So the little boat that certifies the printer, that makes the dock,
+that holds the watch — now certifies the watch as well.
 
-It began as a watchface, on the reasoning that the launcher is already a
-running QML engine and a watchface is just a file it loads — no tooling to
-install. That failed for two structural reasons:
+That is not decoration. Because QtQuick3D is absent on these images, nothing
+here *loads* a model: the QML **is** the renderer, rotating 1118 vertices and
+projecting them through a perspective divide every single frame. Your watch is
+drawing, by arithmetic, the object that certified the printer that made its own
+cradle.
 
-1. **A watchface cannot hold the screen awake.** `Nemo.KeepAlive`'s declarative
-   `DisplayBlanking` is ignored inside the compositor. The identical code works
-   in `asteroid-flashlight`, which is a client app. The panel blanked mid-run.
-2. **A watchface has nowhere to put results.** Everything had to be read off
-   the screen by eye.
+It is also the single heaviest thing the benchmark does, which is exactly why it
+goes last.
 
-An app fixes both: it holds its own screen and writes
-`~/.local/share/benchymark/last-run.json`.
+## What you see
 
-## The phases
+1. A **5→0 countdown**, so you can get to the watch before it starts.
+2. **Eleven phases**, back to back, each with a quiet second between them. The
+   phase name sits under the clock so you always know what is being tested.
+3. The **live FPS travels the screen rim**, trailing older readings behind it —
+   the trail *is* the history, no graph needed. Numerals drop to **red below
+   45 fps**, so a bad phase is obvious from across a room.
+4. A **BENCH COMPLETE** screen. Tap to run it again.
 
-Fixed order, fixed duration, deterministic, with a quiet second between each so
-one phase's backlog does not bleed into the next.
+The whole run takes about two minutes and holds the screen awake by itself.
 
-| # | phase | what it isolates |
-|---|---|---|
-| 0 | `IDLE` | nothing — the sanity floor. Should be flat 60. |
-| 1 | `SCALE` | a `scale` transform on distance-field text |
-| 2 | `RERASTER` | the **same visual**, animating `font.pixelSize` instead |
-| 3 | `ORBIT` | a travelling numeral with a pulsing drop shadow |
-| 4 | `OVERDRAW` | stacked translucent full-screen fills — pure fill rate |
-| 5 | `DRAWCALLS` | many `org.asteroid.controls` `Icon`s in motion |
-| 6 | `SHAPES` | a Qt Quick `Shape` path re-tessellated every frame |
-| 7 | `CASCADE` | a `scale` animation on an `Item` with many children |
-| 8 | `SHADER` | a doubly domain-warped fBm `ShaderEffect` — fragment-bound |
-| 9 | `BENCHYLITE` | 3DBenchy as a wireframe, 438 vertices / 1545 segments |
-| 10 | `BENCHY` | the same boat at 1118 vertices / 3720 segments |
+## Install
 
-**Phases 1 and 2 are the centrepiece.** They look *identical on screen* and
-differ only in which code path they take: animating a `scale` transform does not
-touch the glyph cache, animating `font.pixelSize` churns it — CPU rasterisation
-plus a texture upload per new size. Their FPS ratio therefore measures the glyph
-path directly, on real hardware, instead of by argument.
+Grab the `.ipk` from [Releases](../../releases), then on the watch as root:
 
-Phase 8 is the only honestly GPU-bound one: ~28 noise lookups per fragment,
-every frame, so its cost scales with **pixels**, not scene complexity. A
-480×480 panel does 2.25× the work of a 320×320 one, which is why raw FPS and
-Mpix/s both matter.
+```sh
+opkg install benchymark_*.ipk --force-reinstall --force-depends
+```
 
-Phases 9 and 10 render 3DBenchy by hand — QtQuick3D is absent on these images
-(checked), so the QML *is* the renderer: every frame it rotates the vertices,
-projects them through a perspective divide, and hands the point arrays to
-`PathPolyline`s. Deliberately the heaviest thing here.
+It appears in the launcher as **Benchymark**. Building from source is in
+[packaging/benchymark.bb](packaging/benchymark.bb).
 
-## Measuring the frames
+## What it measures
 
-Version-agnostic and window-free: an infinite `NumberAnimation` drives a dummy
-property and its change handler counts ticks. An animation ticks once per
-**rendered** frame, so dropped frames simply do not tick. A 1 s timer turns that
-into FPS. No access to `QQuickWindow` required.
+Each phase isolates **one** cost path, so a result points at a cause instead of
+handing you a score:
 
-The live figure travels the screen rim with a trail of older readings behind it,
-so the history is the display — no separate graph. Trail numerals turn red below
-45 fps, which makes a bad phase visible from across a room.
+| phase | what it leans on |
+|---|---|
+| `IDLE` | nothing — the sanity floor. Should sit at a flat 60. |
+| `SCALE` | scaling text with a transform |
+| `RERASTER` | the **same picture**, resized the expensive way |
+| `ORBIT` | a moving element with a pulsing shadow |
+| `OVERDRAW` | stacked translucent layers — raw fill rate |
+| `DRAWCALLS` | many separate icons in motion |
+| `SHAPES` | a vector path rebuilt every frame |
+| `CASCADE` | one animation driving many children |
+| `SHADER` | a fragment shader — the pure GPU phase |
+| `BENCHYLITE` | the boat, 438 vertices |
+| `BENCHY` | the boat, 1118 vertices |
+
+`SCALE` and `RERASTER` look **identical on screen** and differ only in how the
+resize is done. Comparing them tells you what text animation really costs on
+your hardware — usually the most surprising number in the run.
 
 ## Results
+
+Each completed run is written to
+`~/.local/share/benchymark/last-run.json`:
 
 ```json
 {
  "scene": "0.1",
  "finished": "2026-07-28T23:11:04.000Z",
  "resolution": "320x300",
- "phases": [ { "phase": "IDLE", "avg": 60.0, "min": 59.0, "max": 60.0 }, ... ]
+ "phases": [ { "phase": "IDLE", "avg": 60.0, "min": 59.0, "max": 60.0 } ]
 }
 ```
 
-Written once, when the last phase closes — one complete run per file, so a
-collector never has to guess whether it is reading a partial result.
+One complete run per file, written when the last phase closes — so a tool
+collecting these never reads a half-finished result. Fleet managers such as
+[asteroid-docking-bay](https://github.com/moWerk/asteroid-docking-bay) can
+install, launch and read it back over ADB or SSH.
 
-## Building
+## Comparing numbers honestly
 
-An ordinary AsteroidOS app; build it the way you build the others.
+- The **scene version** shows during the countdown and is stamped into every
+  result. If the scene changes, old numbers are void.
+- **Bigger panels do more work** in the fill-rate phases. That is real, so
+  compare like with like, or report Mpix/s alongside FPS.
+- Watches have been seen **dropping off ADB** during the wireframe phases with
+  the screen lit. Results are already on disk by then — reconnect and read the
+  file.
 
-```sh
-devtool modify benchymark /path/to/this/checkout   # or: devtool add
-devtool build benchymark
-bitbake -c package_write_ipk benchymark            # devtool build does NOT write the package
-```
+Full technical detail — architecture, measurement technique, the phase
+rationale, and the meta-asteroid cleanup run this was built to serve — is in the
+[v0.1 release notes](../../releases/tag/v0.1).
 
-Two things that cost real time when this was first packaged, in case they save
-you the same:
+## Credits
 
-- `asteroid-generate-desktop` needs **both** `benchymark.desktop.template` and
-  `i18n/benchymark.desktop.h`. Without the header it exits 2, no `.desktop` is
-  produced, and the build fails much later in `do_install` with an anonymous
-  `cmake_install.cmake:NN (file): No such file or directory`. Nothing points at
-  the real cause.
-- That generator runs at CMake **configure** time, so a fix to those inputs
-  only takes effect once `do_configure` re-runs. A plain rebuild reuses the
-  cached configure and reproduces the *identical* error, which reads as "the fix
-  did nothing" when the fix never executed. `bitbake -c cleansstate benchymark`
-  first.
+**3DBenchy** entered the public domain on 2025-02-14 (NTI Group). Credit to
+Creative Tools / NTI Group is offered as good manners rather than obligation.
 
-Install:
+The layout comes from **digital-nutty-null**; the app structure derives from
+**asteroid-flashlight** by Florent Revest.
 
-```sh
-opkg install benchymark_1.0-r0_*.ipk --force-reinstall --force-depends
-```
-
-## Comparability
-
-Numbers are worth keeping only under stated conditions:
-
-- **Version-stamp everything.** The scene version shows during the countdown and
-  is written into every result. Change the scene → old numbers are void.
-- **Resolution is not fairness.** Fill-rate phases do proportionally more work on
-  a bigger panel. That is real hardware truth, so report raw FPS and Mpix/s side
-  by side.
-- **One Qt.** Qt6 only — `MultiEffect`, never `Qt5Compat.GraphicalEffects`, so
-  there are not two effect paths producing incomparable numbers.
-- **Never `layer.samples`** — a confirmed no-op on AsteroidOS hardware that only
-  logs a warning.
-- **Gate every animation** on its phase being active. Rendering is not animation:
-  a hidden item stops rendering, but a running animation keeps consuming, which
-  would leak one phase's cost into the next.
-
-## Using it to settle environment-variable questions
-
-AsteroidOS ships per-device Qt/GL workarounds in
-`/var/lib/environment/compositor/default.env`. Several are old and unrevisited,
-and the usual test is "drop it and see if the UI renders fine" — a judgement
-call that is hard to compare across watches or to repeat.
-
-These phases map onto those flags closely enough to replace the eyeball with a
-measurement:
-
-| variable | phases that would move if it matters |
-|---|---|
-| `QT_ENABLE_GLYPH_CACHE_WORKAROUND` | `SCALE` vs `RERASTER` — literally the glyph-cache probe |
-| `QT_OPENGL_NO_BGRA` | `DRAWCALLS`, `OVERDRAW` (texture upload path) |
-| `QPA_HWC_FORCE_GLES` | `OVERDRAW`, `SHADER` (compositing and fill rate) |
-| GPU frequency pinning | `SHADER` above all — the fragment-bound phase |
-
-Run it once with the flag, once without, on the same watch, and the answer is a
-pair of numbers rather than an impression.
-
-## Known side effect
-
-Watches have been observed dropping off ADB during the wireframe phases with the
-screen lit, returning only after a port power cycle. The kernel log puts the
-origin on the watch side — the USB gadget loses its session, with no OOM kill,
-no adbd crash and no segfault. Because results are written to disk as the run
-proceeds, a link that drops costs the *reading*, not the *run*: reconnect and
-read the file.
-
-## Status
-
-Honest state, since a benchmark that overstates itself is worse than none:
-
-- Builds clean; package payload verified by unpacking the ipk.
-- Installed and run end-to-end on **medaka**, with results read back.
-- The phase design, the comparability rules and the ADB-drop note come from
-  real observation on hardware.
-- **Not** yet run across enough of the fleet to publish a cross-device table,
-  and the per-phase tuning targets are provisional.
-
-## Credits and licence
-
-3DBenchy entered the **public domain** on 2025-02-14 (NTI Group), so it can be
-decimated, wireframed and shipped. Attribution is not required; credit to
-Creative Tools / NTI Group is offered as good manners. The mesh here was
-decimated from the original and converted to strips by a host-side script, so
-the watch only pays for rotate → project → stroke per frame.
-
-The layout is derived from `digital-nutty-null` by moWerk.
-
-Licensed **GPL-3.0-or-later**, matching the other AsteroidOS apps. See
-[LICENSE](LICENSE).
+Licensed **GPL-3.0-or-later**, matching the other AsteroidOS apps.

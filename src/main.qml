@@ -1,4 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk>
+// SPDX-FileCopyrightText: 2019 Florent Revest <revestflo@gmail.com>
+//   (app structure derived from asteroid-flashlight)
 // SPDX-License-Identifier: GPL-3.0-or-later
 // benchymark — the AsteroidOS rendering benchmark.
 //
