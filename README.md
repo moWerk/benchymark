@@ -7,6 +7,8 @@ Install it, tap it, and eleven fixed phases tell you what your watch is actually
 good and bad at — with the frame rate live on the screen and a result file you
 can keep.
 
+https://github.com/user-attachments/assets/adec3f6d-6174-4b50-b96d-a8a980a92be8
+
 ## The loop
 
 3DBenchy exists to benchmark **3D printers**. This community 3D-prints
