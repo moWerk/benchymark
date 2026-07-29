@@ -9,6 +9,19 @@ asteroid_app_qml_module(benchymark
 	main.qml
 	benchy-mesh.js
 	benchy-mesh-lite.js
+	phases/Benchy.qml
+	phases/Cascade.qml
+	phases/CloudHeavy.qml
+	phases/CloudLite.qml
+	phases/CloudMid.qml
+	phases/Drawcalls.qml
+	phases/Drawfont.qml
+	phases/Idle.qml
+	phases/Orbit.qml
+	phases/Overdraw.qml
+	phases/Reraster.qml
+	phases/Scale.qml
+	phases/Shapes.qml
 )
 
 target_link_libraries(
