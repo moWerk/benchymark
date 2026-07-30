@@ -3,7 +3,7 @@
 //
 // The LIGHT cloud — the middle rung.
 //
-// Same scene, same cheap hash and same uniform glints as cloud-frugal, with
+// Same scene and the same cheap hash as CLOUDHEAVY, with
 // the one thing added back that the frugal shader refuses: a DOMAIN WARP.
 //
 // That is deliberately the only difference. LIGHT against HEAVY therefore

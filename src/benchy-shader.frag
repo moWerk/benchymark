@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// nutty-benchy's SHADER phase: a doubly domain-warped fBm field.
+// CLOUDHEAVY: a doubly domain-warped fBm field.
 //
 // Chosen because it is honestly GPU-bound and scales with PIXELS, not with
 // scene complexity: four fBm evaluations of seven octaves each means ~28 noise

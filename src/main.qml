@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // benchymark — the AsteroidOS rendering benchmark.
 //
-// This is the watchface scene (nutty-benchy, wearing Nutty Null's layout)
+// The scene wears Nutty Null's layout, carried out of a watchface
 // carried into a real app, because a watchface runs inside the compositor and
 // its Nemo.KeepAlive request is ignored there — only a client app can hold the
 // screen for the length of a run, which the measurement depends on.
@@ -537,32 +537,10 @@ Application {
 
 
         // ── CLOUDHEAVY: the one phase that is purely fragment-bound ───────────
-        // Everything else here is CPU, geometry or draw-call work; this is the GPU
-        // doing 35 noise lookups (140 sin-based hashes) per pixel per frame, so
-        // it scales with PANEL
-        // AREA rather than scene complexity — the phase that most needs Mpix/s
-        // reported beside raw FPS. Qt6 loads the pre-compiled .qsb (inline GLSL
-        // crashes it); the .frag source ships beside it so this can be rebuilt.
-
-        // ── BENCHY: 3DBenchy as a rotating wireframe, projected in QML ────────
-        // There is no 3D engine on these images (QtQuick3D is absent — checked on
-        // catfish), so the watchface IS the renderer: every frame it rotates 1118
-        // vertices, projects them with a perspective divide, and hands six point
-        // arrays to six PathPolylines. The model arrives pre-welded and chained
-        // into strips by tools/stl_to_qml_mesh.py, so the watch pays only for
-        // rotate → project → stroke. This is deliberately the heaviest phase and
-        // the finale: JS arithmetic and Shape re-tessellation at once.
-        //
-        // 3DBenchy is public domain (NTI Group, 2025-02-14); credit to Creative
-        // Tools / NTI.
-        // How many of the six strips to draw — the dial for how brutal this is.
-        // Lower it if the phase is a slideshow rather than a rotation.
-
-
-        // BENCHYLITE (phase 8) runs the same boat decimated to 438 vertices /
-        // 1545 segments; BENCHY (phase 9) is the full 1118 / 3720. Same code path,
-        // so the pair measures how frame time scales with segment count.
-
+        // Everything else here is CPU, geometry or draw-call work; CLOUDHEAVY
+        // is the GPU alone, so it scales with PANEL AREA rather than scene
+        // complexity — the phase that most needs Mpix/s reported beside raw
+        // FPS. Details live in the phase files.
 
         // ── FPS rotator: head + following trail ───────────────────────────
         // DECLARED LAST of the visuals on purpose (moWerk): declaration order
