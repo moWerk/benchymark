@@ -10,10 +10,13 @@
 // into strips by tools/stl_to_qml_mesh.py, so the watch pays only for
 // rotate → project → stroke.
 //
-// The full 1118-vertex mesh was dropped: it looked barely different from the
-// decimated one and took so long to instantiate that its phase expired before
-// it drew (moWerk). `lite` stays as the switch so a heavier mesh can be
-// dropped back in without restructuring anything.
+// ONE mesh. The 1118-vertex version was dropped — barely distinguishable from
+// the decimated one and so slow to instantiate that its phase expired before
+// it drew (moWerk) — and carrying it unused cost 30 KB in the package plus the
+// parse on every load.
+//
+// The STL itself is never shipped: tools/stl_to_qml_mesh.py reads it once on
+// the host and emits the integer coordinate table below it.
 //
 // 3DBenchy is public domain (NTI Group, 2025-02-14); credit to Creative
 // Tools / NTI.
@@ -21,14 +24,11 @@
 import QtQuick
 import QtQuick.Shapes
 import "../benchy-mesh.js" as Mesh
-import "../benchy-mesh-lite.js" as MeshLite
 
 Item {
     id: phase
 
     property var bench
-    // Which boat: the decimated one, or the whole hull.
-    property bool lite: false
     // How many of the six strips to draw — the dial for how brutal this is.
     // Lower it if the phase is a slideshow rather than a rotation.
     property int strips: 6
@@ -39,7 +39,7 @@ Item {
     onAngleChanged: phase.project()
 
     function project() {
-        var M = phase.lite ? MeshLite : Mesh;
+        var M = Mesh;
         var V = M.V, S = M.S;
         var a = phase.angle * Math.PI / 180;
         var ca = Math.cos(a), sa = Math.sin(a);
@@ -82,7 +82,6 @@ Item {
         id: benchyShape
 
         anchors.fill: parent
-        visible: (bench.activePhase === 12 || bench.activePhase === 13) && bench.awake
         onVisibleChanged: if (visible) bench.projectBenchy()
 
         ShapePath { id: bp0; fillColor: "#2258a6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#58a6ff"; strokeWidth: 1; PathPolyline { id: pl0 } }
@@ -95,7 +94,7 @@ Item {
         NumberAnimation on rotationDriver {
             from: 0
             to: 360
-            duration: phase.lite ? 4000 : 6000
+            duration: 4000
             loops: Animation.Infinite
             running: bench.awake
         }

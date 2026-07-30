@@ -8,7 +8,6 @@ set_target_properties(benchymark PROPERTIES PREFIX "")
 asteroid_app_qml_module(benchymark
 	main.qml
 	benchy-mesh.js
-	benchy-mesh-lite.js
 	phases/Benchy.qml
 	phases/Cascade.qml
 	phases/CloudHeavy.qml

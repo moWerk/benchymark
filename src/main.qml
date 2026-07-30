@@ -50,8 +50,6 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
 import org.asteroid.controls
-import "benchy-mesh.js" as Mesh
-import "benchy-mesh-lite.js" as MeshLite
 import Nemo.Configuration
 import Nemo.KeepAlive
 import Benchymark 1.0
@@ -157,7 +155,7 @@ Application {
         { name: "CASCADE",    dur: 10, file: "Cascade" },
         { name: "CLOUDMID",   dur: 10, file: "CloudMid" },
         { name: "CLOUDHEAVY", dur: 10, file: "CloudHeavy" },
-        { name: "BENCHY",     dur: 10, file: "Benchy", lite: true }
+        { name: "BENCHY",     dur: 10, file: "Benchy" }
     ]
     // A quiet TWO seconds between phases: watches enter a phase carrying the
     // previous one's backlog, and the frame rate is still falling when a short
@@ -698,7 +696,7 @@ Application {
         }
         var ph = phases[phase];
         sceneLoader.setSource("phases/" + ph.file + ".qml",
-                              { "bench": root, "lite": ph.lite === true });
+                              { "bench": root });
     }
 
     function preloadNext() {
@@ -708,7 +706,7 @@ Application {
             return;
         }
         preloader.setSource("phases/" + phases[n].file + ".qml",
-                            { "bench": root, "lite": phases[n].lite === true });
+                            { "bench": root });
         preloader.active = true;
     }
 
