@@ -47,6 +47,7 @@
 // Font: Inter Tight (SIL OFL 1.1)
 
 import QtQuick
+import QtQuick.Window
 import QtQuick.Effects
 import QtQuick.Shapes
 import org.asteroid.controls
@@ -129,15 +130,29 @@ Application {
     readonly property color gold: "#f0c30e"
 
     // ── frame counting ────────────────────────────────────────────────────
-    // An animation ticks once per RENDERED frame, so dropped frames simply do
-    // not tick. Window-free and Qt-version agnostic; no QQuickWindow needed.
-    property real frameTick: 0
+    // frameSwapped fires once per PRESENTED frame, from the render thread.
+    //
+    // The previous counter incremented on an animation's value change, which
+    // sounded equivalent and is not: Qt Quick renders on one thread and runs
+    // JS, timers and property updates on another. A phase that loads the GUI
+    // thread — SHAPES re-tessellating its path is the clearest case — leaves
+    // the render thread presenting a comfortable 60 while everything
+    // JS-driven crawls. The old counter lived on the starved thread, so it
+    // reported 20 for a phase that visibly ran smooth (moWerk), and the sweep
+    // that was meant to be smooth stuttered at the same wrong rate.
+    //
+    // Counting presented frames measures what the eye sees. GUI-thread
+    // starvation is a real cost too, but it is a different number and must
+    // not be reported as this one.
     property int frameCount: 0
     property int fps: 0
     property var fpsHistory: []
     readonly property int trailCount: 5
 
-    onFrameTickChanged: root.frameCount++
+    Connections {
+        target: root.Window.window
+        function onFrameSwapped() { root.frameCount++; }
+    }
 
     // ── phase machine ─────────────────────────────────────────────────────
     // name, duration, and the file that renders it. One file per phase: a
@@ -371,14 +386,6 @@ Application {
 
     // The frame-tick driver. Long duration, infinite loops — the value itself
     // is meaningless, only the per-frame notification matters.
-    NumberAnimation on frameTick {
-        from: 0
-        to: 1000000
-        duration: 16000000
-        loops: Animation.Infinite
-        running: !displayAmbient
-    }
-
     // One second: harvest the frame count into fps + the trail history, and
     // drive the countdown / phase machine.
     Timer {
@@ -630,48 +637,25 @@ Application {
 
     }
 
-    // The sweep, driven by the CLOCK rather than by an animation — the same
-    // 16 ms pattern the stock analog faces use for a smooth second hand
-    // (005-analog-circle-shades). A NumberAnimation is scheduled against the
-    // frame it happens to get, so it visibly stuttered even at a flat 60;
-    // recomputing the angle from elapsed time each tick cannot drift, because
-    // every tick asks the clock instead of accumulating.
-    //
-    // ONE lap per PHASE, so the needle starts and finishes at the top of
-    // every phase — second-hand smoothness, phase-length pace. Derived from
-    // the phase's own duration rather than a hardcoded divisor, so it stays
-    // right if a duration ever changes. ORBIT sweeps one and a half laps and
-    // starts from six o'clock (moWerk).
-    property real rotorAngle: 0
-    property real sweepStartMs: 0
-
     readonly property bool orbitPhase: root.activePhase === 3
-
-    Timer {
-        interval: 16
-        repeat: true
-        running: root.running && root.sceneReady && !root.inGap && !displayAmbient
-
-        onRunningChanged: {
-            if (running)
-                root.sweepStartMs = Date.now();
-            else
-                root.rotorAngle = 0;      // parked at twelve between phases
-        }
-
-        onTriggered: {
-            var t = (Date.now() - root.sweepStartMs) / 1000;
-            var dur = root.running ? root.phases[root.phase].dur : 10;
-            var laps = root.orbitPhase ? 1.5 : 1.0;
-            var from = root.orbitPhase ? 180 : 0;
-            root.rotorAngle = (from + (t / dur) * 360 * laps) % 360;
-        }
-    }
 
     Item {
         id: rotor
 
         anchors.fill: parent
+        transformOrigin: Item.Center
+
+        // RotationAnimator, not a binding or a Timer: Animators run on the
+        // RENDER thread, so the sweep keeps its pace even while a phase has
+        // the GUI thread pinned. One lap per phase; ORBIT takes one and a
+        // half and starts from six o'clock.
+        RotationAnimator on rotation {
+            from: root.orbitPhase ? 180 : 0
+            to: (root.orbitPhase ? 180 : 0) + (root.orbitPhase ? 540 : 360)
+            duration: (root.running ? root.phases[root.phase].dur : 10) * 1000
+            loops: Animation.Infinite
+            running: root.running && root.sceneReady && !root.inGap && !root.displayAmbient
+        }
         // Nothing to report during the countdown, and a 0 sitting on the rim
         // reads as a measurement rather than as an absence. It arrives when
         // IDLE does.
@@ -686,8 +670,12 @@ Application {
 
             delegate: Text {
                 readonly property bool head: index === 0
-                // Trailing numerals lag the head; the gap widens down the tail.
-                readonly property real ang: (root.rotorAngle - index * 13 - 90) * Math.PI / 180
+                // A STATIC angle now: the ring itself turns. Positions used to
+                // be recomputed in JS from an animated angle, which pinned the
+                // sweep to the GUI thread — so on a phase that loads that
+                // thread the needle stuttered at the loaded rate while the
+                // scene behind it ran smooth (moWerk).
+                readonly property real ang: (-index * 13 - 90) * Math.PI / 180
                 readonly property int shown: head ? root.fps
                                                   : (root.fpsHistory.length > index ? root.fpsHistory[index] : -1)
 
@@ -700,6 +688,17 @@ Application {
                 font.family: "Inter Tight"
                 font.weight: head ? Font.Bold : Font.Light
                 font.pixelSize: root.maxSize * (head ? 0.13 : 0.1)
+
+                // Equal and opposite, so a numeral stays upright while the
+                // ring carries it round. Also an Animator, so both halves live
+                // on the render thread and cannot drift apart under load.
+                RotationAnimator on rotation {
+                    from: root.orbitPhase ? -180 : 0
+                    to: (root.orbitPhase ? -180 : 0) - (root.orbitPhase ? 540 : 360)
+                    duration: (root.running ? root.phases[root.phase].dur : 10) * 1000
+                    loops: Animation.Infinite
+                    running: root.running && root.sceneReady && !root.inGap && !root.displayAmbient
+                }
             }
 
         }
