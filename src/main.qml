@@ -168,7 +168,7 @@ Application {
         { name: "DRAWFONT",   dur: 10, file: "Drawfont" },
         { name: "SHAPES",     dur: 10, file: "Shapes" },
         { name: "CASCADE",    dur: 10, file: "Cascade" },
-        { name: "CLOUDMID",   dur: 10, file: "CloudMid" },
+        { name: "CLOUDLIGHT", dur: 10, file: "CloudLight" },
         { name: "CLOUDHEAVY", dur: 10, file: "CloudHeavy" },
         { name: "BENCHY",     dur: 10, file: "Benchy" }
     ]
@@ -518,19 +518,22 @@ Application {
         // recalculation without making the picture look busier, because this one
         // turns the other way and breathes on the opposite beat.
 
-        // ── THE CLOUD LADDER ──────────────────────────────────────────────────
-        // Three renderings of one scene, separating the three things that make a
-        // procedural cloud expensive. Per fragment, in lattice-hash evaluations:
+        // ── THE CLOUD PAIR ────────────────────────────────────────────────────
+        // One scene at two costs. Per fragment, in lattice-hash evaluations:
         //
-        //   CLOUDLITE   12   cheap fract hash, 3 octaves, NO domain warp
-        //   CLOUDMID    48   same hash, 4 octaves, ONE warp (a SERIAL dependency)
+        //   CLOUDLIGHT  24   cheap fract hash, 3 octaves, ONE scalar warp
         //   CLOUDHEAVY 140   sin() hash, 7 octaves, TWO warps
         //
-        // So LITE vs MID isolates warp cost, and MID vs HEAVY isolates the
-        // transcendental hash. LITE is the GPU baseline — what IDLE is for the
-        // whole app, LITE is for the GPU alone: if it is not near 60, nothing
-        // above it will be. It is also the candidate stock wallpaper, which is why
-        // it carries centerColor/outerColor with FlatMesh's exact property names.
+        // The pair prices the two things that make a procedural cloud
+        // expensive: the transcendental hash, and the domain warp — which is a
+        // SERIAL dependency, so it costs more than its instruction count
+        // suggests and the GPU cannot hide it behind latency. Measured 13
+        // against 5 on nemo.
+        //
+        // A third, warp-free rung existed briefly as a GPU baseline and as a
+        // candidate stock wallpaper. It was never going to reach FlatMesh's
+        // frugality, and that job went to people who write shaders for a
+        // living; git holds it.
 
 
         // ── CLOUDHEAVY: the one phase that is purely fragment-bound ───────────

@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The MID cloud — the middle rung.
+// The LIGHT cloud — the middle rung.
 //
 // Same scene, same cheap hash and same uniform glints as cloud-frugal, with
 // the one thing added back that the frugal shader refuses: a DOMAIN WARP.
 //
-// That is deliberately the only difference. LITE against MID therefore
+// That is deliberately the only difference. LIGHT against HEAVY therefore
 // isolates warp cost and nothing else — which matters, because the warp is a
 // SERIAL dependency: the field cannot start until the warp resolves, so it
 // costs more than its instruction count suggests and the GPU cannot hide it
@@ -17,7 +17,7 @@
 // of two independent ones — which halves the added work while keeping the
 // effect that is being measured. Cost per fragment, in lattice hashes:
 //
-//     LITE  8   ·   MID  24   ·   HEAVY  140
+//     LIGHT  24   ·   HEAVY  140
 //
 // If MID still sits far from its 30 fps target, the next dial is the octave
 // count, then the warp amplitude. It is meant to be tuned against silicon

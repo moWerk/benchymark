@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// CLOUDMID: one domain warp and four octaves — 48 hashes per fragment. The
+// CLOUDLIGHT: one domain warp and four octaves — 48 hashes per fragment. The
 // warp is a SERIAL dependency, so it costs more than its instruction count.
 //
 // Loaded only while its phase runs, so nothing here exists — or is even
@@ -21,7 +21,7 @@ Item {
         id: cloudMid
 
         anchors.fill: parent
-        fragmentShader: "file:///usr/share/benchymark/cloud-mid.frag.qsb"
+        fragmentShader: "file:///usr/share/benchymark/cloud-light.frag.qsb"
 
         property real t: 0
         property color centerColor: "#58a6ff"

@@ -25,6 +25,21 @@ Item {
         // anchor, the effect collapsed to zero size and the halo simply never
         // appeared. Both items fill the root, so parent is the same rectangle.
         anchors.fill: parent
+        transformOrigin: Item.Center
+
+        // MultiEffect captures its source in the SOURCE's own coordinates, so
+        // the ring's own rotation is not in the texture: the halo sat still
+        // while the numerals orbited past it (moWerk). The same Animator, with
+        // the same parameters, puts them back in step — and being an Animator
+        // it runs on the render thread, so the two cannot drift apart under
+        // load the way a binding would.
+        RotationAnimator on rotation {
+            from: 180
+            to: 720
+            duration: (bench.running ? bench.phases[bench.phase].dur : 10) * 1000
+            loops: Animation.Infinite
+            running: bench.running && bench.sceneReady && !bench.inGap
+        }
         shadowEnabled: true
         shadowColor: "#e0f0c30e"
         shadowHorizontalOffset: 0
