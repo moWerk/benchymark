@@ -637,7 +637,10 @@ Application {
     // recomputing the angle from elapsed time each tick cannot drift, because
     // every tick asks the clock instead of accumulating.
     //
-    // One lap per second, like a second hand. ORBIT sweeps at 1.5 laps and
+    // ONE lap per PHASE, so the needle starts and finishes at the top of
+    // every phase — second-hand smoothness, phase-length pace. Derived from
+    // the phase's own duration rather than a hardcoded divisor, so it stays
+    // right if a duration ever changes. ORBIT sweeps one and a half laps and
     // starts from six o'clock (moWerk).
     property real rotorAngle: 0
     property real sweepStartMs: 0
@@ -658,9 +661,10 @@ Application {
 
         onTriggered: {
             var t = (Date.now() - root.sweepStartMs) / 1000;
+            var dur = root.running ? root.phases[root.phase].dur : 10;
             var laps = root.orbitPhase ? 1.5 : 1.0;
             var from = root.orbitPhase ? 180 : 0;
-            root.rotorAngle = (from + t * 360 * laps) % 360;
+            root.rotorAngle = (from + (t / dur) * 360 * laps) % 360;
         }
     }
 
