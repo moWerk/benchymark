@@ -20,7 +20,11 @@ Item {
 
     MultiEffect {
         source: bench.rotorItem
-        anchors.fill: bench.rotorItem
+        // fill: parent, NOT bench.rotorItem. The rotator lives outside this
+        // Loader, so it is neither parent nor sibling — QML refuses such an
+        // anchor, the effect collapsed to zero size and the halo simply never
+        // appeared. Both items fill the root, so parent is the same rectangle.
+        anchors.fill: parent
         shadowEnabled: true
         shadowColor: "#e0f0c30e"
         shadowHorizontalOffset: 0

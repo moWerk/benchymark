@@ -10,9 +10,10 @@
 // into strips by tools/stl_to_qml_mesh.py, so the watch pays only for
 // rotate → project → stroke.
 //
-// ONE file serves both phases: `lite` picks the 438-vertex mesh over the
-// 1118-vertex one. Same code path, so the pair measures how frame time scales
-// with segment count and nothing else.
+// The full 1118-vertex mesh was dropped: it looked barely different from the
+// decimated one and took so long to instantiate that its phase expired before
+// it drew (moWerk). `lite` stays as the switch so a heavier mesh can be
+// dropped back in without restructuring anything.
 //
 // 3DBenchy is public domain (NTI Group, 2025-02-14); credit to Creative
 // Tools / NTI.

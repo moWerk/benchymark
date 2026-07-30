@@ -12,7 +12,6 @@ asteroid_app_qml_module(benchymark
 	phases/Benchy.qml
 	phases/Cascade.qml
 	phases/CloudHeavy.qml
-	phases/CloudLite.qml
 	phases/CloudMid.qml
 	phases/Drawcalls.qml
 	phases/Drawfont.qml

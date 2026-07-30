@@ -59,8 +59,13 @@ import Benchymark 1.0
 Application {
     id: root
 
-    centerColor: "#58A6FF"
-    outerColor: "#0B1B2E"
+    // These set the FlatMesh the launcher draws behind the app AT RUNTIME,
+    // and they OVERRIDE the .desktop entry — which is why changing
+    // X-Asteroid-Center-Color achieved nothing at all. Stock FlatMesh grey,
+    // two tones down, so every phase is read against the same neutral
+    // nothing (moWerk). Keep this in step with benchymark.desktop.template.
+    centerColor: "#666666"
+    outerColor: "#000000"
 
     // The launcher hands a watchface `wallClock` and `displayAmbient`; an app
     // gets neither, so the clock is local and "awake" is simply true — the app
@@ -150,11 +155,9 @@ Application {
         { name: "DRAWFONT",   dur: 10, file: "Drawfont" },
         { name: "SHAPES",     dur: 10, file: "Shapes" },
         { name: "CASCADE",    dur: 10, file: "Cascade" },
-        { name: "CLOUDLITE",  dur: 10, file: "CloudLite" },
         { name: "CLOUDMID",   dur: 10, file: "CloudMid" },
         { name: "CLOUDHEAVY", dur: 10, file: "CloudHeavy" },
-        { name: "BENCHYLITE", dur: 10, file: "Benchy", lite: true },
-        { name: "BENCHY",     dur: 10, file: "Benchy" }
+        { name: "BENCHY",     dur: 10, file: "Benchy", lite: true }
     ]
     // A quiet TWO seconds between phases: watches enter a phase carrying the
     // previous one's backlog, and the frame rate is still falling when a short
@@ -186,6 +189,10 @@ Application {
         if (inGap) {
             fadeOut.restart();
             root.preloadNext();
+            // Park the sweep at 12 o'clock. An `Animation on` leaves the
+            // property where it stopped, so without this the needle would
+            // freeze wherever the phase happened to end.
+            root.rotorAngle = 0;
         } else {
             fadedOut = false;
         }
@@ -219,6 +226,13 @@ Application {
     // host's own kernel-side sampling): [{phase, min, avg, samples}]
     property var results: []
     property var _cur: []
+    // The phase is only "running" for measurement purposes once its scene has
+    // been built. A phase that never becomes ready is capped rather than
+    // hanging the run: it reports zero samples, which reads as a failure
+    // instead of as a fast phase.
+    readonly property bool sceneReady: sceneLoader.status === Loader.Ready
+    property int waitedForScene: 0
+    readonly property int sceneWaitCap: 15
 
     BenchLog { id: benchLog }
 
@@ -269,9 +283,17 @@ Application {
                 inGap = false;
                 phase++;
                 phaseElapsed = 0;
+                waitedForScene = 0;
                 _cur = [];
             }
             return;
+        }
+        // Hold the clock until the scene is up. Without this the phase spent
+        // its first seconds measuring an empty screen at 60.
+        if (!sceneReady) {
+            waitedForScene++;
+            if (waitedForScene < sceneWaitCap)
+                return;
         }
         phaseElapsed++;
         // In manual mode the clock still counts (the label needs it) but the
@@ -331,6 +353,11 @@ Application {
     }
 
     anchors.fill: parent
+    // An `Animation on opacity` leaves the property where it stopped, so the
+    // countdown's pulse could strand the clock at a third of its opacity for
+    // the whole run — the same trap as the scale and pixelSize animations.
+    onCountdownChanged: if (countdown <= 0) centreText.opacity = 1
+
     onPhaseChanged: {
         root.loadPhase();
         phaseBeacon.value = (phase < 0 ? "countdown"
@@ -372,7 +399,13 @@ Application {
             while (h.length > root.trailCount)
                 h.pop();
             root.fpsHistory = h;
-            if (root.running) {
+            // Only count once the scene is actually UP. setSource() has to
+            // instantiate the phase, and until it does the screen is empty and
+            // the counter honestly reads 60 — so the average was measuring
+            // load time, not the workload. That is what made every phase
+            // report 60 while the rotator visibly dipped, and what let BENCHY
+            // expire before it had finished building (moWerk).
+            if (root.running && root.sceneReady) {
                 var c = root._cur.slice();
                 c.push(root.fps);
                 root._cur = c;
@@ -421,171 +454,198 @@ Application {
         visible: false
     }
 
-    // ── centre glyph ──────────────────────────────────────────────────────
-    // The workload carrier. Black weight (moWerk): more coverage per glyph, so
-    // a cache miss costs more — exactly what RERASTER is meant to expose.
-    // SCALE and RERASTER show the SAME visual span by two different routes:
-    // SCALE animates a transform on distance-field text (the pattern the RAG
-    // recommends), RERASTER animates font.pixelSize on native-rendered text
-    // (the anti-pattern it warns about — every size churns the glyph cache
-    // with a CPU rasterisation and a texture upload). Their ratio IS the
-    // measurement.
-    // ── OVERDRAW: stacked translucent full-screen fills, the compositor must
-    // blend every one of them every frame. Pure fill rate; scales with panel
-    // pixels, which is why results are also reported per megapixel.
-
-    // ── DRAWCALLS: org.asteroid.controls Icon is a QQuickPaintedItem — each
-    // icon is its own scene-graph texture and cannot batch with its siblings,
-    // so this measures draw-call/state overhead rather than fill rate.
-
-    // ── SHAPES: a stroked path whose geometry changes every frame, so it is
-    // re-tessellated continuously — the geometry pipeline, not fill or glyphs.
-    // ── DRAWFONT: the same storm rendered as COLOUR GLYPHS ────────────────
-    // Not a second draw-call phase, and the difference is the finding. Text
-    // batches: Qt packs glyphs into an atlas and draws many in one call, which
-    // is exactly why DRAWCALLS uses Icons (each a QQuickPaintedItem with its
-    // own texture, unbatchable). Colour-emoji glyphs sit between the two —
-    // they carry their own bitmap/COLR data rather than joining the
-    // distance-field atlas, so this measures coloured-glyph upload against
-    // DRAWCALLS' per-item textures at an identical item count and motion.
-
-
-    // ── CASCADE: scale on an Item with many children forces a transform
-    // recalculation for every child on every frame (RAG expensive_operations).
-
-    // A SECOND cascade, counter-phase and counter-rotating. One cascade held a
-    // flat 60 on every watch tried (moWerk), so the phase was measuring
-    // nothing: two independent transform trees double the per-frame
-    // recalculation without making the picture look busier, because this one
-    // turns the other way and breathes on the opposite beat.
-
-    // ── THE CLOUD LADDER ──────────────────────────────────────────────────
-    // Three renderings of one scene, separating the three things that make a
-    // procedural cloud expensive. Per fragment, in lattice-hash evaluations:
-    //
-    //   CLOUDLITE   12   cheap fract hash, 3 octaves, NO domain warp
-    //   CLOUDMID    48   same hash, 4 octaves, ONE warp (a SERIAL dependency)
-    //   CLOUDHEAVY 140   sin() hash, 7 octaves, TWO warps
-    //
-    // So LITE vs MID isolates warp cost, and MID vs HEAVY isolates the
-    // transcendental hash. LITE is the GPU baseline — what IDLE is for the
-    // whole app, LITE is for the GPU alone: if it is not near 60, nothing
-    // above it will be. It is also the candidate stock wallpaper, which is why
-    // it carries centerColor/outerColor with FlatMesh's exact property names.
-
-
-    // ── CLOUDHEAVY: the one phase that is purely fragment-bound ───────────
-    // Everything else here is CPU, geometry or draw-call work; this is the GPU
-    // doing 35 noise lookups (140 sin-based hashes) per pixel per frame, so
-    // it scales with PANEL
-    // AREA rather than scene complexity — the phase that most needs Mpix/s
-    // reported beside raw FPS. Qt6 loads the pre-compiled .qsb (inline GLSL
-    // crashes it); the .frag source ships beside it so this can be rebuilt.
-
-    // ── BENCHY: 3DBenchy as a rotating wireframe, projected in QML ────────
-    // There is no 3D engine on these images (QtQuick3D is absent — checked on
-    // catfish), so the watchface IS the renderer: every frame it rotates 1118
-    // vertices, projects them with a perspective divide, and hands six point
-    // arrays to six PathPolylines. The model arrives pre-welded and chained
-    // into strips by tools/stl_to_qml_mesh.py, so the watch pays only for
-    // rotate → project → stroke. This is deliberately the heaviest phase and
-    // the finale: JS arithmetic and Shape re-tessellation at once.
-    //
-    // 3DBenchy is public domain (NTI Group, 2025-02-14); credit to Creative
-    // Tools / NTI.
-    // How many of the six strips to draw — the dial for how brutal this is.
-    // Lower it if the phase is a slideshow rather than a rotation.
-
-
-    // BENCHYLITE (phase 8) runs the same boat decimated to 438 vertices /
-    // 1545 segments; BENCHY (phase 9) is the full 1118 / 3720. Same code path,
-    // so the pair measures how frame time scales with segment count.
-
-
-    // ── FPS rotator: head + following trail ───────────────────────────
-    // DECLARED LAST of the visuals on purpose (moWerk): declaration order
-    // IS paint order in QML, so this sits above every workload layer —
-    // the readout must stay legible through overdraw, icons and the
-    // wireframe. Never fix this with z: (RAG paint_order rule).
-    // ── head + following trail ───────────────────────────────
-    // Nutty Null's hour numeral and its fading neighbours, repurposed. The
-    // head shows the live FPS at the leading rim position; each trail numeral
-    // sits BEHIND it holding an older reading, so values push backwards
-    // through the tail as the head sweeps on.
-    // ── the clock, moved ABOVE every workload ─────────────────────────────
-    // Declaration order is paint order. The tests now run BEHIND the thing
-    // that tells the time, like a wallpaper (moWerk) — which also means the
-    // glyph never disappears under a phase, so the watch stays a watch while
-    // it is being tortured. It is still a test subject itself: SCALE and
-    // RERASTER drive this very glyph.
+    // The glyph's own geometry, on ROOT: the wrapper below is a fade, not a
+    // scope. Left inside it these read as undefined through root.* here AND
+    // through bench.* in the Scale and Reraster phases.
     readonly property real baseGlyph: maxSize * 0.336   // +20% (moWerk)
     readonly property real glyphPeak: 1.8
 
-    // Both text phases drive a RING of glyphs as well as the centre one: a
-    // single Text barely troubled any watch (moWerk). The ring uses the same
-    // route as the centre glyph in each phase, so the SCALE:RERASTER ratio
-    // still isolates the glyph-cache path — only the magnitude changed.
+    // ── centre glyph, with the gap fade on a WRAPPER ──────────────────────
+    // The fade cannot live on the Text itself: its countdown pulse is an
+    // `Animation on opacity`, which owns that property outright and would
+    // fight any binding. A parent Item carries the gap fade instead, so both
+    // work and neither knows about the other. During a gap the clock steps
+    // aside too, leaving only the phase title (moWerk).
+    Item {
+        anchors.fill: parent
+        opacity: root.inGap ? 0 : 1
 
-    Text {
-        id: centreText
-
-        readonly property bool scaling: root.glyphMode === "scale"
-        readonly property bool rerastering: root.glyphMode === "reraster"
-
-        text: root.countdown > 0 ? root.countdown : root.mmStr
-        visible: !root.done
-        color: root.countdown > 0 ? root.hot : root.fg
-        anchors.centerIn: parent
-        renderType: rerastering ? Text.NativeRendering : Text.QtRendering
-        font.family: "Inter Tight"
-        // Light, not Black: moWerk wants this beautiful first and expensive
-        // second — Nutty Null's thin elegance survives the benchmark. The
-        // countdown is the exception: it has to read across a room, so it
-        // takes a step up the weight ramp.
-        font.weight: root.countdown > 0 ? Font.Normal : Font.Light
-        font.letterSpacing: -root.maxSize * 0.02
-        font.pixelSize: root.baseGlyph
-
-        // Both animations below own their property while running and LEAVE IT
-        // WHERE THEY STOPPED when they end — which is why the clock stayed
-        // blown up to full screen for every phase after RERASTER. Putting it
-        // back is not automatic; these two handlers do it.
-        onScalingChanged: if (!scaling) scale = 1
-        onRerasteringChanged: if (!rerastering) font.pixelSize = root.baseGlyph
-
-        SequentialAnimation on scale {
-            running: centreText.scaling && centreText.visible && root.awake
-            loops: Animation.Infinite
-            alwaysRunToEnd: false
-            NumberAnimation { from: 1; to: root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { from: root.glyphPeak; to: 1; duration: 900; easing.type: Easing.InOutSine }
+        Behavior on opacity {
+            NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
         }
 
-        SequentialAnimation on font.pixelSize {
-            running: centreText.rerastering && centreText.visible && root.awake
-            loops: Animation.Infinite
-            NumberAnimation { from: root.baseGlyph; to: root.baseGlyph * root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { from: root.baseGlyph * root.glyphPeak; to: root.baseGlyph; duration: 900; easing.type: Easing.InOutSine }
-        }
+        // ── centre glyph ──────────────────────────────────────────────────────
+        // The workload carrier. Black weight (moWerk): more coverage per glyph, so
+        // a cache miss costs more — exactly what RERASTER is meant to expose.
+        // SCALE and RERASTER show the SAME visual span by two different routes:
+        // SCALE animates a transform on distance-field text (the pattern the RAG
+        // recommends), RERASTER animates font.pixelSize on native-rendered text
+        // (the anti-pattern it warns about — every size churns the glyph cache
+        // with a CPU rasterisation and a texture upload). Their ratio IS the
+        // measurement.
+        // ── OVERDRAW: stacked translucent full-screen fills, the compositor must
+        // blend every one of them every frame. Pure fill rate; scales with panel
+        // pixels, which is why results are also reported per megapixel.
 
-        // The countdown reads as a pulse so it is obvious across the room.
-        SequentialAnimation on opacity {
-            running: root.countdown > 0 && root.awake
-            loops: Animation.Infinite
-            NumberAnimation { from: 1; to: 0.35; duration: 500 }
-            NumberAnimation { from: 0.35; to: 1; duration: 500 }
+        // ── DRAWCALLS: org.asteroid.controls Icon is a QQuickPaintedItem — each
+        // icon is its own scene-graph texture and cannot batch with its siblings,
+        // so this measures draw-call/state overhead rather than fill rate.
+
+        // ── SHAPES: a stroked path whose geometry changes every frame, so it is
+        // re-tessellated continuously — the geometry pipeline, not fill or glyphs.
+        // ── DRAWFONT: the same storm rendered as COLOUR GLYPHS ────────────────
+        // Not a second draw-call phase, and the difference is the finding. Text
+        // batches: Qt packs glyphs into an atlas and draws many in one call, which
+        // is exactly why DRAWCALLS uses Icons (each a QQuickPaintedItem with its
+        // own texture, unbatchable). Colour-emoji glyphs sit between the two —
+        // they carry their own bitmap/COLR data rather than joining the
+        // distance-field atlas, so this measures coloured-glyph upload against
+        // DRAWCALLS' per-item textures at an identical item count and motion.
+
+
+        // ── CASCADE: scale on an Item with many children forces a transform
+        // recalculation for every child on every frame (RAG expensive_operations).
+
+        // A SECOND cascade, counter-phase and counter-rotating. One cascade held a
+        // flat 60 on every watch tried (moWerk), so the phase was measuring
+        // nothing: two independent transform trees double the per-frame
+        // recalculation without making the picture look busier, because this one
+        // turns the other way and breathes on the opposite beat.
+
+        // ── THE CLOUD LADDER ──────────────────────────────────────────────────
+        // Three renderings of one scene, separating the three things that make a
+        // procedural cloud expensive. Per fragment, in lattice-hash evaluations:
+        //
+        //   CLOUDLITE   12   cheap fract hash, 3 octaves, NO domain warp
+        //   CLOUDMID    48   same hash, 4 octaves, ONE warp (a SERIAL dependency)
+        //   CLOUDHEAVY 140   sin() hash, 7 octaves, TWO warps
+        //
+        // So LITE vs MID isolates warp cost, and MID vs HEAVY isolates the
+        // transcendental hash. LITE is the GPU baseline — what IDLE is for the
+        // whole app, LITE is for the GPU alone: if it is not near 60, nothing
+        // above it will be. It is also the candidate stock wallpaper, which is why
+        // it carries centerColor/outerColor with FlatMesh's exact property names.
+
+
+        // ── CLOUDHEAVY: the one phase that is purely fragment-bound ───────────
+        // Everything else here is CPU, geometry or draw-call work; this is the GPU
+        // doing 35 noise lookups (140 sin-based hashes) per pixel per frame, so
+        // it scales with PANEL
+        // AREA rather than scene complexity — the phase that most needs Mpix/s
+        // reported beside raw FPS. Qt6 loads the pre-compiled .qsb (inline GLSL
+        // crashes it); the .frag source ships beside it so this can be rebuilt.
+
+        // ── BENCHY: 3DBenchy as a rotating wireframe, projected in QML ────────
+        // There is no 3D engine on these images (QtQuick3D is absent — checked on
+        // catfish), so the watchface IS the renderer: every frame it rotates 1118
+        // vertices, projects them with a perspective divide, and hands six point
+        // arrays to six PathPolylines. The model arrives pre-welded and chained
+        // into strips by tools/stl_to_qml_mesh.py, so the watch pays only for
+        // rotate → project → stroke. This is deliberately the heaviest phase and
+        // the finale: JS arithmetic and Shape re-tessellation at once.
+        //
+        // 3DBenchy is public domain (NTI Group, 2025-02-14); credit to Creative
+        // Tools / NTI.
+        // How many of the six strips to draw — the dial for how brutal this is.
+        // Lower it if the phase is a slideshow rather than a rotation.
+
+
+        // BENCHYLITE (phase 8) runs the same boat decimated to 438 vertices /
+        // 1545 segments; BENCHY (phase 9) is the full 1118 / 3720. Same code path,
+        // so the pair measures how frame time scales with segment count.
+
+
+        // ── FPS rotator: head + following trail ───────────────────────────
+        // DECLARED LAST of the visuals on purpose (moWerk): declaration order
+        // IS paint order in QML, so this sits above every workload layer —
+        // the readout must stay legible through overdraw, icons and the
+        // wireframe. Never fix this with z: (RAG paint_order rule).
+        // ── head + following trail ───────────────────────────────
+        // Nutty Null's hour numeral and its fading neighbours, repurposed. The
+        // head shows the live FPS at the leading rim position; each trail numeral
+        // sits BEHIND it holding an older reading, so values push backwards
+        // through the tail as the head sweeps on.
+        // ── the clock, moved ABOVE every workload ─────────────────────────────
+        // Declaration order is paint order. The tests now run BEHIND the thing
+        // that tells the time, like a wallpaper (moWerk) — which also means the
+        // glyph never disappears under a phase, so the watch stays a watch while
+        // it is being tortured. It is still a test subject itself: SCALE and
+        // RERASTER drive this very glyph.
+
+        // Both text phases drive a RING of glyphs as well as the centre one: a
+        // single Text barely troubled any watch (moWerk). The ring uses the same
+        // route as the centre glyph in each phase, so the SCALE:RERASTER ratio
+        // still isolates the glyph-cache path — only the magnitude changed.
+
+        Text {
+            id: centreText
+
+            readonly property bool scaling: root.glyphMode === "scale"
+            readonly property bool rerastering: root.glyphMode === "reraster"
+
+            text: root.countdown > 0 ? root.countdown : root.mmStr
+            visible: !root.done
+            color: root.countdown > 0 ? root.hot : root.fg
+            anchors.centerIn: parent
+            renderType: rerastering ? Text.NativeRendering : Text.QtRendering
+            font.family: "Inter Tight"
+            // Light, not Black: moWerk wants this beautiful first and expensive
+            // second — Nutty Null's thin elegance survives the benchmark. The
+            // countdown is the exception: it has to read across a room, so it
+            // takes a step up the weight ramp.
+            font.weight: root.countdown > 0 ? Font.Normal : Font.Light
+            font.letterSpacing: -root.maxSize * 0.02
+            font.pixelSize: root.baseGlyph
+
+            // Both animations below own their property while running and LEAVE IT
+            // WHERE THEY STOPPED when they end — which is why the clock stayed
+            // blown up to full screen for every phase after RERASTER. Putting it
+            // back is not automatic; these two handlers do it.
+            onScalingChanged: if (!scaling) scale = 1
+            onRerasteringChanged: if (!rerastering) font.pixelSize = root.baseGlyph
+
+            SequentialAnimation on scale {
+                running: centreText.scaling && centreText.visible && root.awake
+                loops: Animation.Infinite
+                alwaysRunToEnd: false
+                NumberAnimation { from: 1; to: root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { from: root.glyphPeak; to: 1; duration: 900; easing.type: Easing.InOutSine }
+            }
+
+            SequentialAnimation on font.pixelSize {
+                running: centreText.rerastering && centreText.visible && root.awake
+                loops: Animation.Infinite
+                NumberAnimation { from: root.baseGlyph; to: root.baseGlyph * root.glyphPeak; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { from: root.baseGlyph * root.glyphPeak; to: root.baseGlyph; duration: 900; easing.type: Easing.InOutSine }
+            }
+
+            // The countdown reads as a pulse so it is obvious across the room.
+            SequentialAnimation on opacity {
+                running: root.countdown > 0 && root.awake
+                loops: Animation.Infinite
+                NumberAnimation { from: 1; to: 0.35; duration: 500 }
+                NumberAnimation { from: 0.35; to: 1; duration: 500 }
+            }
+
         }
 
     }
 
     property real rotorAngle: 0
 
+    // The sweep runs ONLY while a phase is being measured, and is parked back
+    // at 12 o'clock the moment one ends. Left free-running it carried straight
+    // through the gaps, which blurred the boundary between phases exactly
+    // where the gap exists to make it sharp (moWerk).
+    //
+    // Five seconds a lap against a ten-second phase means two clean laps, so
+    // the readout starts and finishes at the top of every phase.
     NumberAnimation on rotorAngle {
         from: 0
         to: 360
-        duration: root.activePhase === 3 ? 2200 : 6000     // ORBIT sweeps faster
+        duration: root.activePhase === 3 ? 2500 : 5000     // ORBIT sweeps faster
         loops: Animation.Infinite
-        running: !displayAmbient
+        running: root.running && root.sceneReady && !root.inGap && !displayAmbient
     }
 
     Item {
@@ -788,7 +848,24 @@ Application {
         anchors.fill: parent
         visible: root.done
 
+        // BENCH COMPLETE rides above the restart target, the way PAUSED rides
+        // above the buttons (moWerk) — the same shape for the same kind of
+        // moment.
         Text {
+            anchors.bottom: restartGlyph.top
+            anchors.bottomMargin: root.maxSize * 0.045
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "BENCH COMPLETE \u00b7 v" + root.sceneVersion
+            color: root.dim
+            font.family: "Inter Tight"
+            font.weight: Font.Medium
+            font.pixelSize: root.maxSize * 0.06
+            font.letterSpacing: root.maxSize * 0.01
+        }
+
+        Text {
+            id: restartGlyph
+
             anchors.centerIn: parent
             text: "\u21BB"                      // ↻
             color: root.fg
@@ -842,8 +919,8 @@ Application {
             // Wrapped lines used to clip into one another; distance-field text
             // needs the leading set explicitly at this weight.
             lineHeight: 1.25
-            text: root.countdown > 0 ? "GET TO THE RIG"
-                                     : (root.done ? "BENCH COMPLETE" : root.phaseName)
+            text: root.countdown > 0 ? "GET TO THE RIG" : root.phaseName
+            visible: !root.done
             color: root.dim
             font.family: "Inter Tight"
             font.weight: Font.Medium
