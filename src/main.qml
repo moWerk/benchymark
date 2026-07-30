@@ -180,21 +180,14 @@ Application {
     // Workloads keep rendering through a 400 ms fade, then switch off. Without
     // this a phase cuts to black and the next cuts in — the gap reads as a
     // glitch rather than as a pause (moWerk).
-    property real workOpacity: 1
     property bool fadedOut: false
-
-    Behavior on workOpacity {
-        NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
-    }
 
     onInGapChanged: {
         if (inGap) {
-            workOpacity = 0;
             fadeOut.restart();
             root.preloadNext();
         } else {
             fadedOut = false;
-            workOpacity = 1;
         }
     }
 
@@ -388,6 +381,46 @@ Application {
         }
     }
 
+    // ── the phase, BELOW the clock ────────────────────────────────────────
+    // Declaration order is paint order, and this must come before the centre
+    // glyph and the rotator: the tests run behind the thing that tells the
+    // time, like a wallpaper. The refactor put the Loader after both, so every
+    // phase painted over the clock instead.
+
+    // ORBIT's cost: a pulsing shadow recomputed every frame over the rotor.
+
+    // ── the phase itself ──────────────────────────────────────────────────
+    // One Loader carries whichever phase is running. setSource() rather than a
+    // `source` binding, because it passes `bench` as an INITIAL property — the
+    // phase is constructed with it already set, so no binding inside a phase
+    // ever evaluates against a null bench.
+    Loader {
+        id: sceneLoader
+
+        anchors.fill: parent
+        // A BINDING, not an assignment. The imperative version did not take,
+        // so a phase sat at full opacity through the gap and the next one cut
+        // straight over it. Bound to inGap it reliably fades out before the
+        // gap and back in with the phase that follows.
+        opacity: root.inGap ? 0 : 1
+        visible: opacity > 0.01
+
+        Behavior on opacity {
+            NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+        }
+    }
+
+    // Parses the NEXT phase during the gap, so the switch costs nothing at the
+    // moment the clock starts. Asynchronous: the point is to keep the
+    // compile off the frame that has to render.
+    Loader {
+        id: preloader
+
+        asynchronous: true
+        active: false
+        visible: false
+    }
+
     // ── centre glyph ──────────────────────────────────────────────────────
     // The workload carrier. Black weight (moWerk): more coverage per glyph, so
     // a cache miss costs more — exactly what RERASTER is meant to expose.
@@ -485,7 +518,7 @@ Application {
     // glyph never disappears under a phase, so the watch stays a watch while
     // it is being tortured. It is still a test subject itself: SCALE and
     // RERASTER drive this very glyph.
-    readonly property real baseGlyph: maxSize * 0.28
+    readonly property real baseGlyph: maxSize * 0.336   // +20% (moWerk)
     readonly property real glyphPeak: 1.8
 
     // Both text phases drive a RING of glyphs as well as the centre one: a
@@ -506,10 +539,19 @@ Application {
         renderType: rerastering ? Text.NativeRendering : Text.QtRendering
         font.family: "Inter Tight"
         // Light, not Black: moWerk wants this beautiful first and expensive
-        // second — Nutty Null's thin elegance survives the benchmark.
-        font.weight: Font.Light
+        // second — Nutty Null's thin elegance survives the benchmark. The
+        // countdown is the exception: it has to read across a room, so it
+        // takes a step up the weight ramp.
+        font.weight: root.countdown > 0 ? Font.Normal : Font.Light
         font.letterSpacing: -root.maxSize * 0.02
         font.pixelSize: root.baseGlyph
+
+        // Both animations below own their property while running and LEAVE IT
+        // WHERE THEY STOPPED when they end — which is why the clock stayed
+        // blown up to full screen for every phase after RERASTER. Putting it
+        // back is not automatic; these two handlers do it.
+        onScalingChanged: if (!scaling) scale = 1
+        onRerasteringChanged: if (!rerastering) font.pixelSize = root.baseGlyph
 
         SequentialAnimation on scale {
             running: centreText.scaling && centreText.visible && root.awake
@@ -584,34 +626,13 @@ Application {
 
     }
 
-    // ORBIT's cost: a pulsing shadow recomputed every frame over the rotor.
-
-    // ── the phase itself ──────────────────────────────────────────────────
-    // One Loader carries whichever phase is running. setSource() rather than a
-    // `source` binding, because it passes `bench` as an INITIAL property — the
-    // phase is constructed with it already set, so no binding inside a phase
-    // ever evaluates against a null bench.
-    Loader {
-        id: sceneLoader
-
-        anchors.fill: parent
-        opacity: root.workOpacity
-        visible: opacity > 0.01
-    }
-
-    // Parses the NEXT phase during the gap, so the switch costs nothing at the
-    // moment the clock starts. Asynchronous: the point is to keep the
-    // compile off the frame that has to render.
-    Loader {
-        id: preloader
-
-        asynchronous: true
-        active: false
-        visible: false
-    }
-
     function loadPhase() {
-        if (!running) {
+        // Guard on the INDEX, never on `running`: `running` is a derived
+        // binding and may not have re-evaluated at the moment this handler
+        // fires. When it had not, phases[phase] came back undefined, the
+        // handler threw reading .file, and the scene was never unloaded — the
+        // last phase then ran forever with nothing able to stop it.
+        if (phase < 0 || phase >= phases.length) {
             sceneLoader.setSource("");
             return;
         }
@@ -660,11 +681,24 @@ Application {
             opacity: 0.72
         }
 
-        Column {
-            anchors.centerIn: parent
-            spacing: root.maxSize * 0.045
+        // Anchored AROUND the vertical centre rather than stacked in a Column
+        // (moWerk): the upper button's bottom sits on the centre line, the
+        // lower button's top sits on it, and equal margins push them apart —
+        // so the pair is symmetric about the middle of the panel whatever the
+        // panel is. Everything here is 20% larger than the first cut, and the
+        // gap between the buttons is double.
+        Item {
+            anchors.fill: parent
+
+            readonly property real btnW: root.maxSize * 0.744
+            readonly property real btnH: root.maxSize * 0.186
+            readonly property real gap: root.maxSize * 0.045
 
             Text {
+                id: pausedLabel
+
+                anchors.bottom: continueBtn.top
+                anchors.bottomMargin: parent.gap
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "PAUSED"
                 color: root.dim
@@ -676,8 +710,13 @@ Application {
 
             // Continue standard — the remorse path for a mis-tap.
             Rectangle {
-                width: root.maxSize * 0.62
-                height: root.maxSize * 0.155
+                id: continueBtn
+
+                anchors.bottom: parent.verticalCenter
+                anchors.bottomMargin: parent.gap
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.btnW
+                height: parent.btnH
                 radius: height / 2
                 color: "#1f2733"
                 border.color: root.dim
@@ -689,7 +728,7 @@ Application {
                     color: root.fg
                     font.family: "Inter Tight"
                     font.weight: Font.Medium
-                    font.pixelSize: root.maxSize * 0.058
+                    font.pixelSize: root.maxSize * 0.070
                 }
 
                 MouseArea {
@@ -704,8 +743,13 @@ Application {
 
             // Phase control — indefinite phases, advanced by tapping.
             Rectangle {
-                width: root.maxSize * 0.62
-                height: root.maxSize * 0.155
+                id: manualBtn
+
+                anchors.top: parent.verticalCenter
+                anchors.topMargin: parent.gap
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.btnW
+                height: parent.btnH
                 radius: height / 2
                 color: root.gold
                 opacity: 0.92
@@ -716,7 +760,7 @@ Application {
                     color: "#101418"
                     font.family: "Inter Tight"
                     font.weight: Font.DemiBold
-                    font.pixelSize: root.maxSize * 0.055
+                    font.pixelSize: root.maxSize * 0.066
                 }
 
                 MouseArea {
@@ -780,6 +824,9 @@ Application {
     // The counter moved to its own line so the name never has to compete with
     // it for width, and the separator dot went with it.
     Column {
+        // Out of the way while the pause buttons are up (moWerk).
+        visible: !root.choosing
+
         anchors {
             bottom: parent.bottom
             bottomMargin: parent.height * 0.15

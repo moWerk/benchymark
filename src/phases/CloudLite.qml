@@ -28,6 +28,14 @@ Item {
         property color centerColor: "#58a6ff"
         property color outerColor: "#0b1b2e"
 
+        // The glint centres never depended on uv, so evaluating their sin/cos
+        // per FRAGMENT was pure waste — four transcendentals on every pixel of
+        // a 480x480 panel, every frame. Computed here instead: once per frame,
+        // on the CPU, for free.
+        property vector4d glints: Qt.vector4d(
+            Math.cos(t * 0.11) * 0.55, Math.sin(t * 0.079) * 0.55,
+            Math.cos(t * -0.063 + 2.1) * 0.62, Math.sin(t * 0.094 + 1.3) * 0.62)
+
         NumberAnimation on t {
             from: 0
             to: 10000

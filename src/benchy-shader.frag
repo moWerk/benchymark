@@ -59,14 +59,16 @@ void main()
     float r = length(uv);
 
     // Two rounds of domain warping — each one costs a full fBm per axis.
-    vec2 q = vec2(fbm(uv * 3.0 + t * 0.15), fbm(uv * 3.0 - t * 0.11));
-    vec2 s = vec2(fbm(uv * 3.0 + q * 2.5 + t * 0.07),
-                  fbm(uv * 3.0 + q * 2.5 - t * 0.09));
+    vec2 q = vec2(fbm(uv * 3.0 + t * 0.090), fbm(uv * 3.0 - t * 0.066));
+    vec2 s = vec2(fbm(uv * 3.0 + q * 2.5 + t * 0.042),
+                  fbm(uv * 3.0 + q * 2.5 - t * 0.054));
     float v = fbm(uv * 4.0 + s * 3.0);
 
     vec3 col = mix(vec3(0.05, 0.10, 0.25), vec3(0.35, 0.85, 0.95), v);
     col = mix(col, vec3(0.95, 0.55, 0.25), clamp(s.x * 0.6, 0.0, 1.0));
-    col *= smoothstep(1.05, 0.35, r);          // fade into the round panel
+    // A hint of a rim rather than a black hole — the wide fade to black
+    // swallowed the scene (moWerk). Half the width, dimming not extinguishing.
+    col *= mix(0.70, 1.0, smoothstep(1.04, 0.66, r));
 
     fragColor = vec4(col, 1.0) * qt_Opacity;
 }
