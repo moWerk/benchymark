@@ -187,10 +187,6 @@ Application {
         if (inGap) {
             fadeOut.restart();
             root.preloadNext();
-            // Park the sweep at 12 o'clock. An `Animation on` leaves the
-            // property where it stopped, so without this the needle would
-            // freeze wherever the phase happened to end.
-            root.rotorAngle = 0;
         } else {
             fadedOut = false;
         }
@@ -403,7 +399,12 @@ Application {
             // load time, not the workload. That is what made every phase
             // report 60 while the rotator visibly dipped, and what let BENCHY
             // expire before it had finished building (moWerk).
-            if (root.running && root.sceneReady) {
+            // Drop the phase's FIRST second. It straddles the gap-end
+            // transition and the scene's first frames, so it mixes idle
+            // frames into the workload — 60s leaking into a phase that is
+            // nowhere near 60 (moWerk). Every phase runs a second longer than
+            // it measures, which is the honest trade.
+            if (root.running && root.sceneReady && root.phaseElapsed >= 1) {
                 var c = root._cur.slice();
                 c.push(root.fps);
                 root._cur = c;
@@ -629,21 +630,38 @@ Application {
 
     }
 
-    property real rotorAngle: 0
-
-    // The sweep runs ONLY while a phase is being measured, and is parked back
-    // at 12 o'clock the moment one ends. Left free-running it carried straight
-    // through the gaps, which blurred the boundary between phases exactly
-    // where the gap exists to make it sharp (moWerk).
+    // The sweep, driven by the CLOCK rather than by an animation — the same
+    // 16 ms pattern the stock analog faces use for a smooth second hand
+    // (005-analog-circle-shades). A NumberAnimation is scheduled against the
+    // frame it happens to get, so it visibly stuttered even at a flat 60;
+    // recomputing the angle from elapsed time each tick cannot drift, because
+    // every tick asks the clock instead of accumulating.
     //
-    // Five seconds a lap against a ten-second phase means two clean laps, so
-    // the readout starts and finishes at the top of every phase.
-    NumberAnimation on rotorAngle {
-        from: 0
-        to: 360
-        duration: root.activePhase === 3 ? 2500 : 5000     // ORBIT sweeps faster
-        loops: Animation.Infinite
+    // One lap per second, like a second hand. ORBIT sweeps at 1.5 laps and
+    // starts from six o'clock (moWerk).
+    property real rotorAngle: 0
+    property real sweepStartMs: 0
+
+    readonly property bool orbitPhase: root.activePhase === 3
+
+    Timer {
+        interval: 16
+        repeat: true
         running: root.running && root.sceneReady && !root.inGap && !displayAmbient
+
+        onRunningChanged: {
+            if (running)
+                root.sweepStartMs = Date.now();
+            else
+                root.rotorAngle = 0;      // parked at twelve between phases
+        }
+
+        onTriggered: {
+            var t = (Date.now() - root.sweepStartMs) / 1000;
+            var laps = root.orbitPhase ? 1.5 : 1.0;
+            var from = root.orbitPhase ? 180 : 0;
+            root.rotorAngle = (from + t * 360 * laps) % 360;
+        }
     }
 
     Item {
