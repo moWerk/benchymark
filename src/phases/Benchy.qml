@@ -47,34 +47,36 @@ Item {
         var cx = bench.width / 2, cy = bench.height / 2;
         var k = bench.maxSize * 0.00042;          // the +/-1000 cube to screen
         var dist = 2800;                          // perspective distance
-        // pl* carry the points; bp* carry the start coordinate. A ShapePath
-        // starts at startX/startY, so without setting it every strip would
-        // trail a stray line back to the top-left corner.
         var lines = [pl0, pl1, pl2, pl3, pl4, pl5];
-        var paths = [bp0, bp1, bp2, bp3, bp4, bp5];
-        for (var s = 0; s < lines.length; s++) {
-            if (s >= phase.strips || s >= S.length) {
-                lines[s].path = [];
+        for (var b = 0; b < lines.length; b++) {
+            if (b >= phase.strips || b >= S.length) {
+                lines[b].paths = [];
                 continue;
             }
-            var idx = S[s], pts = [];
-            for (var i = 0; i < idx.length; i++) {
-                var o = idx[i] * 3;
-                var x = V[o], y = V[o + 1], z = V[o + 2];
-                // spin about the model's own vertical axis (Z up, print-bed
-                // frame), then tilt the camera down onto it
-                var rx = x * ca - y * sa;
-                var ry = x * sa + y * ca;
-                var depth = ry * ct - z * st;
-                var up = ry * st + z * ct;
-                var f = dist / (dist + depth);
-                pts.push(Qt.point(cx + rx * k * f, cy - up * k * f));
+            // S[bucket][chain][vertex]: the chains stay SEPARATE. Concatenated
+            // into one polyline they forced a stroke from the end of each to
+            // the start of the next, and on this geometry those joins crossed
+            // the whole model. PathMultiline draws independent polylines in one
+            // path, so the joins do not exist to be minimised.
+            var bucket = S[b], out = [];
+            for (var c = 0; c < bucket.length; c++) {
+                var idx = bucket[c], pts = [];
+                for (var i = 0; i < idx.length; i++) {
+                    var o = idx[i] * 3;
+                    var x = V[o], y = V[o + 1], z = V[o + 2];
+                    // spin about the model's own vertical axis (Z up, print-bed
+                    // frame), then tilt the camera down onto it
+                    var rx = x * ca - y * sa;
+                    var ry = x * sa + y * ca;
+                    var depth = ry * ct - z * st;
+                    var up = ry * st + z * ct;
+                    var f = dist / (dist + depth);
+                    pts.push(Qt.point(cx + rx * k * f, cy - up * k * f));
+                }
+                if (pts.length > 1)
+                    out.push(pts);
             }
-            lines[s].path = pts;
-            if (pts.length) {
-                paths[s].startX = pts[0].x;
-                paths[s].startY = pts[0].y;
-            }
+            lines[b].paths = out;
         }
     }
 
@@ -82,14 +84,14 @@ Item {
         id: benchyShape
 
         anchors.fill: parent
-        onVisibleChanged: if (visible) bench.projectBenchy()
+        onVisibleChanged: if (visible) phase.project()
 
-        ShapePath { id: bp0; fillColor: "#2258a6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#58a6ff"; strokeWidth: 1; PathPolyline { id: pl0 } }
-        ShapePath { id: bp1; fillColor: "#2258a6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#58a6ff"; strokeWidth: 1; PathPolyline { id: pl1 } }
-        ShapePath { id: bp2; fillColor: "#1e79c0ff"; fillRule: ShapePath.WindingFill; strokeColor: "#79c0ff"; strokeWidth: 1; PathPolyline { id: pl2 } }
-        ShapePath { id: bp3; fillColor: "#1e79c0ff"; fillRule: ShapePath.WindingFill; strokeColor: "#79c0ff"; strokeWidth: 1; PathPolyline { id: pl3 } }
-        ShapePath { id: bp4; fillColor: "#1aa5d6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#a5d6ff"; strokeWidth: 1; PathPolyline { id: pl4 } }
-        ShapePath { id: bp5; fillColor: "#1aa5d6ff"; fillRule: ShapePath.WindingFill; strokeColor: "#a5d6ff"; strokeWidth: 1; PathPolyline { id: pl5 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#58a6ff"; strokeWidth: 1; PathMultiline { id: pl0 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#58a6ff"; strokeWidth: 1; PathMultiline { id: pl1 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#79c0ff"; strokeWidth: 1; PathMultiline { id: pl2 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#79c0ff"; strokeWidth: 1; PathMultiline { id: pl3 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { id: pl4 } }
+        ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { id: pl5 } }
 
         NumberAnimation on rotationDriver {
             from: 0
