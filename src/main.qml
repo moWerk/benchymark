@@ -658,8 +658,11 @@ Application {
         }
         // Nothing to report during the countdown, and a 0 sitting on the rim
         // reads as a measurement rather than as an absence. It arrives when
-        // IDLE does.
-        opacity: root.running || root.done ? 1 : 0
+        // IDLE does — and leaves with the last phase. Left up on the end
+        // screen it kept reporting, so the final phase's number sat there
+        // twitching over a screen that is doing nothing (moWerk): a reading
+        // that belongs to a workload no longer on display.
+        opacity: root.running ? 1 : 0
 
         Behavior on opacity {
             NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
@@ -867,14 +870,17 @@ Application {
         anchors.fill: parent
         visible: root.done
 
-        // BENCH COMPLETE rides above the restart target, the way PAUSED rides
-        // above the buttons (moWerk) — the same shape for the same kind of
-        // moment.
+        // Mirrors RESTART exactly: the same 0.2 offset from the centre line,
+        // measured the other way, so the glyph sits evenly between them. The
+        // version is already on the whisper line below — saying it twice on
+        // one screen is noise (moWerk).
         Text {
-            anchors.bottom: restartGlyph.top
-            anchors.bottomMargin: root.maxSize * 0.045
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "BENCH COMPLETE \u00b7 v" + root.sceneVersion
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                bottom: parent.verticalCenter
+                bottomMargin: root.maxSize * 0.2
+            }
+            text: "COMPLETE"
             color: root.dim
             font.family: "Inter Tight"
             font.weight: Font.Medium
