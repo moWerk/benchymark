@@ -126,3 +126,131 @@ The layout comes from **digital-nutty-null**; the app structure derives from
 **asteroid-flashlight** by Florent Revest.
 
 Licensed **GPL-3.0-or-later**, matching the other AsteroidOS apps.
+
+---
+
+## LLM grading
+
+This project was built with an LLM. Rather than leave that to inference, it is
+graded against [LLMGD v0.2](https://github.com/moWerk/asteroid-docking-bay) and
+the result published here — including the parts that do not flatter it.
+
+<p align="center">
+  <img alt="LLMGD O0·A3" src="https://img.shields.io/badge/LLMGD_v0.2-O0%C2%B7A3-1f6feb?style=for-the-badge">
+  <img alt="origin O0" src="https://img.shields.io/badge/origin-O0_machine_designed-8957e5?style=for-the-badge">
+  <img alt="assurance A3" src="https://img.shields.io/badge/assurance-A3_understood_%2B_tested-2ea043?style=for-the-badge">
+</p>
+
+| flag | | meaning |
+|---|:---:|---|
+| **U** — Understood | ✅ **yes** | the human caught real defects the machine had missed |
+| **T** — Tested | ✅ **yes** | built, packaged and run on hardware, results fed back |
+| **R** — Read | ❌ **no** | nobody read the complete source before publication |
+| **X** — External review | ⬜ **none** | the meta-asteroid-community PR is open, not yet reviewed |
+
+**Origin** — machine-designed, with unusually specific human direction.
+
+| | O0 | O1 | O2 | O3 | O4 |
+|---|---|---|---|---|---|
+| | 🟪 0.45 | 🟦 0.38 | 🟩 0.11 | 🟨 0.06 | ⬜ 0.00 |
+| | machine chose design **and** expression | human specced, machine designed details | human designed, machine expressed | machine edited human material | no LLM |
+
+O0 and O1 land close together, and that is the honest picture rather than a
+tidy one. The internal architecture — the per-phase `Loader` split, counting
+`frameSwapped`, the `RotationAnimator` sweep, the mesh pipeline, the
+`sceneReady` gate — was machine-designed from a reported symptom. But a great
+deal of the *visible* design was named outright by the human, down to
+"fade it in over 200ms, let it stand for 1200 and fade out in 600", "the upper
+button anchored to vertical centre with its bottom", and "starts from 06:00 and
+rotates 1.5 times". A stricter reading of those tips the headline to **O1**.
+
+### Why the assurance is A3 and not higher
+
+**A3 is the ceiling this way of working can honestly reach.** When a machine
+writes most of the code, control is not exercised by reading the diff — it is
+exercised by catching what the code gets wrong. So `R: no` here is the expected
+state, not a lapse; A4 would require a breadth-review that did not happen.
+
+The **U** evidence is the part worth trusting, because it is costly and it
+repeatedly went against the machine:
+
+- **The human diagnosed a measurement bug the machine had asserted was fine.**
+  *"the shapes look butter smooth 50-60fps. but the fps display claims 20. And
+  additionally, the rotation that was supposed to be smooth, does now chopp and
+  jump frames approximately in the framerate it displays."* That is Qt Quick's
+  render thread versus its GUI thread, spotted from the couch. The counter was
+  measuring its own scheduling.
+- **The human designed the experiment that falsified the machine's hypothesis.**
+  *"Can you install v0.1 once again on nemo so i can rule out issues with the
+  watch"* — a controlled A/B that proved a frame-rate ceiling was the watch, not
+  the app, after the machine had spent a cycle assuming otherwise.
+- **The human refused a diagnostic question and named the right move.** *"dont
+  make me answer stupid questions … Can you please fucking grep the shitty blue
+  over the code base"* — the grep found `Application.centerColor` overriding the
+  `.desktop` entry in one line, after the machine had proposed a further round
+  of tests.
+- **The human corrected the machine with domain knowledge it lacked.** *"nemo
+  keep alive is not actually working. are you sure you used the latest qt6
+  implementation? i only last week updated the flashlight"*.
+- **The human reversed his own instruction when shown the cost.** *"revert the
+  8s, the 5% impact is unintended, thanks for the push back"*; and later
+  *"ignore my sort phases by fps, that was foolish"*.
+
+**T** is real but narrower than it sounds, and the limit matters: **benchymark
+has no automated test suite.** Testing means clean-from-`cleansstate` builds,
+unpacking the resulting `.ipk` to verify its payload, installing to nemo
+(MSM8926, 480×480) and sawfish (390×390), and running end to end with results
+read back. The recipe in this PR was built from its pinned `SRCREV` before the
+PR was opened — which is how a fetch failure was found. The sibling project
+(`asteroid-docking-bay`) does carry a 543-test suite with planted-bug
+validation; this one does not.
+
+### What this grade does not cover
+
+- **Two watches, not a fleet.** Every number quoted comes from nemo and
+  sawfish.
+- **The numbers moved three times during development**, each time because the
+  measurement was wrong rather than because the app got faster. Only results
+  from v0.2 onward are meaningful.
+- **Self-graded.** This verdict was produced by the author's agent — the same
+  agent that wrote the code. The retrieval log below exists so the search can be
+  audited rather than trusted; an independent re-run is the only thing that
+  removes the conflict.
+
+<details>
+<summary><b>Retrieval log</b> (what was searched, found, and skipped)</summary>
+
+**Run:** author-side · first run · grader: Claude Opus 4.6
+
+**Searched:** `~/.claude/projects/-home-mo-Git-asteroid-docking-bay/*.jsonl`
+(7 transcripts), sibling `<session-id>/` directories for sub-agent output, and
+all transcripts grepped for continuation backlinks.
+
+**Found — benchymark work lives in exactly one transcript:**
+
+| id | size | records | method |
+|---|---|---|---|
+| `2adde14e…` | 18.9 MB | 6 747 | stream-filtered (236 user turns extracted; 955 benchymark hits) |
+
+**Excluded after search, not assumed:** `b6d31eda…` (43.9 MB), `2bdab08b…`
+(41.9 MB), `b053e086…` (3.6 MB) share the `aiTitle` *"Set up asteroid-docking-bay
+project repository"* and contain **zero** benchymark hits. Three stub
+transcripts (<7 KB) contain none either. UUID scan for continuation backlinks
+returned only BLE service UUIDs — no session fork. No sub-agent directory exists
+for the benchymark session.
+
+**Lexicons run (the standard set, verbatim, over user turns only):**
+
+| lexicon | turns matching |
+|---|---|
+| U / correction | 36 / 236 |
+| R / review | 6 / 236 (none benchymark-scoped) |
+| code-engagement | 10 / 236 |
+
+Also counted: **32 `Request interrupted` markers** — the human stopping the
+machine mid-action, which is itself a costly-oversight signal.
+
+**Not read whole:** the 18.9 MB transcript, per the stream-filter method the
+rubric prescribes for oversized transcripts. **Coverage: full.**
+
+</details>
