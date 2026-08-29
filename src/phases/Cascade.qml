@@ -28,10 +28,10 @@ Item {
         Repeater {
             id: cascRep
 
-            model: 160
+            model: 500
 
             delegate: Rectangle {
-                readonly property real a: index / 160 * 2 * Math.PI * 5
+                readonly property real a: index / 500 * 2 * Math.PI * 5
 
                 width: bench.maxSize * 0.06
                 height: width
@@ -64,10 +64,10 @@ Item {
         Repeater {
             id: cascBRep
 
-            model: 160
+            model: 500
 
             delegate: Rectangle {
-                readonly property real a: -index / 160 * 2 * Math.PI * 4
+                readonly property real a: -index / 500 * 2 * Math.PI * 4
 
                 width: bench.maxSize * 0.045
                 height: width

@@ -41,12 +41,22 @@ Item {
             running: bench.running && bench.sceneReady && !bench.inGap
         }
         shadowEnabled: true
+        // The knob that actually costs something. blurMax only sets how far
+        // the blur reaches; the halo still covered the same area, which is why
+        // raising it from 72 to 108 moved aurora not at all. shadowScale grows
+        // the shadow itself, so every frame paints a far larger region
+        // underneath the rotor (moWerk).
+        shadowScale: 2.4
         shadowColor: "#e0f0c30e"
         shadowHorizontalOffset: 0
         shadowVerticalOffset: 0
 
         blurEnabled: true
-        blurMax: 72          // a heavier halo: the glow IS the phase
+        blurMax: 108         // a heavier halo: the glow IS the phase
+        // The knob with a real price. blurMax sets how far the blur may reach;
+        // blurMultiplier makes it actually sample that far, which is more work
+        // per pixel every frame rather than a transform on the result.
+        blurMultiplier: 3.0
 
         SequentialAnimation on shadowBlur {
             running: bench.awake

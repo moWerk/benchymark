@@ -23,7 +23,7 @@ Item {
         anchors.fill: parent
 
         Repeater {
-            model: 24
+            model: 72
 
             delegate: Rectangle {
                 anchors.fill: parent

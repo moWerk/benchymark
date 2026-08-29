@@ -29,9 +29,18 @@ Item {
     id: phase
 
     property var bench
-    // How many of the six strips to draw — the dial for how brutal this is.
-    // Lower it if the phase is a slideshow rather than a rotation.
+    // How many of the six strips to draw. SIX IS THE CEILING: project()
+    // holds exactly six PathMultiline objects and skips any bucket past
+    // them, so 9 and 24 were silently identical to 6 and the phase never got
+    // harder. Raising this further needs more strips to exist, not a bigger
+    // number here — see the report; BENCHY is at its designed maximum.
     property int strips: 6
+    // MORE MODELS, not more strips. The mesh has a fixed vertex count so the
+    // boat keeps its shape (moWerk), so the only honest way to make this
+    // heavier is to draw the thing more times. The projection is computed ONCE
+    // per frame and every copy strokes the same polylines, so this scales the
+    // render cost — the part that was never the bottleneck at one copy.
+    property int copies: 5
     property real angle: 0
 
     anchors.fill: parent
@@ -92,6 +101,30 @@ Item {
         ShapePath { fillColor: "transparent"; strokeColor: "#79c0ff"; strokeWidth: 1; PathMultiline { id: pl3 } }
         ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { id: pl4 } }
         ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { id: pl5 } }
+
+        // The extra copies. Each binds to the master's polylines rather than
+        // re-projecting: one JS pass, many strokes. Laid out on a ring around
+        // the original and scaled down so all of them stay on a round panel.
+        Repeater {
+            model: phase.copies - 1
+
+            delegate: Shape {
+                readonly property real a: index / (phase.copies - 1) * 2 * Math.PI
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                scale: 0.55
+                transformOrigin: Item.Center
+                x: bench.rootRadius * 0.62 * Math.cos(a)
+                y: bench.rootRadius * 0.62 * Math.sin(a)
+
+                ShapePath { fillColor: "transparent"; strokeColor: "#58a6ff"; strokeWidth: 1; PathMultiline { paths: pl0.paths } }
+                ShapePath { fillColor: "transparent"; strokeColor: "#58a6ff"; strokeWidth: 1; PathMultiline { paths: pl1.paths } }
+                ShapePath { fillColor: "transparent"; strokeColor: "#79c0ff"; strokeWidth: 1; PathMultiline { paths: pl2.paths } }
+                ShapePath { fillColor: "transparent"; strokeColor: "#79c0ff"; strokeWidth: 1; PathMultiline { paths: pl3.paths } }
+                ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { paths: pl4.paths } }
+                ShapePath { fillColor: "transparent"; strokeColor: "#a5d6ff"; strokeWidth: 1; PathMultiline { paths: pl5.paths } }
+            }
+        }
 
         NumberAnimation on rotationDriver {
             from: 0

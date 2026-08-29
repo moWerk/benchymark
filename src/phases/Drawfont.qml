@@ -26,14 +26,19 @@ Item {
         Repeater {
             id: glyphRep
 
-            model: 96
+            model: 192
 
             delegate: Text {
-                readonly property real a: index / 96 * 2 * Math.PI * 3
+                readonly property real a: index / 192 * 2 * Math.PI * 3
                 readonly property real rad: bench.rootRadius * (0.18 + (index % 7) * 0.13)
 
                 text: "\uD83D\uDE80"                 // 🚀
-                font.pixelSize: bench.maxSize * 0.075
+                // A DISTINCT size per item. Every item shared one size, so the
+                // cache held a single entry and 768 items cost 768 cheap
+                // blits — which is why raising the count from 96 to 768 moved
+                // aurora from 59 to 59. Twenty-four sizes means twenty-four
+                // rasterisations, and the phase measures glyphs again.
+                font.pixelSize: bench.maxSize * (0.05 + (index % 24) * 0.005)
                 x: bench.width / 2 + rad * Math.cos(a + glyphStorm.spin) - width / 2
                 y: bench.height / 2 + rad * Math.sin(a + glyphStorm.spin) - height / 2
             }

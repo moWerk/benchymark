@@ -21,10 +21,10 @@ Item {
     // takes the same route as the centre glyph, so the SCALE:RERASTER ratio
     // still isolates the glyph-cache path — only the magnitude changed.
     Repeater {
-        model: 10
+        model: 100
 
         delegate: Text {
-            readonly property real a: index / 10 * 2 * Math.PI
+            readonly property real a: index / 100 * 2 * Math.PI
 
             text: bench.mmStr
             color: bench.dim

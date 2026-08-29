@@ -86,7 +86,7 @@ Application {
     // Shown during the countdown so a screenshot or a spoken result can be
     // tied to an exact scene. Starts at 0.1 and steps by 0.01 per change
     // (moWerk) — results only compare within one version.
-    readonly property string sceneVersion: "0.3"
+    readonly property string sceneVersion: "0.6"
     // The run holds the screen itself — same mechanism asteroid-flashlight
     // uses to stay lit only while a feature is active (moWerk). Held through
     // the countdown, because that exists so you can reach the rig, and dropped

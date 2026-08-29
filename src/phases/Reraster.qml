@@ -23,10 +23,10 @@ Item {
     // takes the same route as the centre glyph, so the SCALE:RERASTER ratio
     // still isolates the glyph-cache path — only the magnitude changed.
     Repeater {
-        model: 10
+        model: 20
 
         delegate: Text {
-            readonly property real a: index / 10 * 2 * Math.PI
+            readonly property real a: index / 20 * 2 * Math.PI
 
             text: bench.mmStr
             color: bench.dim
@@ -38,8 +38,13 @@ Item {
             renderType: phase.reraster ? Text.NativeRendering : Text.QtRendering
             font.family: "Inter Tight"
             font.weight: Font.Black
-            font.pixelSize: phase.reraster ? bench.baseGlyph * 0.42 * phase.k
-                                           : bench.baseGlyph * 0.42
+            // Each item gets its OWN size, so `k` churns twelve cache
+            // entries per frame instead of one. Without this the phase
+            // measured a single re-rasterisation no matter how many items
+            // were on screen, which is why model 10 and model 60 both read 58.
+            readonly property real sizeK: 0.6 + (index % 12) * 0.08
+            font.pixelSize: phase.reraster ? bench.baseGlyph * 0.42 * phase.k * sizeK
+                                           : bench.baseGlyph * 0.42 * sizeK
             scale: phase.reraster ? 1 : phase.k
             x: bench.width / 2 + bench.rootRadius * 0.72 * Math.cos(a) - width / 2
             y: bench.height / 2 + bench.rootRadius * 0.72 * Math.sin(a) - height / 2
