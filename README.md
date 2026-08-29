@@ -88,10 +88,11 @@ Each completed run is written to
 
 ```json
 {
- "scene": "0.2",
- "finished": "2026-07-31T20:14:03.000Z",
- "resolution": "480x480",
- "phases": [ { "phase": "IDLE", "avg": 60, "min": 59, "samples": 9 } ]
+ "scene": "0.6",
+ "finished": "2026-08-29T18:52:11.000Z",
+ "resolution": "384x384",
+ "phases": [ { "phase": "IDLE", "avg": 60, "min": 59, "samples": 9,
+               "worst_tick_ms": 118 } ]
 }
 ```
 
@@ -108,6 +109,12 @@ install, launch and read it back over ADB or SSH.
   compare like with like, or report Mpix/s alongside FPS.
 - Every phase runs ten seconds and **measures nine** — the first is discarded,
   because it straddles the gap and the scene's opening frames.
+- **`worst_tick_ms`** is how far the worst one-second sampling window drifted
+  from the second it asked for. The sampler runs on the GUI thread, which a
+  GUI-bound phase starves, so a large value means the samples behind that
+  average were counted over ragged windows even though each is normalised to
+  its own. Small is trustworthy; on this rig it ranges from tens of
+  milliseconds to about half a second.
 - Watches have been seen **dropping off ADB** during the wireframe phase with
   the screen lit. The run itself does not need ADB; only reading the result does.
 
@@ -209,9 +216,11 @@ validation; this one does not.
 
 - **Two watches, not a fleet.** Every number quoted comes from nemo and
   sawfish.
-- **The numbers moved three times during development**, each time because the
-  measurement was wrong rather than because the app got faster. Only results
-  from v0.2 onward are meaningful.
+- **The numbers moved four times during development**, each time because the
+  measurement was wrong rather than because the app got faster. The fourth was
+  v0.3: the sampler divided its frame count by the second it had *asked* for
+  instead of the one it *got*, and reported up to 67 fps on a panel capped at
+  60. Only results from v0.6 onward are meaningful, and only against v0.6.
 - **Self-graded.** This verdict was produced by the author's agent — the same
   agent that wrote the code. The retrieval log below exists so the search can be
   audited rather than trusted; an independent re-run is the only thing that
