@@ -86,7 +86,7 @@ Application {
     // Shown during the countdown so a screenshot or a spoken result can be
     // tied to an exact scene. Starts at 0.1 and steps by 0.01 per change
     // (moWerk) — results only compare within one version.
-    readonly property string sceneVersion: "0.2"
+    readonly property string sceneVersion: "0.3"
     // The run holds the screen itself — same mechanism asteroid-flashlight
     // uses to stay lit only while a feature is active (moWerk). Held through
     // the countdown, because that exists so you can reach the rig, and dropped
@@ -146,6 +146,17 @@ Application {
     // not be reported as this one.
     property int frameCount: 0
     property int fps: 0
+    // The MEASURED length of the window each fps sample was counted over.
+    // The harvest timer asks for 1000 ms and does not get it: it runs on the
+    // GUI thread, which is exactly the thread a heavy phase starves, while
+    // frameSwapped keeps arriving on the render thread. Counting frames over
+    // a late window and calling the total "fps" reported up to 67 on a panel
+    // capped at 60 — the render thread was honestly presenting 60 and the
+    // window was 1.12 s long. Dividing by the real elapsed time is the whole
+    // fix; without it every number is inflated by however late its tick was,
+    // and worst exactly where the GUI thread is busiest (moWerk/dodoradio).
+    property double lastTick: 0
+    property double worstTickMs: 0
     property var fpsHistory: []
     readonly property int trailCount: 5
 
@@ -280,6 +291,7 @@ Application {
             phase = 0;
             phaseElapsed = 0;
             _cur = [];
+            worstTickMs = 0;
             return;
         }
         if (!running)
@@ -294,6 +306,7 @@ Application {
                 phaseElapsed = 0;
                 waitedForScene = 0;
                 _cur = [];
+                worstTickMs = 0;
             }
             return;
         }
@@ -320,7 +333,12 @@ Application {
                 "phase": phases[phase].name,
                 "avg": s.length ? Math.round(sum / s.length) : 0,
                 "min": s.length ? mn : 0,
-                "samples": s.length
+                "samples": s.length,
+                // How far the worst harvest window drifted from the 1000 ms
+                // it asked for. Small = the rate is trustworthy; large = the
+                // GUI thread was starved and the samples are noisy even
+                // though they are now correctly normalised.
+                "worst_tick_ms": Math.round(root.worstTickMs)
             });
             results = r;
             if (phase + 1 >= phases.length)
@@ -350,6 +368,7 @@ Application {
             "avg": s2.length ? Math.round(sum / s2.length) : 0,
             "min": s2.length ? mn : 0,
             "samples": s2.length,
+            "worst_tick_ms": Math.round(root.worstTickMs),
             // A manually-cut phase is NOT comparable with a full 10 s window,
             // and a result file that hid that would be worse than no file.
             "manual": root.manual
@@ -393,7 +412,19 @@ Application {
         repeat: true
         running: !displayAmbient
         onTriggered: {
-            root.fps = root.frameCount;
+            var now = Date.now();
+            var dt = root.lastTick > 0 ? now - root.lastTick : 0;
+            root.lastTick = now;
+            if (dt <= 0) {
+                // First tick after the timer started: there is no window to
+                // divide by, so this one seeds the clock and is not a sample.
+                root.frameCount = 0;
+                root.tickSecond();
+                return;
+            }
+            root.fps = Math.round(root.frameCount * 1000 / dt);
+            if (Math.abs(dt - 1000) > root.worstTickMs)
+                root.worstTickMs = Math.abs(dt - 1000);
             root.frameCount = 0;
             var h = root.fpsHistory.slice();
             h.unshift(root.fps);
