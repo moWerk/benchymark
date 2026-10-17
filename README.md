@@ -108,6 +108,10 @@ Test hooks: `SFOS_SELFTEST_RUN=<stage index>` runs one stage at start,
 Credits for the phone version: Twemoji graphics (c) Twitter, Inc and other
 contributors, CC-BY 4.0 (the rocket); ionicons, MIT (the flash); the icon's
 leaf shape after the SailfishOS stock icons.
+Forum user ahjolinna ran the first results on other devices and suggested
+the CPU single core stage, the temperature curve as a thermal test and
+sharing the results, all in 1.1.0
+([thread](https://forum.sailfishos.org/t/35153)).
 
 The SailfishOS version was written by an LLM (Claude), directed by the
 author: he chose the stages, their order and loads, the start page, the
