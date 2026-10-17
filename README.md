@@ -28,7 +28,7 @@ frames per second per stage and the system values. The last run is also kept
 as JSON in `~/.local/share/net.mowerk/harbour-benchymark/last-run.json`.
 Tap a stage name on the start page for one sentence on what it tests.
 
-<img src="screenshots/benchymark-start.png" width="270" alt="Start page">
+<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="screenshots/benchymark-results.png" width="180" alt="Results on a Jolla C2">
 
 | stage | what it leans on |
 |---|---|

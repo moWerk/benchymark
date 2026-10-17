@@ -35,6 +35,10 @@ AIRating: V
 AINote: The SailfishOS version was written by an LLM (Claude), directed and tested by the author on a Jolla C2; he chose the stages, loads, layout and icon. Every commit carries an LLMGD disclosure line (see the README).
 Screenshots:
  - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-start.png
+ - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-benchy-heavy.png
+ - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-cpu-prime.png
+ - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-results.png
+ - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-about.png
 Links:
   Homepage: https://github.com/moWerk/benchymark/tree/sailfishos
   Bugtracker: https://github.com/moWerk/benchymark/issues
