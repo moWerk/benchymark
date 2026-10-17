@@ -20,6 +20,13 @@ the author answered with the shell commands he had used for his 2016 device
 comparison and wrote that *"some common linux commands could indeed be
 utilized by an application and have a nice front end"*. This is that front end.
 
+The loop from the watch closes on the phone too. 3DBenchy is the object
+3D printers are tested with; on those printers the community prints parts for
+the Jolla Phone 2 and for Linux phones in general. The phone now draws the boat
+that certified the printer that made its parts, and SailfishOS has no 3D
+engine for it either: `src/Wireframe.cpp` rotates and projects the mesh itself,
+every line, every frame.
+
 Tick the stages you want, choose **Run once** or **Run in loop**, start. Each
 graphics stage runs for 10 seconds on a black background (the ambience must
 not change the result), the system stages run their own course. At the end a
