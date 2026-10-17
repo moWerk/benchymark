@@ -743,15 +743,18 @@ Page {
                         ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
                         ctx.lineWidth = 1
                         ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-                        var grad = ctx.createLinearGradient(0, 0, 0, height)
-                        grad.addColorStop(0, "#e54b3a")
-                        grad.addColorStop(1, "#58a6ff")
-                        ctx.strokeStyle = grad
-                        ctx.lineWidth = Math.max(2, Theme.paddingSmall / 2)
-                        ctx.beginPath()
-                        ctx.moveTo(X(t[0][0]), Y(t[0][1]))
-                        for (var j = 1; j < t.length; j++) ctx.lineTo(X(t[j][0]), Y(t[j][1]))
-                        ctx.stroke()
+                        // each segment coloured by its temperature, blue when cool,
+                        // red when hot (a gradient stroke came out grey on Qt 5.6)
+                        ctx.lineWidth = Math.max(3, Theme.paddingSmall * 0.6)
+                        ctx.lineCap = "round"
+                        for (var j = 1; j < t.length; j++) {
+                            var f = ((t[j - 1][1] + t[j][1]) / 2 - lo) / (hi - lo)
+                            ctx.strokeStyle = Qt.rgba(0.35 + 0.55 * f, 0.65 - 0.36 * f, 1.0 - 0.77 * f, 1)
+                            ctx.beginPath()
+                            ctx.moveTo(X(t[j - 1][0]), Y(t[j - 1][1]))
+                            ctx.lineTo(X(t[j][0]), Y(t[j][1]))
+                            ctx.stroke()
+                        }
                         ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
                         ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
                         ctx.fillText(hi + " °C", 6, Theme.fontSizeExtraSmall + 2)
