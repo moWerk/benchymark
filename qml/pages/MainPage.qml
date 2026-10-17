@@ -295,7 +295,7 @@ Page {
                 phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
                               samples: r.seconds })
         }
-        log.write(JSON.stringify({
+        lastJson = JSON.stringify({
             scene: sceneVersion,
             version: appVersion,
             finished: new Date().toISOString(),
@@ -308,7 +308,8 @@ Page {
             loops: loops,
             temperature: temps,
             phases: phases
-        }, null, 1))
+        }, null, 1)
+        log.write(lastJson)
     }
 
     BenchLog { id: log }
@@ -766,18 +767,28 @@ Page {
         }
         }
 
-        Row {
+        Column {
             id: buttons
             anchors.top: resultCapture.bottom
             anchors.topMargin: Theme.paddingLarge * 2
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: Theme.paddingLarge
-            Button {
-                //% "Share"
-                text: qsTrId("id-share")
-                onClicked: page.shareResults()
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Theme.paddingLarge
+                Button {
+                    //% "Share image"
+                    text: qsTrId("id-share-image")
+                    onClicked: page.shareResults()
+                }
+                Button {
+                    //% "Share JSON"
+                    text: qsTrId("id-share-json")
+                    onClicked: page.shareJson()
+                }
             }
             Button {
+                anchors.horizontalCenter: parent.horizontalCenter
                 //% "Back"
                 text: qsTrId("id-back")
                 onClicked: page.view = "select"
@@ -806,6 +817,16 @@ Page {
             shareAction.mimeType = "image/png"
             shareAction.trigger()
         })
+    }
+
+    // The JSON of the run, handed to the share menu as content (as Jolla
+    // Notes does with text), so no file has to leave the sandbox.
+    property string lastJson: ""
+    function shareJson() {
+        var name = "benchymark-" + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".json"
+        shareAction.resources = [{ "name": name, "data": lastJson, "type": "application/json" }]
+        shareAction.mimeType = "application/json"
+        shareAction.trigger()
     }
 
     readonly property string tempSummary: {
