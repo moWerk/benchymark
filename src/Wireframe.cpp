@@ -97,7 +97,7 @@ QSGNode *Wireframe::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
     // boats is the gap to the edges (mo, 2026-10-17: the taller cells of a
     // portrait screen doubled the vertical gaps)
     const qreal w = width(), h = height();
-    int cols = qMax(1, int(std::ceil(std::sqrt(m_copies * w / qMax(1.0, h)))));
+    int cols = qMax(1, int(std::ceil(std::sqrt(m_copies * w / qMax(qreal(1), h)))));
     int rows = (m_copies + cols - 1) / cols;
     const qreal cell = qMin(w / cols, h / rows);
     const qreal x0 = (w - cols * cell) / 2, y0 = (h - rows * cell) / 2;
