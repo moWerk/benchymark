@@ -121,6 +121,7 @@ Page {
     property var results: ({})    // key -> row
     property var order: []        // keys in the order they finished
     property double runStarted: 0
+    property double sampledAt: 0   // when the frame count was last taken
 
     DisplayBlanking { preventBlanking: page.view === "run" }
 
@@ -157,6 +158,7 @@ Page {
                               { areaTop: areaTop, areaBottom: areaBottom })
         FrameCounter.take()
         FrameCounter.takeWorstMs()
+        sampledAt = Date.now()
     }
 
     function record(key, row) {
@@ -233,7 +235,13 @@ Page {
         repeat: true
         running: page.view === "run" && !page.inGap && Qt.application.active
         onTriggered: {
-            var fps = FrameCounter.take()
+            // The timer runs on the GUI thread, which a heavy stage delays, so
+            // a "second" can be longer: divide by the time that passed, not by
+            // the second asked for (the watch version's v0.6 fix).
+            var now = Date.now()
+            var frames = FrameCounter.take()
+            var fps = Math.round(frames * 1000 / Math.max(1, now - page.sampledAt))
+            page.sampledAt = now
             var worst = FrameCounter.takeWorstMs()
             if (stageLoader.status !== Loader.Ready) return
             if (!page.warm) { page.warm = true; return }
