@@ -33,7 +33,10 @@ Tick the stages you want, choose **Run once** or **Run in loop**, start. Each
 graphics stage runs for 10 seconds on a black background (the ambience must
 not change the result), the system stages run their own course. At the end a
 table with everything worth a screenshot: device and OS, resolution and GPU,
-frames per second per stage and the system values. The last run is also kept
+frames per second per stage, the system values, and the temperature of the
+hottest CPU, SoC or GPU sensor over the whole run (with Run in loop, that is a
+thermal test). **Share** saves that screen as a picture to Pictures and opens
+the share menu with it (the app asks once for the Pictures permission). The last run is also kept
 as JSON in `~/.local/share/net.mowerk/harbour-benchymark/last-run.json`.
 Tap a stage name on the start page for one sentence on what it tests.
 
@@ -52,30 +55,34 @@ Tap a stage name on the start page for one sentence on what it tests.
 | Text scale | text resized by a scale transform, distance-field glyphs |
 | Text reraster | the same picture by animating the font size: every glyph drawn again |
 | CPU prime | sysbench's cpu event (primes up to 10000) on all cores, one per cell of an Ulam spiral; events/s |
+| CPU single core | the same on one thread: the per core speed next to the all core figure |
 | Memory throughput | memcpy between two 32 MB buffers; MB/s |
 | One million | JavaScript counting to one million, over and over, in a worker; millions/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted; MB/s. Off by default (flash wear) |
 
-First results (average fps, then the system values):
+First results (average fps, then the system values). The Jolla Phone and
+Xperia 10 II runs are by forum user ahjolinna
+([thread](https://forum.sailfishos.org/t/35153)); the Jolla Phone's 90 fps in
+Benchy light is most likely its display refresh, the others are capped at 60.
 
-| stage | Jolla C2 (5.1, 720 × 1600, Mali-G57) | Jolla Tablet (4.6, 1536 × 2048, Intel HD BayTrail) |
-|---|---|---|
-| Benchy light | 35 | 28 |
-| Benchy heavy | 16 | 14 |
-| Benchy glow | 10 | 4 |
-| Shader light | 32 | 8 |
-| Shader heavy | 7 | 2 |
-| Overdraw | 11 | 4 |
-| Cascade | 40 | 25 |
-| Icon storm | 24 | 13 |
-| Text scale | 44 | 12 |
-| Text reraster | 33 | 7 |
-| CPU prime | 9719 events/s | 1271 events/s |
-| Memory throughput | 650 MB/s | 991 MB/s |
-| One million | 8.28 M/s | 5.68 M/s |
-| Storage R/W | 27/24 MB/s | 42/32 MB/s |
+| stage | Jolla Phone (5.2, Mali-G610 MC2) | Xperia 10 II (5.2, Adreno 610) | Jolla C2 (5.1, Mali-G57) | Jolla Tablet (4.6, Intel HD BayTrail) |
+|---|---|---|---|---|
+| Benchy light | 90 | 60 | 35 | 28 |
+| Benchy heavy | 42 | 39 | 16 | 14 |
+| Benchy glow | 20 | 8 | 10 | 4 |
+| Shader light | 75 | 24 | 32 | 8 |
+| Shader heavy | 16 | 8 | 7 | 2 |
+| Overdraw | 34 | 15 | 11 | 4 |
+| Cascade | 68 | 38 | 40 | 25 |
+| Icon storm | 79 | 27 | 24 | 13 |
+| Text scale | 77 | 36 | 44 | 12 |
+| Text reraster | 49 | 13 | 33 | 7 |
+| CPU prime | 16327 events/s | 11153 events/s | 9719 events/s | 1271 events/s |
+| Memory throughput | 6213 MB/s | 3749 MB/s | 650 MB/s | 991 MB/s |
+| One million | 26.81 M/s | 13.08 M/s | 8.28 M/s | 5.68 M/s |
+| Storage R/W | 45/35 MB/s | 22/29 MB/s | 27/24 MB/s | 42/32 MB/s |
 
-The tablet has more than three times the C2's pixels, which the shader and fill
+(All from 1.0.0, before CPU single core existed.) The tablet has more than three times the C2's pixels, which the shader and fill
 stages feel; its memory and storage are faster, its four Atom cores far slower.
 
 The system stages rebuild the author's 2016 console tests (sysbench cpu and

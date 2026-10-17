@@ -14,6 +14,7 @@
 #include <QObject>
 #include <QStandardPaths>
 #include <QRegExp>
+#include <QtNumeric>
 #include <QTextStream>
 
 class BenchLog : public QObject
@@ -52,6 +53,32 @@ public:
         }
         const QString hw = releaseValue(QStringLiteral("/proc/cpuinfo"), QStringLiteral("Hardware"));
         return hw;
+    }
+
+    // The hottest CPU, SoC or GPU sensor in degrees Celsius, NaN if none is
+    // readable. Zone names differ per device (C2: soc-thmzone, cputop0-tzone0,
+    // gpu-thmzone; the tablet: SoC_DTS0); battery, charger, PMIC, board and
+    // skin sensors are left out.
+    Q_INVOKABLE double temperature() const
+    {
+        double hottest = -1000, anyHottest = -1000;
+        const QDir dir(QStringLiteral("/sys/class/thermal"));
+        for (const QString &z : dir.entryList(QStringList() << QStringLiteral("thermal_zone*"))) {
+            QFile tf(dir.filePath(z + QStringLiteral("/temp")));
+            QFile ty(dir.filePath(z + QStringLiteral("/type")));
+            if (!tf.open(QIODevice::ReadOnly)) continue;
+            bool ok = false;
+            const double c = QString::fromLatin1(tf.readAll()).trimmed().toDouble(&ok) / 1000.0;
+            if (!ok || c < -40 || c > 150) continue;
+            QString type;
+            if (ty.open(QIODevice::ReadOnly)) type = QString::fromLatin1(ty.readAll()).trimmed().toLower();
+            anyHottest = qMax(anyHottest, c);
+            if (type.contains(QLatin1String("cpu")) || type.contains(QLatin1String("soc"))
+                    || type.contains(QLatin1String("gpu")) || type.contains(QLatin1String("tsens")))
+                hottest = qMax(hottest, c);
+        }
+        if (hottest > -1000) return hottest;
+        return anyHottest > -1000 ? anyHottest : qQNaN();
     }
 
     // a line from /etc/*-release, for the result header

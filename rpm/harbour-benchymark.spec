@@ -1,7 +1,7 @@
 Name:       harbour-benchymark
 Summary:    Benchymark, a rendering benchmark
-Version:    1.0.0
-Release:    2
+Version:    1.1.0
+Release:    1
 License:    GPLv3+
 URL:        https://github.com/moWerk/benchymark
 Source0:    %{name}-%{version}.tar.bz2
@@ -9,6 +9,7 @@ Requires:   sailfishsilica-qt5 >= 0.10.9
 Requires:   libkeepalive
 Requires:   qt5-qtgraphicaleffects
 Requires:   nemo-qml-plugin-configuration-qt5
+Requires:   sailfishshare-components
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Qml)

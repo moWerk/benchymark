@@ -7,8 +7,8 @@ Name=Benchymark
 Comment=A rendering benchmark
 
 [X-Sailjail]
-# Sandboxed. The app only draws, and writes its last result to its own
-# data directory.
+# Sandboxed. The app draws, writes its last result to its own data directory,
+# and saves a picture of the results to Pictures to share it (Pictures).
 OrganizationName=net.mowerk
 ApplicationName=harbour-benchymark
-Permissions=
+Permissions=Pictures

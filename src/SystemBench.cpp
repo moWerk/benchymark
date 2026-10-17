@@ -67,7 +67,10 @@ static void spiral(qint64 n, int &x, int &y)
 PrimeEngine::PrimeEngine(QObject *parent) : QObject(parent) {}
 PrimeEngine::~PrimeEngine() { stop(); }
 
-int PrimeEngine::threads() const { return qMax(1, QThread::idealThreadCount()); }
+int PrimeEngine::threads() const
+{
+    return m_threadCount > 0 ? m_threadCount : qMax(1, QThread::idealThreadCount());
+}
 
 void PrimeEngine::start(qreal cx, qreal cy, qreal cell, int side)
 {

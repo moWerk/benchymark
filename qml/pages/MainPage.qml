@@ -8,6 +8,7 @@ import Sailfish.Silica 1.0
 import Nemo.KeepAlive 1.2
 import Nemo.Configuration 1.0
 import Benchymark 1.0
+import Sailfish.Share 1.0
 
 Page {
     id: page
@@ -67,6 +68,10 @@ Page {
         { name: qsTrId("id-stage-cpu"), key: "CPU-PRIME", file: "CpuPrime",
           //% "All cores count primes as sysbench does; every finished count lights a cell of an Ulam spiral if its number is prime."
           about: qsTrId("id-about-cpu") },
+        //% "CPU single core"
+        { name: qsTrId("id-stage-cpu-single"), key: "CPU-SINGLE", file: "CpuPrimeSingle",
+          //% "The same prime counting on one core only: next to the all core figure it shows what a single core does."
+          about: qsTrId("id-about-cpu-single") },
         //% "Memory throughput"
         { name: qsTrId("id-stage-memory"), key: "MEMORY", file: "Memory",
           //% "Copies memory between two 32 MB buffers as fast as it can: how quickly the phone moves data in RAM."
@@ -125,12 +130,29 @@ Page {
 
     DisplayBlanking { preventBlanking: page.view === "run" }
 
+    // The temperature over the run, once a second, pauses included: with Run
+    // in loop it is the thermal test (asked for on the forum, 2026-10-17).
+    property var temps: []        // [seconds since start, degrees C]
+    Timer {
+        interval: 1000
+        repeat: true
+        running: page.view === "run"
+        onTriggered: {
+            var c = log.temperature()
+            if (isNaN(c)) return
+            var t = page.temps
+            t.push([Math.round((Date.now() - page.runStarted) / 1000), Math.round(c * 10) / 10])
+            page.temps = t
+        }
+    }
+
     function start() {
         var p = []
         for (var i = 0; i < stages.length; i++)
             if (isOn(stages[i].key)) p.push(i)
         if (p.length === 0) return
         plan = p
+        temps = []
         results = ({})
         order = []
         loops = 0
@@ -284,12 +306,22 @@ Page {
             gpu: FrameCounter.gpu,
             loop: loop,
             loops: loops,
+            temperature: temps,
             phases: phases
         }, null, 1))
     }
 
     BenchLog { id: log }
-    readonly property string deviceName: log.releaseValue("/etc/hw-release", "NAME")
+    // The name without the vendor in front: "Reeder Jolla C2" is a Jolla C2,
+    // "Jolla Jolla Phone" a Jolla Phone; "Jolla Tablet" keeps its first word.
+    readonly property string deviceName: {
+        var name = log.releaseValue("/etc/hw-release", "NAME")
+        var vendor = log.releaseValue("/etc/hw-release", "MER_HA_VENDOR")
+        var words = name.split(" ")
+        if (vendor !== "" && words.length > 2 && words[0].toLowerCase() === vendor.toLowerCase())
+            return words.slice(1).join(" ")
+        return name
+    }
     readonly property string osName: log.releaseValue("/etc/os-release", "PRETTY_NAME")
     readonly property string socName: log.socName()
 
@@ -555,7 +587,19 @@ Page {
     SilicaFlickable {
         anchors.fill: parent
         visible: page.view === "results"
-        contentHeight: resultColumn.height + Theme.paddingLarge * 2
+        contentHeight: resultCapture.height + buttons.height + Theme.paddingLarge * 4
+
+        // what Share saves as a picture: everything but the buttons, on a dark
+        // ground so the PNG is not transparent
+        Item {
+            id: resultCapture
+            width: parent.width
+            height: resultColumn.height + Theme.paddingLarge
+            Rectangle {
+                anchors.fill: parent
+                color: "#0d1426"
+                visible: page.capturing
+            }
 
         Column {
             id: resultColumn
@@ -575,7 +619,7 @@ Page {
                       + Screen.width + " × " + Screen.height + "  ·  " + FrameCounter.gpu + "\n"
                       + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
                       //% "loop"
-                      + (page.loop ? "  ·  " + qsTrId("id-loop-short") + " × " + page.loops : "")
+                      + (page.loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + page.loops : "")
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeSmall
             }
@@ -584,7 +628,9 @@ Page {
 
             // graphics: frames per second
             Repeater {
-                model: [{ head: true }].concat(page.order.filter(function (k) { return !page.results[k].system }))
+                // the header only when there is a graphics row under it
+                readonly property var rows: page.order.filter(function (k) { return !page.results[k].system })
+                model: rows.length > 0 ? [{ head: true }].concat(rows) : []
                 Row {
                     x: Theme.horizontalPageMargin
                     readonly property var r: modelData.head ? null : page.results[modelData]
@@ -660,14 +706,111 @@ Page {
                 font.pixelSize: Theme.fontSizeExtraSmall
             }
 
-            Item { width: 1; height: Theme.paddingLarge * 2 }
+            // the temperature over the run
+            Item {
+                width: parent.width
+                height: tempGraph.visible ? tempHead.height + tempGraph.height + Theme.paddingLarge : 0
+                visible: page.temps.length > 1
+                Label {
+                    id: tempHead
+                    x: Theme.horizontalPageMargin
+                    y: Theme.paddingLarge
+                    //% "Temperature"
+                    text: qsTrId("id-temperature") + "  " + page.tempSummary
+                    color: Theme.secondaryHighlightColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                Canvas {
+                    id: tempGraph
+                    anchors.top: tempHead.bottom
+                    anchors.topMargin: Theme.paddingSmall
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    height: Theme.itemSizeHuge
+                    visible: page.temps.length > 1
+                    onVisibleChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var t = page.temps
+                        if (t.length < 2) return
+                        var lo = 1e9, hi = -1e9
+                        for (var i = 0; i < t.length; i++) { lo = Math.min(lo, t[i][1]); hi = Math.max(hi, t[i][1]) }
+                        lo = Math.floor(lo - 1); hi = Math.ceil(hi + 1)
+                        var span = t[t.length - 1][0] - t[0][0] || 1
+                        var X = function (s) { return (s - t[0][0]) / span * width }
+                        var Y = function (c) { return height - (c - lo) / (hi - lo) * height }
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                        ctx.lineWidth = 1
+                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+                        var grad = ctx.createLinearGradient(0, 0, 0, height)
+                        grad.addColorStop(0, "#e54b3a")
+                        grad.addColorStop(1, "#58a6ff")
+                        ctx.strokeStyle = grad
+                        ctx.lineWidth = Math.max(2, Theme.paddingSmall / 2)
+                        ctx.beginPath()
+                        ctx.moveTo(X(t[0][0]), Y(t[0][1]))
+                        for (var j = 1; j < t.length; j++) ctx.lineTo(X(t[j][0]), Y(t[j][1]))
+                        ctx.stroke()
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
+                        ctx.fillText(hi + " °C", 6, Theme.fontSizeExtraSmall + 2)
+                        ctx.fillText(lo + " °C", 6, height - 6)
+                    }
+                    Connections { target: page; onViewChanged: tempGraph.requestPaint() }
+                }
+            }
+        }
+        }
 
+        Row {
+            id: buttons
+            anchors.top: resultCapture.bottom
+            anchors.topMargin: Theme.paddingLarge * 2
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Theme.paddingLarge
             Button {
-                anchors.horizontalCenter: parent.horizontalCenter
+                //% "Share"
+                text: qsTrId("id-share")
+                onClicked: page.shareResults()
+            }
+            Button {
                 //% "Back"
                 text: qsTrId("id-back")
                 onClicked: page.view = "select"
             }
         }
+    }
+
+    // Share: the results as a picture in Pictures, then the share menu with it
+    property bool capturing: false
+    ShareAction {
+        id: shareAction
+        //% "Share results"
+        title: qsTrId("id-share-results")
+    }
+    function shareResults() {
+        capturing = true
+        resultCapture.grabToImage(function (result) {
+            capturing = false
+            var file = StandardPaths.pictures + "/benchymark-"
+                    + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".png"
+            if (!result.saveToFile(file)) {
+                console.warn("Benchymark: could not save " + file)
+                return
+            }
+            shareAction.resources = [file]
+            shareAction.mimeType = "image/png"
+            shareAction.trigger()
+        })
+    }
+
+    readonly property string tempSummary: {
+        if (temps.length < 2) return ""
+        var peak = -1e9
+        for (var i = 0; i < temps.length; i++) peak = Math.max(peak, temps[i][1])
+        return temps[0][1] + " → " + temps[temps.length - 1][1] + " °C, "
+                //% "peak"
+                + qsTrId("id-peak") + " " + peak + " °C"
     }
 }

@@ -37,13 +37,17 @@ class PrimeEngine : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(Dots *target READ target WRITE setTarget)
-    Q_PROPERTY(int threads READ threads CONSTANT)
+    Q_PROPERTY(int threads READ threads NOTIFY threadsChanged)
+    // 0: every core; 1 for the single core stage
+    Q_PROPERTY(int threadCount READ threadCount WRITE setThreadCount NOTIFY threadsChanged)
 public:
     explicit PrimeEngine(QObject *parent = nullptr);
     ~PrimeEngine() override;
     Dots *target() const { return m_target; }
     void setTarget(Dots *d) { m_target = d; }
     int threads() const;
+    int threadCount() const { return m_threadCount; }
+    void setThreadCount(int n) { if (n != m_threadCount) { m_threadCount = n; emit threadsChanged(); } }
 
     // spiral: centre and cell size in target coordinates, `side` cells across
     Q_INVOKABLE void start(qreal cx, qreal cy, qreal cell, int side);
@@ -51,6 +55,9 @@ public:
     // events done so far
     Q_INVOKABLE double events() const { return double(m_done.load()); }
     static const int kMaxPrime = 10000;   // sysbench's default
+
+signals:
+    void threadsChanged();
 
 private:
     void work(int id);
@@ -61,6 +68,7 @@ private:
     QAtomicInt m_stop;
     qreal m_cx = 0, m_cy = 0, m_cell = 2;
     qint64 m_limit = 1;
+    int m_threadCount = 0;
 };
 
 // Memory: memcpy between two 32 MB buffers, as sysbench's memory test.

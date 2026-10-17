@@ -16,6 +16,10 @@ Item {
     property real areaBottom: height
     readonly property bool system: true
     property string live: ""
+    // 0: every core; the single core stage sets 1
+    property int threadsWanted: 0
+    property string resultKey: "CPU-PRIME"
+    property string resultName: qsTrId("id-stage-cpu")
 
     readonly property real margin: Math.min(width, height) * 0.05
     readonly property real cell: Math.max(2, Math.round(Math.min(width - 2 * margin, areaBottom - areaTop) / 230))
@@ -28,7 +32,7 @@ Item {
         capacity: 60000
     }
 
-    PrimeEngine { id: engine; target: dots }
+    PrimeEngine { id: engine; target: dots; threadCount: stage.threadsWanted }
 
     property double t0: 0
     property double e0: 0
@@ -43,14 +47,15 @@ Item {
         property double last: 0
         onTriggered: {
             var e = engine.events()
-            stage.live = Math.round(e - last) + " events/s · " + engine.threads + " threads"
+            stage.live = Math.round(e - last) + " events/s · " + engine.threads
+                         + (engine.threads === 1 ? " thread" : " threads")
             last = e
         }
     }
 
     function results() {
         var s = (Date.now() - t0) / 1000
-        return [{ key: "CPU-PRIME", name: qsTrId("id-stage-cpu"),
+        return [{ key: stage.resultKey, name: stage.resultName,
                   value: Math.round(engine.events() / s), unit: "events/s" }]
     }
 }
