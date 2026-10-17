@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<!-- Launcher icon for SailfishOS: the leaf shape of the stock icons (top left
+     and bottom right rounded), an outer ring with a diagonal gradient around
+     an inner leaf, as the author's tool apps do it with rings; 3DBenchy
+     (public domain, NTI Group; credit to Creative Tools / NTI) in profile,
+     coming out from under the ring on the left; behind it: grid.
+     From tools/benchy_icon.py. -->
+<defs>
+<linearGradient id="rim" gradientUnits="userSpaceOnUse" x1="0" y1="512" x2="512" y2="0"><stop offset="0" stop-color="#0d1a36"/><stop offset="1" stop-color="#4f86d9"/></linearGradient>
+<radialGradient id="inner" cx="236" cy="236" r="260" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#25427a"/><stop offset="1" stop-color="#070b18"/></radialGradient>
+<clipPath id="innerClip"><path d="M198.0 58.0 H440.0 A14.0 14.0 0 0 1 454.0 72.0 V314.0 A140.0 140.0 0 0 1 314.0 454.0 H72.0 A14.0 14.0 0 0 1 58.0 440.0 V198.0 A140.0 140.0 0 0 1 198.0 58.0 Z"/></clipPath>
+<radialGradient id="sun" cx="256" cy="300" r="230" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd84a" stop-opacity="0.95"/><stop offset="0.25" stop-color="#f0a30e" stop-opacity="0.7"/><stop offset="0.6" stop-color="#e54b3a" stop-opacity="0.3"/><stop offset="1" stop-color="#e54b3a" stop-opacity="0"/></radialGradient><linearGradient id="floor" gradientUnits="userSpaceOnUse" x1="0" y1="300" x2="0" y2="470"><stop offset="0" stop-color="#79c0ff" stop-opacity="0.1"/><stop offset="1" stop-color="#79c0ff" stop-opacity="0.75"/></linearGradient>
+</defs>
+<path d="M192.0 2.0 H484.0 A26.0 26.0 0 0 1 510.0 28.0 V320.0 A190.0 190.0 0 0 1 320.0 510.0 H28.0 A26.0 26.0 0 0 1 2.0 484.0 V192.0 A190.0 190.0 0 0 1 192.0 2.0 Z" fill="url(#inner)"/>
+<g clip-path="url(#innerClip)"><rect x="0" y="0" width="512" height="300" fill="url(#sun)"/><rect x="0" y="300" width="512" height="212" fill="url(#sun)" opacity="0.35"/><g stroke="url(#floor)" stroke-width="9" fill="none" stroke-linecap="round"><line x1="256" y1="300" x2="-344" y2="560"/><line x1="256" y1="300" x2="-194" y2="560"/><line x1="256" y1="300" x2="-44" y2="560"/><line x1="256" y1="300" x2="106" y2="560"/><line x1="256" y1="300" x2="256" y2="560"/><line x1="256" y1="300" x2="406" y2="560"/><line x1="256" y1="300" x2="556" y2="560"/><line x1="256" y1="300" x2="706" y2="560"/><line x1="256" y1="300" x2="856" y2="560"/><line x1="0" y1="316.1" x2="512" y2="316.1"/><line x1="0" y1="352.3" x2="512" y2="352.3"/><line x1="0" y1="404.2" x2="512" y2="404.2"/><line x1="0" y1="470.0" x2="512" y2="470.0"/></g></g>
+<polygon points="30.4,328.8 110.9,328.8 110.9,306.9 166.4,269.5 166.4,172.8 175.4,172.2 175.4,114.8 210.2,114.8 210.2,168.3 294.0,162.5 291.5,265.0 397.2,236.0 392.0,277.3 375.3,322.4 297.9,397.2 30.4,397.2" fill="none" stroke="#79c0ff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M192.0 2.0 H484.0 A26.0 26.0 0 0 1 510.0 28.0 V320.0 A190.0 190.0 0 0 1 320.0 510.0 H28.0 A26.0 26.0 0 0 1 2.0 484.0 V192.0 A190.0 190.0 0 0 1 192.0 2.0 Z M198.0 58.0 H440.0 A14.0 14.0 0 0 1 454.0 72.0 V314.0 A140.0 140.0 0 0 1 314.0 454.0 H72.0 A14.0 14.0 0 0 1 58.0 440.0 V198.0 A140.0 140.0 0 0 1 198.0 58.0 Z" fill="url(#rim)" fill-rule="evenodd"/>
+</svg>

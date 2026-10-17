@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=harbour-benchymark
+Exec=harbour-benchymark
+Name=Benchymark
+Comment=A rendering benchmark
+
+[X-Sailjail]
+# Sandboxed. The app only draws, and writes its last result to its own
+# data directory.
+OrganizationName=net.mowerk
+ApplicationName=harbour-benchymark
+Permissions=

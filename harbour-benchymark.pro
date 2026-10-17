@@ -1,0 +1,33 @@
+# SailfishOS port of Benchymark (the AsteroidOS rendering benchmark).
+# Native: the frame counter and the wireframe renderer are C++.
+TARGET = harbour-benchymark
+
+# the version from the spec (%qmake5 VERSION=...), shown in the page header
+isEmpty(VERSION): VERSION = 1.0.0
+DEFINES += APP_VERSION=\\\"$$VERSION\\\"
+
+CONFIG += sailfishapp sailfishapp_i18n sailfishapp_i18n_idbased sailfishapp_i18n_unfinished
+
+SOURCES += src/main.cpp \
+    src/Wireframe.cpp \
+    src/Dots.cpp \
+    src/SystemBench.cpp
+
+HEADERS += src/Wireframe.h \
+    src/Dots.h \
+    src/SystemBench.h \
+    src/FrameCounter.h \
+    src/BenchLog.h \
+    src/benchymesh.h
+
+DISTFILES += qml/harbour-benchymark.qml \
+    qml/pages/*.qml \
+    qml/stages/*.qml \
+    qml/stages/*.js \
+    qml/images/* \
+    rpm/harbour-benchymark.spec \
+    harbour-benchymark.desktop
+
+SAILFISHAPP_ICONS = 86x86 108x108 128x128 172x172
+
+TRANSLATIONS += translations/harbour-benchymark.ts
