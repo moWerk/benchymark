@@ -47,6 +47,28 @@ Tap a stage name on the start page for one sentence on what it tests.
 | One million | JavaScript counting to one million, over and over, in a worker; millions/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted; MB/s. Off by default (flash wear) |
 
+First results (average fps, then the system values):
+
+| stage | Jolla C2 (5.1, 720 × 1600, Mali-G57) | Jolla Tablet (4.6, 1536 × 2048, Intel HD BayTrail) |
+|---|---|---|
+| Benchy light | 35 | 28 |
+| Benchy heavy | 16 | 14 |
+| Benchy glow | 10 | 4 |
+| Shader light | 32 | 8 |
+| Shader heavy | 7 | 2 |
+| Overdraw | 11 | 4 |
+| Cascade | 40 | 25 |
+| Icon storm | 24 | 13 |
+| Text scale | 44 | 12 |
+| Text reraster | 33 | 7 |
+| CPU prime | 9719 events/s | 1271 events/s |
+| Memory throughput | 650 MB/s | 991 MB/s |
+| One million | 8.28 M/s | 5.68 M/s |
+| Storage R/W | 27/24 MB/s | 42/32 MB/s |
+
+The tablet has more than three times the C2's pixels, which the shader and fill
+stages feel; its memory and storage are faster, its four Atom cores far slower.
+
 The system stages rebuild the author's 2016 console tests (sysbench cpu and
 memory, `dd`, a bash counting loop) inside the app, because the sandbox runs
 no outside tools; app and service start times from that list cannot be
