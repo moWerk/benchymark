@@ -100,7 +100,10 @@ public:
               << QStringLiteral("/sys/class/misc/mali0/device/max_freq")
               << QStringLiteral("/sys/class/kgsl/kgsl-3d0/gpuclk")
               << QStringLiteral("/sys/class/kgsl/kgsl-3d0/max_gpuclk");
-        m.insert(QStringLiteral("devfreq"), dev.entryList(QDir::Dirs | QDir::NoDotAndDotDot));
+        // a QStringList inside the map reaches QML as {}: a plain list
+        QVariantList devs;
+        for (const QString &d : dev.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) devs << d;
+        m.insert(QStringLiteral("devfreq"), devs);
         m.insert(QStringLiteral("ged_dir_listable"), QDir(QStringLiteral("/sys/kernel/ged/hal")).exists());
         for (const QString &p : paths) {
             QFile f(p);

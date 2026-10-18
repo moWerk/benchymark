@@ -243,11 +243,10 @@ Page {
         defaultValue: true
     }
     // Settings and the saved runs, as tabs; a saved run opens on top
-    function openSettings(tab) {
+    function openSettings() {
         pageStack.push(Qt.resolvedUrl("SettingsPage.qml"),
                        { details: resultsPane.view.detailList(), stageInfo: stageInfo,
-                         currentStarted: currentRun && currentRun.started ? currentRun.started : "",
-                         startTab: tab === 1 ? 1 : 0 })
+                         currentStarted: currentRun && currentRun.started ? currentRun.started : "" })
     }
 
     // key -> { name, score }, for the results' rows and what each counts
@@ -659,6 +658,17 @@ Page {
     }
 
     BenchLog { id: log }
+    // The single last run of 2.0 and before joins the saved runs once, at
+    // the first start, before a new run overwrites it.
+    Component.onCompleted: {
+        if (log.runs().length > 0) return
+        try {
+            var last = JSON.parse(log.readLast())
+            if (last.started)
+                log.saveRun("run-" + Qt.formatDateTime(new Date(Date.parse(last.started)), "yyyyMMdd-hhmmss")
+                            + ".json", JSON.stringify(last, null, 1))
+        } catch (e) { }
+    }
     // The name without the vendor in front: "Reeder Jolla C2" is a Jolla C2,
     // "Jolla Jolla Phone" a Jolla Phone; "Jolla Tablet" keeps its first word.
     readonly property string deviceName: {
@@ -728,12 +738,7 @@ Page {
             MenuItem {
                 //% "Settings"
                 text: qsTrId("id-settings")
-                onClicked: page.openSettings(0)
-            }
-            MenuItem {
-                //% "Saved results"
-                text: qsTrId("id-saved-results")
-                onClicked: page.openSettings(1)
+                onClicked: page.openSettings()
             }
             MenuItem {
                 //% "Select all"
@@ -1002,8 +1007,7 @@ Page {
         visible: page.view === "results"
         run: page.currentRun
         stageInfo: page.stageInfo
-        onSettingsClicked: page.openSettings(0)
-        onSavedClicked: page.openSettings(1)
+        onSettingsClicked: page.openSettings()
         onBackClicked: page.view = "select"
     }
 

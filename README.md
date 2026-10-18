@@ -75,9 +75,8 @@ whole run, one point a second:
   from sysfs
 
 The pulley menus do the rest, as SailfishOS apps do. On the start page:
-**Settings**, **Saved results**, **Select all** and **Deselect all**. On the
-results: **Settings**, **Saved results**, **Back to stages**, **Share JSON**
-and **Share image**. Share
+**Settings**, **Select all** and **Deselect all**. On the results:
+**Settings**, **Back to stages**, **Share JSON** and **Share image**. Share
 image saves the whole results page as one tall picture to Pictures, with all
 system details whatever you switched off, and opens the share menu with it
 (the app asks once for the Pictures permission). Share JSON shares the full

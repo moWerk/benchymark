@@ -16,7 +16,6 @@ Item {
     property bool showBack: true
     readonly property alias view: resultView
     signal settingsClicked()
-    signal savedClicked()
     signal backClicked()
 
     BenchLog { id: log }
@@ -35,12 +34,6 @@ Item {
                 //% "Settings"
                 text: qsTrId("id-settings")
                 onClicked: pane.settingsClicked()
-            }
-            MenuItem {
-                visible: pane.showSettings
-                //% "Saved results"
-                text: qsTrId("id-saved-results")
-                onClicked: pane.savedClicked()
             }
             MenuItem {
                 visible: pane.showBack

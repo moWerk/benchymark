@@ -21,7 +21,6 @@ Page {
     property var details: []
     property var stageInfo: ({})
     property string currentStarted: ""   // the run on the main page, marked
-    property int startTab: 0
 
     BenchLog { id: log }
 
@@ -63,21 +62,10 @@ Page {
         return Math.floor(t / 3600) + ":" + two(Math.floor(t / 60) % 60) + ":" + two(t % 60)
     }
 
-    // The saved runs, newest first. The single last run of 2.0 and before
-    // joins the list once, so no result is lost in the update.
+    // the saved runs, newest first
     ListModel { id: runsModel }
     function loadRuns() {
         var names = log.runs()
-        if (names.length === 0) {
-            try {
-                var last = JSON.parse(log.readLast())
-                if (last.started) {
-                    log.saveRun("run-" + Qt.formatDateTime(new Date(Date.parse(last.started)), "yyyyMMdd-hhmmss")
-                                + ".json", JSON.stringify(last, null, 1))
-                    names = log.runs()
-                }
-            } catch (e) { }
-        }
         runsModel.clear()
         for (var i = 0; i < names.length; i++) {
             var r
@@ -105,7 +93,7 @@ Page {
     TabView {
         id: tabs
         anchors.fill: parent
-        currentIndex: settingsPage.startTab
+        currentIndex: 0
         header: TabBar {
             model: ListModel {
                 ListElement {
