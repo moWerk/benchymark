@@ -8,7 +8,6 @@ import Sailfish.Silica 1.0
 import Nemo.KeepAlive 1.2
 import Nemo.Configuration 1.0
 import Benchymark 1.0
-import Sailfish.Share 1.0
 import org.nemomobile.systemsettings 1.0
 
 Page {
@@ -79,6 +78,11 @@ Page {
     property var recalibrateNext: []   // keys whose step ran too light in this run
     property bool ramping: false
     property int rampStep: 0
+    // A step counts only after two seconds under the mark in a row: the
+    // first stage's first second fell under it while the run was starting,
+    // and a Pad 6 kept the lightest step (Michał, 2026-10-19).
+    property bool rampConfirm: false
+    property bool reramped: false    // this stage found its step again already
     property var calibratedNow: []   // keys calibrated in this run
 
     // In the order that reads best: the bright graphics first, text last,
@@ -232,93 +236,30 @@ Page {
     readonly property bool loop: mode !== "once"
     readonly property int hourSeconds: 3600
 
-    // the settings page's two switches (mo, 2026-10-18)
+    // the start page's hints, switchable in the settings (mo, 2026-10-18)
     ConfigurationValue {
         id: showHints
         key: "/apps/harbour-benchymark/showHints"
         defaultValue: true
     }
-    ConfigurationValue {
-        id: showScoreAbout
-        key: "/apps/harbour-benchymark/showScoreAbout"
-        defaultValue: true
-    }
-    // The system details in the results, each one switchable in the settings
-    // (mo, 2026-10-18), so a shared picture shows only what its owner wants.
-    ConfigurationValue {
-        id: hiddenDetails
-        key: "/apps/harbour-benchymark/hiddenDetails"
-        defaultValue: "[]"
-    }
-    readonly property var hiddenDetailKeys: {
-        try { return JSON.parse(hiddenDetails.value) } catch (e) { return [] }
-    }
-    function showDetail(key) { return hiddenDetailKeys.indexOf(key) < 0 }
-    readonly property var detailKeys: ["kernel", "device", "time", "os", "gpu", "resolution", "render", "gl", "mode"]
-    readonly property var detailTitles: ({
-        //% "Kernel"
-        kernel: qsTrId("id-detail-kernel"),
-        //% "Device"
-        device: qsTrId("id-detail-device"),
-        //% "Date and runtime"
-        time: qsTrId("id-detail-time"),
-        //% "SailfishOS version"
-        os: qsTrId("id-detail-os"),
-        //% "GPU"
-        gpu: qsTrId("id-detail-gpu"),
-        //% "Screen resolution"
-        resolution: qsTrId("id-detail-resolution"),
-        //% "Render size"
-        render: qsTrId("id-detail-render"),
-        //% "OpenGL version"
-        gl: qsTrId("id-detail-gl"),
-        //% "Run mode"
-        mode: qsTrId("id-detail-mode")
-    })
-    function detailText(key) {
-        switch (key) {
-        // without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
-        case "kernel": return "Linux " + kernelName.split("-")[0]
-        case "device": return deviceName
-        case "time": return runStarted > 0 ? Qt.formatDateTime(new Date(runStarted), "yyyy-MM-dd hh:mm")
-                                             + "  ·  " + runtimeText : ""
-        case "os": return osName
-        case "gpu": return FrameCounter.gpu
-        case "resolution": return Screen.width + " × " + Screen.height
-        //% "drawn at %1 × %2"
-        case "render": return qsTrId("id-render-size").arg(renderWidth).arg(renderHeight)
-        case "gl": return glText
-        //% "loop"
-        case "mode": return mode === "once" ? "" : modeNames[mode]
-                            + (loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + loops : "")
-        }
-        return ""
-    }
-    // for the settings page: each detail with what it shows now
-    function detailList() {
-        return detailKeys.map(function (k) {
-            //% "of the last run"
-            var v = detailText(k)
-            return { key: k, title: detailTitles[k],
-                     value: v !== "" ? v : k === "time" ? qsTrId("id-detail-last-run")
-                            //% "only when not Run once"
-                            : k === "mode" ? qsTrId("id-detail-mode-once") : "" }
-        })
-    }
-    function openSettings() {
-        pageStack.push(Qt.resolvedUrl("SettingsPage.qml"), { details: detailList() })
+    // Settings and the saved runs, as tabs; a saved run opens on top
+    function openSettings(tab) {
+        pageStack.push(Qt.resolvedUrl("SettingsPage.qml"),
+                       { details: resultsPane.view.detailList(), stageInfo: stageInfo,
+                         currentStarted: currentRun && currentRun.started ? currentRun.started : "",
+                         startTab: tab === 1 ? 1 : 0 })
     }
 
-    function scoreAboutOf(key) {
+    // key -> { name, score }, for the results' rows and what each counts
+    readonly property var stageInfo: {
+        var m = {}
         for (var i = 0; i < stages.length; i++)
-            if (stages[i].key === key) return stages[i].score
-        // the storage stage records its row as STORAGE too; CPU rows by key
-        return ""
+            m[stages[i].key] = { name: stages[i].name, score: stages[i].score }
+        return m
     }
 
     property string view: "select"   // select, run, results
     property int openAbout: -1        // the stage whose sentence is open
-    property string openResult: ""    // the result row whose score line is open
 
     // ── run state ──
     property var plan: []         // stage indices to run, in order
@@ -434,7 +375,6 @@ Page {
         clocks = []
         calibratedNow = []
         recalibrateNext = []
-        openResult = ""
         brightnessSet = mode === "hour" && setDisplayForHour()
         brightnessAtStart = brightnessSet ? hourBrightness
                 : displaySettings.maximumBrightness > 0
@@ -468,6 +408,8 @@ Page {
                                 renderWidth: renderWidth, renderHeight: renderHeight })
         var item = stageLoader.item
         ramping = false
+        rampConfirm = false
+        reramped = false
         if (item && item.ladder !== undefined) {
             var saved = savedStep(calibKey(item, stages[current].key))
             rampStep = saved >= 0 ? Math.min(saved, item.ladder.length - 1) : 0
@@ -556,7 +498,7 @@ Page {
         runEnded = Date.now()
         view = "results"
         writeLog()
-        if (typeof selftestShare !== "undefined" && selftestShare) shareResults()
+        if (typeof selftestShare !== "undefined" && selftestShare) resultsPane.shareImage(true)
     }
 
     function next() {
@@ -600,14 +542,20 @@ Page {
             page.lastFps = fps
             var item = stageLoader.item
             if (page.ramping) {
-                // a step under the mark, or the heaviest: keep it, then measure
-                if (fps < page.rampFps || page.rampStep >= item.ladder.length - 1) {
+                var top = page.rampStep >= item.ladder.length - 1
+                if (fps < page.rampFps && !page.rampConfirm && !top) {
+                    // under the mark once: the same step is measured again
+                    page.rampConfirm = true
+                } else if (fps < page.rampFps || top) {
+                    // under the mark twice, or the heaviest: keep it, then measure
                     page.ramping = false
+                    page.rampConfirm = false
                     page.saveStep(page.calibKey(item, page.stages[page.current].key), page.rampStep)
                     var cn = page.calibratedNow
-                    cn.push(page.stages[page.current].key)
+                    if (cn.indexOf(page.stages[page.current].key) < 0) cn.push(page.stages[page.current].key)
                     page.calibratedNow = cn
                 } else {
+                    page.rampConfirm = false
                     page.rampStep++
                     item.load = item.ladder[page.rampStep]
                 }
@@ -618,6 +566,29 @@ Page {
             s.push({ fps: fps, worst: worst })
             page.samples = s
             page.elapsed++
+            // Three seconds far over the mark: the step is too light for this
+            // device now (calibrated hot, or a slow second kept it), and the
+            // score would bend at the refresh rate. The step is found again
+            // right away from the next one up, and the stage measured anew,
+            // once per stage (Michał's Pad 6, 2026-10-19). A group's step
+            // suits its slowest member, so the others count from four times.
+            if (item.ladder !== undefined && !page.reramped && s.length >= 3) {
+                var sum = 0
+                for (var i = 0; i < s.length; i++) sum += s[i].fps
+                var limit = item.calibrationGroup !== undefined ? 4 * page.rampFps : 2 * page.rampFps
+                var at = item.ladder.indexOf(item.load)
+                if (sum / s.length > limit && at >= 0 && at < item.ladder.length - 1) {
+                    page.reramped = true
+                    page.ramping = true
+                    page.rampConfirm = false
+                    page.rampStep = at + 1
+                    item.load = item.ladder[page.rampStep]
+                    page.samples = []
+                    page.elapsed = 0
+                    page.warm = false
+                    return
+                }
+            }
             if (!(item && item.selfTimed) && page.elapsed >= page.stageSeconds)
                 page.next()
         }
@@ -641,17 +612,19 @@ Page {
         for (var i = 0; i < order.length; i++) {
             var r = results[order[i]]
             if (r.unsupported)
-                phases.push({ phase: order[i], unsupported: r.unsupported })
+                phases.push({ phase: order[i], name: r.name, unsupported: r.unsupported })
             else if (r.system)
-                phases.push({ phase: order[i], value: r.value, unit: r.unit })
+                phases.push({ phase: order[i], name: r.name, value: r.value, unit: r.unit })
             else
-                phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
+                phases.push({ phase: order[i], name: r.name, avg: r.avg, min: r.min, worst_tick_ms: r.worst,
                               samples: r.seconds, load: r.load, load_step: r.step,
                               score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
                               unit: r.unit, calibrated_now: r.score !== undefined
                                       ? calibratedNow.indexOf(order[i]) >= 0 : undefined })
         }
-        lastJson = JSON.stringify({
+        // no GPU clock all run: what the app finds where one may sit
+        var gpuSeen = clocks.some(function (c) { return c[2] !== null })
+        var run = {
             scene: sceneVersion,
             version: appVersion,
             started: new Date(runStarted).toISOString(),
@@ -674,9 +647,15 @@ Page {
             clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             brightness_set_by_run: brightnessSet,
+            recalibrate_next: recalibrateNext.length > 0 ? recalibrateNext : undefined,
+            gpu_probe: gpuSeen ? undefined : log.gpuProbe(),
             phases: phases
-        }, null, 1)
-        log.write(lastJson)
+        }
+        var json = JSON.stringify(run, null, 1)
+        log.write(json)
+        // kept as its own file, named by its start (newest first in the list)
+        log.saveRun("run-" + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".json", json)
+        currentRun = JSON.parse(json)
     }
 
     BenchLog { id: log }
@@ -693,14 +672,6 @@ Page {
     readonly property string osName: log.releaseValue("/etc/os-release", "PRETTY_NAME")
     readonly property string socName: log.socName()
     readonly property string kernelName: log.kernel()
-    function scoreText(v) { return v >= 100 ? String(Math.round(v)) : v.toFixed(1) }
-    // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
-    readonly property string glText: {
-        var gl = FrameCounter.glVersion.match(/OpenGL ES \d+\.\d+/)
-        var sl = FrameCounter.glslVersion.match(/GLSL ES \d+\.\d+/)
-        return (gl ? gl[0] : FrameCounter.glVersion) + "  ·  " + (sl ? sl[0] : FrameCounter.glslVersion)
-    }
-
     // test hooks from main.cpp: SFOS_SELFTEST_RUN=<stage index> runs only that
     // stage (-2 all ticked ones); SFOS_SELFTEST_STOP=<s> ends it after s seconds
     readonly property int selftestSeconds: typeof selftestStop !== "undefined" ? selftestStop : 0
@@ -757,7 +728,12 @@ Page {
             MenuItem {
                 //% "Settings"
                 text: qsTrId("id-settings")
-                onClicked: page.openSettings()
+                onClicked: page.openSettings(0)
+            }
+            MenuItem {
+                //% "Saved results"
+                text: qsTrId("id-saved-results")
+                onClicked: page.openSettings(1)
             }
             MenuItem {
                 //% "Select all"
@@ -1017,593 +993,20 @@ Page {
         onClicked: page.stop()
     }
 
-    // ── results ───────────────────────────────────────────────────────────────
-    SilicaFlickable {
+    // ── results ──────────────────────────────────────────────────────────────
+    // the run that just ended, from the JSON it was saved as
+    property var currentRun: null
+    ResultsPane {
+        id: resultsPane
         anchors.fill: parent
         visible: page.view === "results"
-        contentHeight: resultLoader.height + Theme.paddingLarge * 2
-
-        // SailfishOS pulls instead of buttons; the nearest to the finger last
-        PullDownMenu {
-            // hardest to reach: the details and descriptions, without
-            // leaving the results (mo, 2026-10-18)
-            MenuItem {
-                text: qsTrId("id-settings")
-                onClicked: page.openSettings()
-            }
-            MenuItem {
-                //% "Back to stages"
-                text: qsTrId("id-back-to-stages")
-                onClicked: page.view = "select"
-            }
-            MenuItem {
-                //% "Share JSON"
-                text: qsTrId("id-share-json")
-                onClicked: page.shareJson()
-            }
-            MenuItem {
-                //% "Share image"
-                text: qsTrId("id-share-image")
-                onClicked: page.shareResults()
-            }
-        }
-
-        // the results; Share draws a second one off screen (see below)
-        Loader {
-            id: resultLoader
-            width: parent.width
-            sourceComponent: resultsComponent
-        }
+        run: page.currentRun
+        stageInfo: page.stageInfo
+        onSettingsClicked: page.openSettings(0)
+        onSavedClicked: page.openSettings(1)
+        onBackClicked: page.view = "select"
     }
 
-    Component {
-        id: resultsComponent
-        // The results, once on the page and once off screen for Share: the
-        // shared copy shows every system detail and no open description,
-        // whatever this viewer switched (mo, 2026-10-18), on a dark ground
-        // so the PNG is not transparent.
-        Item {
-            id: resultCapture
-            property bool shareMode: false
-            width: parent ? parent.width : page.width
-            height: resultColumn.height + Theme.paddingLarge
-            Rectangle {
-                anchors.fill: parent
-                color: "#0d1426"
-                visible: resultCapture.shareMode
-            }
-
-        Column {
-            id: resultColumn
-            width: parent.width
-            spacing: Theme.paddingMedium
-
-            PageHeader {
-                id: resultHeader
-                title: "Benchymark"
-                description: "v" + appVersion
-
-                // the free space left of the title: the kernel, always short,
-                // the device, the time of the run (mo, 2026-10-18)
-                Column {
-                    x: Theme.horizontalPageMargin
-                    anchors.verticalCenter: parent.verticalCenter
-                    // up to the title, measured: a fixed share ran under it on
-                    // the XA2's larger font (seen in a shared picture)
-                    width: parent.width - titleMetrics.width - 3 * Theme.horizontalPageMargin
-                    TextMetrics {
-                        id: titleMetrics
-                        font.pixelSize: Theme.fontSizeLarge
-                        font.family: Theme.fontFamilyHeading
-                        text: "Benchymark"
-                    }
-                    Repeater {
-                        // when the run was taken, and how long it ran, last
-                        model: ["kernel", "device", "time"]
-                        Label {
-                            width: parent.width
-                            visible: (resultCapture.shareMode || page.showDetail(modelData)) && text !== ""
-                            text: page.detailText(modelData)
-                            color: Theme.secondaryColor
-                            // a long device name or the runtime shrinks to fit
-                            // before it fades (the XA2's larger font)
-                            font.pixelSize: Theme.fontSizeSmall
-                            fontSizeMode: Text.HorizontalFit
-                            minimumPixelSize: Theme.fontSizeTiny
-                            truncationMode: TruncationMode.Fade
-                        }
-                    }
-                }
-            }
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                wrapMode: Text.Wrap
-                // one fact a line, named, so the OS version is not read as the
-                // kernel's (a reader on Telegram, 2026-10-18): OS, GPU and
-                // resolution, GL, date; kernel and device sit in the header
-                // GPU and screen resolution share a line when both are shown
-                visible: text !== ""
-                text: {
-                    var lines = []
-                    var d = function (k) { return resultCapture.shareMode || page.showDetail(k) ? page.detailText(k) : "" }
-                    if (d("os") !== "") lines.push(d("os"))
-                    var gpuLine = [d("gpu"), d("resolution")].filter(function (x) { return x !== "" })
-                    if (gpuLine.length) lines.push(gpuLine.join("  ·  "))
-                    ;["render", "gl", "mode"].forEach(function (k) { if (d(k) !== "") lines.push(d(k)) })
-                    return lines.join("\n")
-                }
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeSmall
-            }
-
-            Item { width: 1; height: Theme.paddingLarge }
-
-            // One table: the stage (and what its score counts, if switched on)
-            // and the score with its unit (mo, 2026-10-18).
-            // Graphics rows first, then a gap, then the system rows.
-            Repeater {
-                readonly property var gfx: page.order.filter(function (k) { return !page.results[k].system })
-                readonly property var sys: page.order.filter(function (k) { return page.results[k].system })
-                model: page.order.length === 0 ? []
-                       : [{ head: true }].concat(gfx, gfx.length > 0 && sys.length > 0 ? [{ gap: true }] : [], sys)
-                Item {
-                    id: tableRow
-                    x: Theme.horizontalPageMargin
-                    width: page.width - 2 * Theme.horizontalPageMargin
-                    height: modelData.gap ? Theme.paddingLarge : nameColumn.height + Theme.paddingSmall
-                    readonly property bool head: modelData.head === true
-                    readonly property var r: head || modelData.gap ? null : page.results[modelData]
-                    readonly property real col: width / 7
-                    readonly property string about: r ? page.scoreAboutOf(modelData) : ""
-                    // as on the start page: a tap opens what the score counts,
-                    // one row at a time (mo, 2026-10-18: all at once cluttered)
-                    readonly property bool open: r !== null && !resultCapture.shareMode && page.openResult === modelData
-                    readonly property bool canOpen: r !== null && about !== ""
-                            && (showScoreAbout.value === true || showScoreAbout.value === "true")
-                    Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
-                    MouseArea {
-                        id: rowArea
-                        anchors.fill: parent
-                        enabled: tableRow.canOpen
-                        onClicked: page.openResult = tableRow.open ? "" : modelData
-                    }
-                    Column {
-                        id: nameColumn
-                        visible: !modelData.gap
-                        width: tableRow.col * 3.8
-                        Label {
-                            id: nameLabel
-                            width: parent.width
-                            //% "Stage"
-                            text: tableRow.r ? tableRow.r.name : qsTrId("id-col-stage")
-                            // a long name shrinks a little before it fades (the XA2)
-                            fontSizeMode: Text.HorizontalFit
-                            minimumPixelSize: Theme.fontSizeSmall
-                            color: !tableRow.r ? Theme.secondaryHighlightColor
-                                   : (rowArea.pressed && rowArea.containsMouse) || tableRow.open
-                                   ? Theme.highlightColor : Theme.primaryColor
-                            truncationMode: TruncationMode.Fade
-                        }
-                        Label {
-                            width: parent.width
-                            visible: tableRow.open && tableRow.canOpen
-                            text: tableRow.about
-                            wrapMode: Text.Wrap
-                            color: Theme.secondaryColor
-                            font.pixelSize: Theme.fontSizeExtraSmall
-                        }
-                    }
-                    // the score, and its unit apart and dimmed (mo, 2026-10-18)
-                    Label {
-                        visible: !modelData.gap
-                        x: tableRow.col * 3.8
-                        y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.4
-                        horizontalAlignment: Text.AlignRight
-                        //% "score"
-                        text: tableRow.head ? qsTrId("id-col-score")
-                              : !tableRow.r ? ""
-                              : tableRow.r.system ? tableRow.r.value
-                              : tableRow.r.score === undefined ? "–"
-                              : page.scoreText(tableRow.r.score)
-                        color: tableRow.head ? Theme.secondaryHighlightColor : Theme.highlightColor
-                        font.pixelSize: tableRow.head ? Theme.fontSizeSmall : Theme.fontSizeMedium
-                    }
-                    Label {
-                        visible: !modelData.gap && !tableRow.head
-                        x: tableRow.col * 5.2 + Theme.paddingSmall
-                        y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.8 - Theme.paddingSmall
-                        text: tableRow.r && tableRow.r.unit ? tableRow.r.unit : ""
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeExtraSmall
-                        truncationMode: TruncationMode.Fade
-                    }
-                }
-            }
-
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                visible: page.order.some(function (k) { return String(page.results[k].unit).indexOf("*") >= 0 })
-                wrapMode: Text.Wrap
-                //% "* without O_DIRECT: the read may come from the cache"
-                text: qsTrId("id-no-direct")
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-            }
-
-            // which loads this run found, and which it found too light
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                function names(keys) {
-                    return keys.map(function (k) { return page.results[k] ? page.results[k].name : k }).join(", ")
-                }
-                visible: page.calibratedNow.length > 0 || page.recalibrateNext.length > 0
-                wrapMode: Text.Wrap
-                //% "Load found in this run: %1"
-                text: (page.calibratedNow.length > 0 ? qsTrId("id-calibrated-now").arg(names(page.calibratedNow)) : "")
-                      + (page.calibratedNow.length > 0 && page.recalibrateNext.length > 0 ? "\n" : "")
-                      //% "Ran too light, found again next run: %1"
-                      + (page.recalibrateNext.length > 0 ? qsTrId("id-recalibrate-next").arg(names(page.recalibrateNext)) : "")
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-            }
-
-            // why a GPU buffer stage shows a dash
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                readonly property var why: page.order.filter(function (k) { return page.results[k].unsupported })
-                                                     .map(function (k) { return page.results[k].name + ": " + page.results[k].unsupported })
-                visible: why.length > 0
-                wrapMode: Text.Wrap
-                //% "– cannot run on this GPU or driver"
-                text: qsTrId("id-unsupported") + "\n" + why.join("\n")
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-            }
-
-            // the temperature over the run
-            Item {
-                width: parent.width
-                height: tempGraph.visible ? tempHead.height + tempGraph.height + Theme.paddingLarge : 0
-                visible: page.temps.length > 1
-                // a title as the stages have, the figures below it
-                Column {
-                    id: tempHead
-                    x: Theme.horizontalPageMargin
-                    y: Theme.paddingLarge
-                    width: parent.width - 2 * x
-                    Label {
-                        //% "Temperature"
-                        text: qsTrId("id-temperature")
-                    }
-                    Label {
-                        width: parent.width
-                        wrapMode: Text.Wrap
-                        text: page.tempSummary
-                        color: Theme.secondaryHighlightColor
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-                }
-                Canvas {
-                    id: tempGraph
-                    anchors.top: tempHead.bottom
-                    anchors.topMargin: Theme.paddingSmall
-                    x: Theme.horizontalPageMargin
-                    width: parent.width - 2 * Theme.horizontalPageMargin
-                    height: Theme.itemSizeHuge
-                    visible: page.temps.length > 1
-                    onVisibleChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var t = page.temps
-                        if (t.length < 2) return
-                        var lo = 1e9, hi = -1e9
-                        for (var i = 0; i < t.length; i++) { lo = Math.min(lo, t[i][1]); hi = Math.max(hi, t[i][1]) }
-                        lo = Math.floor(lo - 1); hi = Math.ceil(hi + 1)
-                        var span = t[t.length - 1][0] - t[0][0] || 1
-                        var X = function (s) { return (s - t[0][0]) / span * width }
-                        var Y = function (c) { return height - (c - lo) / (hi - lo) * height }
-                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
-                        ctx.lineWidth = 1
-                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-                        // each segment coloured by its temperature, blue when cool,
-                        // red when hot (a gradient stroke came out grey on Qt 5.6)
-                        ctx.lineWidth = Math.max(3, Theme.paddingSmall * 0.6)
-                        ctx.lineCap = "round"
-                        for (var j = 1; j < t.length; j++) {
-                            var f = ((t[j - 1][1] + t[j][1]) / 2 - lo) / (hi - lo)
-                            ctx.strokeStyle = Qt.rgba(0.35 + 0.55 * f, 0.65 - 0.36 * f, 1.0 - 0.77 * f, 1)
-                            ctx.beginPath()
-                            ctx.moveTo(X(t[j - 1][0]), Y(t[j - 1][1]))
-                            ctx.lineTo(X(t[j][0]), Y(t[j][1]))
-                            ctx.stroke()
-                        }
-                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
-                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
-                        ctx.fillText(hi + " °C", 6, Theme.fontSizeExtraSmall + 2)
-                        ctx.fillText(lo + " °C", 6, height - 6)
-                    }
-                    Connections { target: page; onViewChanged: tempGraph.requestPaint() }
-                }
-            }
-
-            // the battery over the run: the charge, and the power drawn under it
-            Item {
-                width: parent.width
-                height: battGraph.visible ? battHead.height + battGraph.height + Theme.paddingLarge : 0
-                visible: page.batts.length > 1
-                Column {
-                    id: battHead
-                    x: Theme.horizontalPageMargin
-                    y: Theme.paddingLarge
-                    width: parent.width - 2 * x
-                    Label {
-                        //% "Battery"
-                        text: qsTrId("id-battery")
-                    }
-                    Label {
-                        width: parent.width
-                        wrapMode: Text.Wrap
-                        text: page.battSummary
-                        color: Theme.secondaryHighlightColor
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-                }
-                Canvas {
-                    id: battGraph
-                    anchors.top: battHead.bottom
-                    anchors.topMargin: Theme.paddingSmall
-                    x: Theme.horizontalPageMargin
-                    width: parent.width - 2 * Theme.horizontalPageMargin
-                    height: Theme.itemSizeHuge
-                    visible: page.batts.length > 1
-                    onVisibleChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var b = page.batts
-                        if (b.length < 2) return
-                        var lo = 100, hi = 0, wMax = 0
-                        for (var i = 0; i < b.length; i++) {
-                            lo = Math.min(lo, b[i][1]); hi = Math.max(hi, b[i][1])
-                            if (b[i][2] !== null) wMax = Math.max(wMax, b[i][2])
-                        }
-                        lo = Math.max(0, lo - 1); hi = Math.min(100, hi + 1)
-                        wMax = Math.ceil(wMax) || 1
-                        var span = b[b.length - 1][0] - b[0][0] || 1
-                        var X = function (s) { return (s - b[0][0]) / span * width }
-                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
-                        ctx.lineWidth = 1
-                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-                        // the power, thin and amber, scaled to its own maximum
-                        ctx.strokeStyle = Qt.rgba(1.0, 0.7, 0.25, 0.55)
-                        ctx.lineWidth = 1.5
-                        ctx.beginPath()
-                        var started = false
-                        for (var k = 0; k < b.length; k++) {
-                            if (b[k][2] === null) continue
-                            var wy = height - b[k][2] / wMax * height
-                            if (started) ctx.lineTo(X(b[k][0]), wy)
-                            else { ctx.moveTo(X(b[k][0]), wy); started = true }
-                        }
-                        ctx.stroke()
-                        // the charge, thick and green
-                        ctx.strokeStyle = Qt.rgba(0.45, 0.85, 0.45, 1)
-                        ctx.lineWidth = Math.max(3, Theme.paddingSmall * 0.6)
-                        ctx.lineCap = "round"
-                        ctx.lineJoin = "round"
-                        ctx.beginPath()
-                        for (var j = 0; j < b.length; j++) {
-                            var y = height - (b[j][1] - lo) / (hi - lo) * height
-                            if (j === 0) ctx.moveTo(X(b[j][0]), y)
-                            else ctx.lineTo(X(b[j][0]), y)
-                        }
-                        ctx.stroke()
-                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
-                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
-                        ctx.fillText(hi + " %", 6, Theme.fontSizeExtraSmall + 2)
-                        ctx.fillText(lo + " %", 6, height - 6)
-                        ctx.fillStyle = Qt.rgba(1.0, 0.7, 0.25, 0.8)
-                        ctx.textAlign = "right"
-                        ctx.fillText(wMax + " W", width - 6, Theme.fontSizeExtraSmall + 2)
-                        ctx.fillText("0 W", width - 6, height - 6)
-                    }
-                    Connections { target: page; onViewChanged: battGraph.requestPaint() }
-                }
-            }
-
-            // the clocks over the run, red where the kernel throttled
-            Item {
-                width: parent.width
-                height: clockGraph.visible ? clockHead.height + clockGraph.height + Theme.paddingLarge : 0
-                visible: page.clocks.length > 1
-                Column {
-                    id: clockHead
-                    x: Theme.horizontalPageMargin
-                    y: Theme.paddingLarge
-                    width: parent.width - 2 * x
-                    Label {
-                        //% "Clocks"
-                        text: qsTrId("id-clocks")
-                    }
-                    // the legend in the lines' colours, then the verdict (mo,
-                    // 2026-10-18: on the graph it sat on the data)
-                    Label {
-                        width: parent.width
-                        wrapMode: Text.Wrap
-                        textFormat: Text.StyledText
-                        text: "<font color=\"#66bfff\">CPU</font>"
-                              + (page.clocks.some(function (r) { return r[2] !== null })
-                                 ? "  ·  <font color=\"#bf8cff\">GPU</font>" : "")
-                              + "  ·  " + page.clockSummary
-                        color: Theme.secondaryHighlightColor
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-                }
-                Canvas {
-                    id: clockGraph
-                    anchors.top: clockHead.bottom
-                    anchors.topMargin: Theme.paddingSmall
-                    x: Theme.horizontalPageMargin
-                    width: parent.width - 2 * Theme.horizontalPageMargin
-                    height: Theme.itemSizeHuge
-                    visible: page.clocks.length > 1
-                    onVisibleChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.clearRect(0, 0, width, height)
-                        var c = page.clocks
-                        if (c.length < 2) return
-                        var span = c[c.length - 1][0] - c[0][0] || 1
-                        var X = function (s) { return (s - c[0][0]) / span * width }
-                        var Y = function (p) { return height - Math.min(100, p) / 100 * height }
-                        // throttled seconds as red bands behind the lines
-                        ctx.fillStyle = Qt.rgba(0.9, 0.2, 0.2, 0.3)
-                        for (var i = 1; i < c.length; i++)
-                            if (c[i][3]) ctx.fillRect(X(c[i - 1][0]), 0, Math.max(1, X(c[i][0]) - X(c[i - 1][0])), height)
-                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
-                        ctx.lineWidth = 1
-                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-                        var line = function (col, color, w) {
-                            ctx.strokeStyle = color
-                            ctx.lineWidth = w
-                            ctx.beginPath()
-                            var started = false
-                            for (var j = 0; j < c.length; j++) {
-                                if (c[j][col] === null) continue
-                                if (started) ctx.lineTo(X(c[j][0]), Y(c[j][col]))
-                                else { ctx.moveTo(X(c[j][0]), Y(c[j][col])); started = true }
-                            }
-                            ctx.stroke()
-                        }
-                        line(2, Qt.rgba(0.75, 0.55, 1.0, 0.7), 1.5)   // GPU, thin violet
-                        line(1, Qt.rgba(0.4, 0.75, 1.0, 1), Math.max(3, Theme.paddingSmall * 0.6))   // CPU
-                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
-                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
-                        ctx.fillText("100 %", 6, Theme.fontSizeExtraSmall + 2)
-                        ctx.fillText("0 %", 6, height - 6)
-                    }
-                    Connections { target: page; onViewChanged: clockGraph.requestPaint() }
-                }
-            }
-        }
-        }
-    }
-
-    // Share's copy: off screen, full height, drawn only while sharing
-    Loader {
-        id: shareLoader
-        active: false
-        x: page.width * 2
-        width: page.width
-        sourceComponent: resultsComponent
-        onLoaded: item.shareMode = true
-    }
-    // the picture takes a moment: the page dims to half black and says so
-    // (mo, 2026-10-18)
-    Rectangle {
-        anchors.fill: parent
-        visible: shareLoader.active
-        color: Qt.rgba(0, 0, 0, 0.5)
-        z: 50
-        MouseArea { anchors.fill: parent }   // no taps through while it works
-        Label {
-            anchors.centerIn: parent
-            //% "Assembling screenshot…"
-            text: qsTrId("id-share-assembling")
-            color: Theme.highlightColor
-            font.pixelSize: Theme.fontSizeLarge
-        }
-    }
-    // the graphs are Canvases: give them a moment to draw before the grab
-    Timer {
-        id: shareGrabTimer
-        interval: 700
-        onTriggered: page.grabShare()
-    }
-
-    // Share: the results as a picture in Pictures, then the share menu with it
-    ShareAction {
-        id: shareAction
-        //% "Share results"
-        title: qsTrId("id-share-results")
-    }
-    function shareResults() {
-        shareLoader.active = true
-        shareGrabTimer.restart()
-    }
-    function grabShare() {
-        var item = shareLoader.item
-        if (!item) return
-        item.grabToImage(function (result) {
-            // the test hook keeps it in the app's data directory instead
-            var test = typeof selftestShare !== "undefined" && selftestShare
-            var file = test ? log.path().replace("last-run.json", "share-test.png")
-                     : StandardPaths.pictures + "/benchymark-"
-                       + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".png"
-            var saved = result.saveToFile(file)
-            shareLoader.active = false
-            if (!saved) {
-                console.warn("Benchymark: could not save " + file)
-                return
-            }
-            if (test) { console.log("Benchymark: share picture " + file); return }
-            shareAction.resources = [file]
-            shareAction.mimeType = "image/png"
-            shareAction.trigger()
-        })
-    }
-
-    // The JSON of the run, handed to the share menu as content (as Jolla
-    // Notes does with text), so no file has to leave the sandbox.
-    property string lastJson: ""
-    function shareJson() {
-        var name = "benchymark-" + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".json"
-        shareAction.resources = [{ "name": name, "data": lastJson, "type": "application/json" }]
-        shareAction.mimeType = "application/json"
-        shareAction.trigger()
-    }
-
-    // "58 → 55 %, 1.42 W avg, 0.30 Wh, −18 %/h, brightness 48 %", plus "charging" when
-    // the charger was in at any point; %/h only from ten minutes on, below
-    // that whole percent steps say little
-    readonly property string battSummary: {
-        if (batts.length < 2) return ""
-        var first = batts[0], last = batts[batts.length - 1]
-        var wSum = 0, wN = 0, charging = false
-        for (var i = 0; i < batts.length; i++) {
-            if (batts[i][2] !== null) { wSum += batts[i][2]; wN++ }
-            if (batts[i][3] === "Charging" || batts[i][3] === "Full") charging = true
-        }
-        // the energy drawn: the power summed over the seconds between samples
-        var wh = 0
-        for (var k = 1; k < batts.length; k++)
-            if (batts[k][2] !== null && batts[k - 1][2] !== null)
-                wh += (batts[k][2] + batts[k - 1][2]) / 2 * (batts[k][0] - batts[k - 1][0]) / 3600
-        var parts = [first[1] + " → " + last[1] + " %"]
-        //% "avg"
-        if (wN > 0) parts.push((wSum / wN).toFixed(2) + " W " + qsTrId("id-col-avg"))
-        if (wN > 1) parts.push(wh.toFixed(2) + " Wh")
-        var span = last[0] - first[0]
-        if (span >= 600 && !charging)
-            parts.push((Math.round((last[1] - first[1]) * 36000 / span) / 10).toString().replace("-", "−") + " %/h")
-        //% "brightness"
-        if (brightnessAtStart >= 0) parts.push(qsTrId("id-brightness") + " " + brightnessAtStart + " %"
-                //% "set by the run"
-                + (brightnessSet ? " (" + qsTrId("id-set-by-run") + ")" : ""))
-        //% "charging"
-        if (charging) parts.push(qsTrId("id-charging"))
-        return parts.join(", ")
-    }
-
-    // the run's length, 0:12:07
-    readonly property string runtimeText: clockText((runEnded - runStarted) / 1000)
     function clockText(seconds) {
         var t = Math.max(0, Math.round(seconds))
         var two = function (n) { return (n < 10 ? "0" : "") + n }
@@ -1626,25 +1029,4 @@ Page {
         //% "Until you tap: overheating and throttling diagnosis"
         loop: qsTrId("id-hint-loop")
     })
-
-    // "throttled 14 % of the run, first at 0:03:42" or "not throttled"
-    readonly property string clockSummary: {
-        if (clocks.length < 2) return ""
-        var n = 0, first = -1
-        for (var i = 0; i < clocks.length; i++)
-            if (clocks[i][3]) { n++; if (first < 0) first = clocks[i][0] }
-        //% "not throttled"
-        if (n === 0) return qsTrId("id-not-throttled")
-        //% "throttled %1 % of the run, first at %2"
-        return qsTrId("id-throttled").arg(Math.round(n * 100 / clocks.length)).arg(clockText(first))
-    }
-
-    readonly property string tempSummary: {
-        if (temps.length < 2) return ""
-        var peak = -1e9
-        for (var i = 0; i < temps.length; i++) peak = Math.max(peak, temps[i][1])
-        return temps[0][1] + " → " + temps[temps.length - 1][1] + " °C, "
-                //% "peak"
-                + qsTrId("id-peak") + " " + peak + " °C"
-    }
 }

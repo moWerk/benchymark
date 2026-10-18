@@ -18,6 +18,8 @@
 #include <QRegExp>
 #include <QtNumeric>
 #include <QTextStream>
+#include <QStringList>
+#include <algorithm>
 
 class BenchLog : public QObject
 {
@@ -43,6 +45,70 @@ public:
         QTextStream out(&f);
         out << json << "\n";
         return true;
+    }
+
+    // Every run is kept as its own file, named by its start, newest first
+    // in the list (asked for on the forum, 2026-10-19).
+    Q_INVOKABLE QString runsPath() const
+    {
+        return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+               + QStringLiteral("/runs");
+    }
+    Q_INVOKABLE bool saveRun(const QString &name, const QString &json) const
+    {
+        QDir().mkpath(runsPath());
+        QFile f(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+            return false;
+        QTextStream out(&f);
+        out << json << "\n";
+        return true;
+    }
+    Q_INVOKABLE QStringList runs() const
+    {
+        QStringList l = QDir(runsPath()).entryList(QStringList() << QStringLiteral("run-*.json"),
+                                                   QDir::Files, QDir::Name);
+        std::reverse(l.begin(), l.end());
+        return l;
+    }
+    Q_INVOKABLE QString readRun(const QString &name) const
+    {
+        return readText(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
+    }
+    Q_INVOKABLE bool deleteRun(const QString &name) const
+    {
+        return QFile::remove(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
+    }
+    // the single last run of 2.0 and before, to carry it into the list
+    Q_INVOKABLE QString readLast() const { return readText(path()); }
+
+    // When no GPU clock is found: each place a GPU clock may sit, with what
+    // the app reads there or why it cannot, so one shared JSON shows whether
+    // the sandbox blocks it or the format is new (the Jolla Phone, 2.0.1).
+    Q_INVOKABLE QVariantMap gpuProbe() const
+    {
+        QVariantMap m;
+        QStringList paths;
+        const QDir dev(QStringLiteral("/sys/class/devfreq"));
+        for (const QString &d : dev.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
+            paths << dev.filePath(d) + QStringLiteral("/cur_freq") << dev.filePath(d) + QStringLiteral("/max_freq");
+        paths << QStringLiteral("/sys/kernel/ged/hal/current_freqency")
+              << QStringLiteral("/sys/kernel/ged/hal/total_gpu_freq_level_count")
+              << QStringLiteral("/proc/gpufreqv2/gpu_working_opp_table")
+              << QStringLiteral("/proc/gpufreqv2/gpufreq_status")
+              << QStringLiteral("/sys/class/misc/mali0/device/cur_freq")
+              << QStringLiteral("/sys/class/misc/mali0/device/max_freq")
+              << QStringLiteral("/sys/class/kgsl/kgsl-3d0/gpuclk")
+              << QStringLiteral("/sys/class/kgsl/kgsl-3d0/max_gpuclk");
+        m.insert(QStringLiteral("devfreq"), dev.entryList(QDir::Dirs | QDir::NoDotAndDotDot));
+        m.insert(QStringLiteral("ged_dir_listable"), QDir(QStringLiteral("/sys/kernel/ged/hal")).exists());
+        for (const QString &p : paths) {
+            QFile f(p);
+            if (!f.exists()) { m.insert(p, QStringLiteral("missing")); continue; }
+            if (!f.open(QIODevice::ReadOnly)) { m.insert(p, QStringLiteral("unreadable: ") + f.errorString()); continue; }
+            m.insert(p, QString::fromLatin1(f.read(240)).trimmed());
+        }
+        return m;
     }
 
     // the SoC as the kernel's device tree names it, else /proc/cpuinfo
@@ -246,6 +312,13 @@ private:
         for (int pos = 0; (pos = re.indexIn(t, pos)) >= 0; pos += re.matchedLength())
             max = qMax(max, re.cap(1).toDouble());
         return max >= 100000 && max <= 3000000 ? max : 0;
+    }
+
+    static QString readText(const QString &file)
+    {
+        QFile f(file);
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return QString();
+        return QString::fromUtf8(f.readAll());
     }
 
     static QString sysValue(const QString &file)
