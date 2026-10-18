@@ -70,8 +70,12 @@ public:
             QFile ty(dir.filePath(z + QStringLiteral("/type")));
             if (!tf.open(QIODevice::ReadOnly)) continue;
             bool ok = false;
-            const double c = QString::fromLatin1(tf.readAll()).trimmed().toDouble(&ok) / 1000.0;
-            if (!ok || c < -40 || c > 150) continue;
+            const double raw = QString::fromLatin1(tf.readAll()).trimmed().toDouble(&ok);
+            // a sensor that is off reads 0; old kernels (3.4, Moto G 2nd gen)
+            // report whole degrees instead of millidegrees
+            if (!ok || raw == 0) continue;
+            const double c = qAbs(raw) < 200 ? raw : raw / 1000.0;
+            if (c < -40 || c > 150) continue;
             QString type;
             if (ty.open(QIODevice::ReadOnly)) type = QString::fromLatin1(ty.readAll()).trimmed().toLower();
             anyHottest = qMax(anyHottest, c);
