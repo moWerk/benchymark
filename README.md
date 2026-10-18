@@ -129,7 +129,7 @@ Forum user ahjolinna ran the first results on other devices and suggested
 the CPU single core stage, the temperature curve as a thermal test and
 sharing the results, all in 1.1.0
 ([thread](https://forum.sailfishos.org/t/35153)).
-Forum user mister_magister asked for the kernel version and inspired the
+Mister Magister asked for the kernel version and inspired the
 battery drain and CPU throttling curves, all in 1.2.0.
 
 The SailfishOS version was written by an LLM (Claude), directed by the
