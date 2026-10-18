@@ -38,11 +38,31 @@ Tick the stages you want, choose a run mode, start:
   the next start), so drains compare
 - **Run in loop**: until you tap, to diagnose overheating and throttling
 
-Each graphics stage runs for 10 seconds on a black background (the ambience
-must not change the result), the system stages run their own course. At the
-end a table with everything worth a screenshot: device, OS and kernel,
-GPU, resolution and the OpenGL ES and GLSL versions, the date and exact runtime, frames per second per stage and the
-system values. Below it three curves over the whole run, one point a second:
+### Scores that compare across devices (2.0)
+
+Up to 1.3 every stage drew at the screen's own resolution and the result was
+frames per second. A tablet with four times the pixels did four times the
+work, and fast phones hit their refresh rate (60, 90, 120 Hz) and stopped
+telling anything. Since 2.0:
+
+- **One render size for everyone**: every stage draws into 1.15 million
+  pixels, 720 × 1600 in the screen's own shape, and is scaled to the panel
+- **Calibrated load**: on its first run on a device, each graphics stage
+  raises its load step by step (more boats, layers, squares, icons, texts,
+  noise fields or table reads) until it falls under 25 fps, and keeps that
+  step. Later runs measure their 10 seconds right away. A stage that later
+  runs over 50 fps finds its step again on the next run
+- **A score instead of fps**: the work done per second, in the stage's own
+  unit: boats/s, Mpx/s, M reads/s, layers/s, squares/s, icons/s, texts/s.
+  The three table stages share one step, so UBO, SSBO and texture always
+  read the same amount
+
+Each graphics stage runs 10 seconds on a black background (the ambience must
+not change the result), the system stages run their own course. The results
+show the device, kernel, OS, GPU, screen and render size, the OpenGL ES and
+GLSL versions, the date and exact runtime, every stage's score with its unit
+(a tap on a stage says what its score counts), then three curves over the
+whole run, one point a second:
 
 - **Temperature**: the hottest CPU, SoC or GPU sensor
 - **Battery**: the charge and the power drawn, with the average watts, the
@@ -53,39 +73,78 @@ system values. Below it three curves over the whole run, one point a second:
   capped below its maximum). The journal is closed to apps, so this is read
   from sysfs
 
-**Share image** saves that screen to Pictures and opens the share menu with
-it (the app asks once for the Pictures permission); **Share JSON** shares the
-full run, all curves included. The last run is also kept in
-`~/.local/share/net.mowerk/harbour-benchymark/last-run.json`.
-Tap a stage name on the start page for one sentence on what it tests.
+The pulley menus do the rest, as SailfishOS apps do. On the start page:
+**Settings**, **Select all** and **Deselect all**. On the results:
+**Settings**, **Back to stages**, **Share JSON** and **Share image**. Share
+image saves the whole results page as one tall picture to Pictures, with all
+system details whatever you switched off, and opens the share menu with it
+(the app asks once for the Pictures permission). Share JSON shares the full
+run, all curves, loads and fps included. The last run is also kept in
+`~/.local/share/net.mowerk/harbour-benchymark/last-run.json`. In Settings: the
+start page hints, the score descriptions, and which system details the
+results show.
 
-<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="screenshots/benchymark-results.png" width="180" alt="Results on a Jolla C2"> <img src="store/screenshot-results-top-1.3.0-720x1600.png" width="180" alt="Results 1.3.0: kernel, device and time beside the title"> <img src="store/screenshot-results-graphs-720x1600.png" width="180" alt="Temperature, battery and clock curves">
+<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.0.0-c2-720x2740.png" width="180" alt="Share image of a full run on a Jolla C2, 2.0.0"> <img src="store/screenshot-results-2.0.0-xa2-1080x4605.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.0.0">
 
-| stage | what it leans on |
-|---|---|
-| Benchy light | two 3DBenchy wireframes, each drawn 10 times: CPU projection, line drawing | 59 | 102 |
-| Benchy heavy | six boats, each drawn 20 times: 120 wireframes a frame | 25 | 55 |
-| Benchy glow | a Benchy with a pulsing blur halo over the whole screen | 5 | 15 |
-| Shader light | a domain-warped noise field per pixel (the watch's CLOUDLIGHT) | 20 | 109 |
-| Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) | 8 | 33 |
-| Table from UBO | every pixel walks a 16 KB table, 16 reads, each index from the entry before, from a uniform buffer (UBO); OpenGL ES 3.0 |
-| Table from SSBO | the same walk from a shader storage buffer (SSBO); OpenGL ES 3.1 with storage buffers in fragment shaders |
-| Table from texture | the same walk from a float texture (`texelFetch`), the baseline for the two buffers; OpenGL ES 3.0 |
-| Overdraw | 72 big translucent squares, turning: fill rate |
-| Cascade | 1000 rounded squares in two transformed rings |
-| Icon storm | 1440 SVG icons (flashes and Twemoji rockets) on spiral arms |
-| Text scale | text resized by a scale transform, distance-field glyphs |
-| Text reraster | the same picture by animating the font size: every glyph drawn again |
-| CPU prime | sysbench's cpu event (primes up to 10000) on all cores, one per cell of an Ulam spiral; events/s |
-| CPU single core | the same on one thread: the per core speed next to the all core figure |
-| Memory throughput | memcpy between two 32 MB buffers; MB/s |
-| One million | JavaScript counting to one million, over and over, in a worker; millions/s |
-| Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted; MB/s. Off by default (flash wear) |
+| stage | what it leans on | score |
+|---|---|---|
+| Benchy light | two 3DBenchy wireframes, each drawn many times: CPU projection, line drawing | boats/s |
+| Benchy heavy | six smaller boats, each drawn many times | boats/s |
+| Benchy glow | a Benchy with pulsing blur halos stacked over the whole picture | Mpx/s |
+| Shader light | a domain-warped noise field per pixel, several times over (the watch's CLOUDLIGHT) | Mpx/s |
+| Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) | Mpx/s |
+| Table from UBO | every pixel walks a 16 KB table, each index from the entry before, from a uniform buffer (UBO); OpenGL ES 3.0 | M reads/s |
+| Table from SSBO | the same walk from a shader storage buffer (SSBO); OpenGL ES 3.1 with storage buffers in fragment shaders | M reads/s |
+| Table from texture | the same walk from a float texture (`texelFetch`), the baseline for the two buffers; OpenGL ES 3.0 | M reads/s |
+| Overdraw | big translucent squares, stacked and turning: fill rate | layers/s |
+| Cascade | rounded squares in two transformed rings | squares/s |
+| Icon storm | SVG icons (flashes and Twemoji rockets) on spiral arms | icons/s |
+| Text scale | text resized by a scale transform, distance-field glyphs | texts/s |
+| Text reraster | the same picture by animating the font size: every glyph drawn again | texts/s |
+| CPU prime | sysbench's cpu event (primes up to 10000) on all cores, one per cell of an Ulam spiral | events/s |
+| CPU single core | the same on one thread | events/s |
+| Memory throughput | memcpy between two 32 MB buffers | MB/s |
+| One million | JavaScript counting to one million, over and over, in a worker | M/s |
+| Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
-First results (average fps, then the system values). The Jolla Phone and
-Xperia 10 II runs are by forum user ahjolinna
-([thread](https://forum.sailfishos.org/t/35153)); the Jolla Phone's 90 fps in
-Benchy light is most likely its display refresh, the others are capped at 60.
+Results with 2.0 (scene `sfos-2.0`), by the author:
+
+| stage | Jolla C2 (5.1, Mali-G57) | Xperia XA2 (4.4, Adreno 508) | Jolla Tablet (4.6, Intel HD BayTrail) |
+|---|---|---|---|
+| Benchy light | 788 boats/s | 3088 boats/s | 968 boats/s |
+| Benchy heavy | 1872 boats/s | 3552 boats/s | 2412 boats/s |
+| Benchy glow | 10.0 Mpx/s | 6.7 Mpx/s | 5.0 Mpx/s |
+| Shader light | 41.5 Mpx/s | 42.4 Mpx/s | 18.4 Mpx/s |
+| Shader heavy | 8.1 Mpx/s | 15.2 Mpx/s | 6.9 Mpx/s |
+| Table from UBO | 335 M reads/s | 457 M reads/s | 112 M reads/s |
+| Table from SSBO | 335 M reads/s | 442 M reads/s | – (needs OpenGL ES 3.1) |
+| Table from texture | 623 M reads/s | 461 M reads/s | 76 M reads/s |
+| Overdraw | 803 layers/s | 1462 layers/s | 342 layers/s |
+| Cascade | 56000 squares/s | 20000 squares/s | 40800 squares/s |
+| Icon storm | 32640 icons/s | 19392 icons/s | 17472 icons/s |
+| Text scale | 10440 texts/s | 6392 texts/s | 4246 texts/s |
+| Text reraster | 7038 texts/s | 1976 texts/s | 1560 texts/s |
+| CPU prime | 9635 events/s | 1012 events/s | 1282 events/s |
+| CPU single core | 1710 events/s | 261 events/s | 359 events/s |
+| Memory throughput | 625 MB/s | 1490 MB/s | 892 MB/s |
+| One million | 8.22 M/s | 5.62 M/s | 6.09 M/s |
+| Storage R/W | 27/24 MB/s | – | 42/32 MB/s |
+
+Each GPU reads the table its own way: on the C2's Mali the UBO and the SSBO
+cost the same and the texture is twice as fast, on the XA2's Adreno all three
+are even, on the tablet's Intel the UBO beats the texture and there is no
+SSBO. The XA2 runs the armv7hl build, which divides in software, so its CPU
+prime is low for its chip. The tablet's i486 build saves an empty Share
+image: its graphics driver hands back a blank picture (a known issue; Share
+JSON works).
+
+<details>
+<summary>Results with 1.x (fps at each screen's own resolution, not comparable with 2.0)</summary>
+
+The Jolla Phone and Xperia 10 II runs are by forum user ahjolinna
+([thread](https://forum.sailfishos.org/t/35153)), the Moto G by Mir Inza, the
+Xiaomi Pad 6 by Mister Magister. The Jolla Phone's 90 fps and the Pad 6's
+102 and 109 are their display refresh: exactly what 2.0 fixes.
 
 | stage | Jolla Phone (5.2, Mali-G610 MC2) | Xperia 10 II (5.2, Adreno 610) | Jolla C2 (5.1, Mali-G57) | Jolla Tablet (4.6, Intel HD BayTrail) | Moto G 2nd gen (5.1, Adreno 305) | Xperia XA2 (4.4, Adreno 508) | Xiaomi Pad 6 (5.1, Adreno 650) |
 |---|---|---|---|---|---|---|---|
@@ -104,18 +163,7 @@ Benchy light is most likely its display refresh, the others are capped at 60.
 | One million | 26.81 M/s | 13.08 M/s | 8.28 M/s | 5.68 M/s | 2.58 M/s | 5.67 M/s | 20.45 M/s |
 | Storage R/W | 45/35 MB/s | 22/29 MB/s | 27/24 MB/s | 42/32 MB/s | – | – | – |
 
-The table stages came with 1.3.1; on the Jolla C2 (OpenGL ES 3.2) they run at
-19 fps from the UBO, 19 from the SSBO and 38 from the texture: on its Mali the
-two buffers cost the same when every pixel reads its own entries, and the
-texture unit is twice as fast. The Xperia XA2 (Adreno 508, 1080 × 1920) runs them at
-17, 16 and 18: there the three cost almost the same. A GPU or driver that cannot run one shows a dash
-and the reason, and the JSON says `unsupported`.
-
-(From 1.0.0, before CPU single core existed; the Moto G from 1.2.0, by Mir Inza, storage not run; the XA2 from 1.3.1, 1080 × 1920, storage not run. The Pad 6 from 1.3.0, by Mister Magister, 1800 × 2880, storage not run. The Moto G and the XA2 run the armv7hl build, which divides in software, so their CPU prime is low for their chips.) The tablet has more than three times the C2's pixels, which the shader and fill
-stages feel; its memory and storage are faster, its four Atom cores far slower.
-The graphics stages render at each screen's own resolution, so a device with
-more pixels does more work in the shader, glow, overdraw and table stages:
-compare those between devices of similar resolution.
+</details>
 
 The system stages rebuild the author's 2016 console tests (sysbench cpu and
 memory, `dd`, a bash counting loop) inside the app, because the sandbox runs
@@ -123,20 +171,22 @@ no outside tools; app and service start times from that list cannot be
 measured from inside the sandbox at all. With the drawing running alongside,
 the numbers are not comparable to the 2016 ones either.
 
-**Not comparable with the watch.** The results are stamped scene `sfos-1.0`.
-The loads were set on a Jolla C2 so that they spread from about 60 to 7 fps;
-the watch's scene 0.6 runs other loads on another renderer (Qt 6), and Qt 5.6
+**Not comparable with the watch.** The results are stamped scene `sfos-2.0`.
+The watch's scene 0.6 runs other loads on another renderer (Qt 6), and Qt 5.6
 on SailfishOS has no QtQuick.Shapes or MultiEffect, so the Benchy is drawn by
 a C++ scene graph item (`src/Wireframe.*`), the shaders are GLSL ES 1.00
 inline (the table stages are raw OpenGL ES 3.x in `src/BufferRead.*`, since
-ShaderEffect cannot bind buffers), and the frame count comes from the window's `frameSwapped` in C++.
+ShaderEffect cannot bind buffers), and the frame count comes from the window's
+`frameSwapped` in C++.
 
-Install: `devel-su pkcon install-local harbour-benchymark-1.3.1-1.<arch>.rpm`
-(aarch64, armv7hl or i486; built for SailfishOS 4.5 and later). Build with the
-Sailfish Platform SDK: `mb2 -t SailfishOS-4.5.0.18-aarch64 build`. The icon is
-generated by `tools/benchy_icon.py`, the mesh header by `tools/mesh_to_header.py`.
-Test hooks: `SFOS_SELFTEST_RUN=<stage index>` runs one stage at start,
-`SFOS_SELFTEST_STOP=<s>` ends it after that many seconds.
+Install: `devel-su pkcon install-local harbour-benchymark-2.0.0-1.<arch>.rpm`
+(aarch64, armv7hl or i486; built for SailfishOS 4.5, runs on 4.4 too). Build
+with the Sailfish Platform SDK: `mb2 -t SailfishOS-4.5.0.18-aarch64 build`.
+The icon is generated by `tools/benchy_icon.py`, the mesh header by
+`tools/mesh_to_header.py`. Test hooks: `SFOS_SELFTEST_RUN=<stage index>` runs
+one stage at start (-2 all ticked ones), `SFOS_SELFTEST_STOP=<s>` ends it
+after that many seconds, `SFOS_SELFTEST_SHARE=1` saves the share picture as
+`share-test.png` in the app's data directory.
 
 Credits for the phone version: Twemoji graphics (c) Twitter, Inc and other
 contributors, CC-BY 4.0 (the rocket); ionicons, MIT (the flash); the icon's
@@ -146,19 +196,21 @@ the CPU single core stage, the temperature curve as a thermal test and
 sharing the results, all in 1.1.0
 ([thread](https://forum.sailfishos.org/t/35153)).
 Mister Magister asked for the kernel version and inspired the
-battery drain and CPU throttling curves, all in 1.2.0, and ran the Xiaomi
-Pad 6, whose results showed that the screen resolution decides much of a
-graphics score.
+battery drain and CPU throttling curves, all in 1.2.0, and his Xiaomi Pad 6
+results raised the question that led to 2.0: do phones with more pixels get
+more work?
 Mir Inza shared the Moto G 2nd gen results and with them the bug report
 for the temperature on old kernels that report whole degrees, fixed in 1.2.1.
 Keijø read the OS version as the kernel's in the results header, which
 gave the 1.3.0 header one named fact a line, and kan_ibal asked for a
 UBO/SSBO comparison: the GL version line in 1.3.0 and the three table
-stages in 1.3.1.
+stages in 2.0.0.
 
 The SailfishOS version was written by an LLM (Claude), directed by the
 author: he chose the stages, their order and loads, the start page, the
-results table and the icon, and tested every round on his Jolla C2.
+results table and the icon, the 2.0 scoring and its SailfishOS-style menus
+and settings, and tested every round on his Jolla C2, an Xperia XA2 and the
+Jolla Tablet.
 
 ```
 Disclosure: LLMGD-3 · origin O1 (the author's app and his design for the phone, set and tested by him on a Jolla C2 over many rounds; LLM-implemented; self-graded)

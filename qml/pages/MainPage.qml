@@ -1171,12 +1171,15 @@ Page {
                     Column {
                         id: nameColumn
                         visible: !modelData.gap
-                        width: tableRow.col * 3.5
+                        width: tableRow.col * 3.8
                         Label {
                             id: nameLabel
                             width: parent.width
                             //% "Stage"
                             text: tableRow.r ? tableRow.r.name : qsTrId("id-col-stage")
+                            // a long name shrinks a little before it fades (the XA2)
+                            fontSizeMode: Text.HorizontalFit
+                            minimumPixelSize: Theme.fontSizeSmall
                             color: !tableRow.r ? Theme.secondaryHighlightColor
                                    : (rowArea.pressed && rowArea.containsMouse) || tableRow.open
                                    ? Theme.highlightColor : Theme.primaryColor
@@ -1194,9 +1197,9 @@ Page {
                     // the score, and its unit apart and dimmed (mo, 2026-10-18)
                     Label {
                         visible: !modelData.gap
-                        x: tableRow.col * 3.5
+                        x: tableRow.col * 3.8
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.5
+                        width: tableRow.col * 1.4
                         horizontalAlignment: Text.AlignRight
                         //% "score"
                         text: tableRow.head ? qsTrId("id-col-score")
@@ -1209,9 +1212,9 @@ Page {
                     }
                     Label {
                         visible: !modelData.gap && !tableRow.head
-                        x: tableRow.col * 5 + Theme.paddingSmall
+                        x: tableRow.col * 5.2 + Theme.paddingSmall
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 2 - Theme.paddingSmall
+                        width: tableRow.col * 1.8 - Theme.paddingSmall
                         text: tableRow.r && tableRow.r.unit ? tableRow.r.unit : ""
                         color: Theme.secondaryColor
                         font.pixelSize: Theme.fontSizeExtraSmall
