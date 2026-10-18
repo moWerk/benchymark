@@ -36,7 +36,9 @@ Item {
     Dots {
         id: dots
         anchors.fill: parent
-        dotSize: Math.max(1, stage.cell - (stage.cell > 3 ? 1 : 0))
+        // the blocks meet, half a pixel over: a one pixel gap came out one
+        // or two pixels wide once the fixed render size is scaled (mo)
+        dotSize: stage.cell + 0.5
         capacity: 2 * stage.cells
     }
 
