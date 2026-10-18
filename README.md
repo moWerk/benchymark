@@ -133,6 +133,9 @@ Mister Magister asked for the kernel version and inspired the
 battery drain and CPU throttling curves, all in 1.2.0.
 Mir Inza shared the Moto G 2nd gen results and with them the bug report
 for the temperature on old kernels that report whole degrees, fixed in 1.2.1.
+Keijø read the OS version as the kernel's in the results header, which
+gave the 1.3.0 header one named fact a line, and kan_ibal asked for a
+UBO/SSBO comparison, which starts in 1.3.0 with the GL version line.
 
 The SailfishOS version was written by an LLM (Claude), directed by the
 author: he chose the stages, their order and loads, the start page, the
