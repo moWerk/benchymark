@@ -51,15 +51,32 @@ Page {
         var s = calibration()[key]
         return s === undefined ? -1 : s
     }
+    // stages of one calibration group keep one step under the group's name
+    function calibKey(item, key) {
+        return item && item.calibrationGroup !== undefined ? item.calibrationGroup : key
+    }
+    readonly property var groupOf: ({ "BUFFER-UBO": "BUFFER", "BUFFER-SSBO": "BUFFER", "BUFFER-TEXTURE": "BUFFER" })
+    // a step of -1 forgets the stage, its next run calibrates it again
     function saveStep(key, step) {
         var all = {}
         try { all = JSON.parse(calibConfig.value) } catch (e) { }
         var c = all[sceneVersion] || {}
-        c[key] = step
+        if (step < 0) delete c[key]
+        else c[key] = step
         all[sceneVersion] = c
         calibConfig.value = JSON.stringify(all)
     }
-    readonly property bool calibrated: Object.keys(calibration()).length > 0
+    // the stages with a ladder, for the start page's hint
+    readonly property var calibratingKeys: ["BENCHY-LIGHT", "BENCHY-HEAVY", "BENCHY-GLOW",
+        "SHADER-LIGHT", "SHADER-HEAVY", "BUFFER-UBO", "BUFFER-SSBO", "BUFFER-TEXTURE",
+        "OVERDRAW", "CASCADE", "ICONS", "SCALE", "RERASTER"]
+    readonly property bool needsCalibration: {
+        var c = calibration()
+        return stages.some(function (st) {
+            return isOn(st.key) && calibratingKeys.indexOf(st.key) >= 0
+                   && c[groupOf[st.key] || st.key] === undefined })
+    }
+    property var recalibrateNext: []   // keys whose step ran too light in this run
     property bool ramping: false
     property int rampStep: 0
     property var calibratedNow: []   // keys calibrated in this run
@@ -67,31 +84,33 @@ Page {
     // In the order that reads best: the bright graphics first, text last,
     // then the system stages, storage at the very end (mo, 2026-10-17).
     // `about` is the one-sentence manual shown under the name on a tap.
+    // sfos-2.0: a graphics stage draws as much as this device needs to fall
+    // under 25 fps, found on its first run, and scores the work per second.
     readonly property var stages: [
         //% "Benchy light"
         { name: qsTrId("id-stage-benchy-light"), key: "BENCHY-LIGHT", file: "BenchyLow",
-          //% "Two 3DBenchy wireframes turning, each drawn ten times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU."
+          //% "Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second."
           about: qsTrId("id-about-benchy-light") },
         //% "Benchy heavy"
         { name: qsTrId("id-stage-benchy-heavy"), key: "BENCHY-HEAVY", file: "BenchyHigh",
-          //% "Six boats, each drawn twenty times: 120 wireframes every frame, much more geometry than the picture shows."
+          //% "Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second."
           about: qsTrId("id-about-benchy-heavy") },
         //% "Benchy glow"
         { name: qsTrId("id-stage-glow"), key: "BENCHY-GLOW", file: "Glow",
-          //% "A Benchy with a pulsing golden halo: a blur over the whole screen every frame, the cost of soft effects."
+          //% "A Benchy with a pulsing golden halo, the glow stacked several times: a blur over the whole picture each, the cost of soft effects. Scores megapixels per second."
           about: qsTrId("id-about-glow") },
         //% "Shader light"
         { name: qsTrId("id-stage-shader-light"), key: "SHADER-LIGHT", file: "ShaderLow",
-          //% "A drifting noise field computed for every pixel: GPU arithmetic that grows with the screen size."
+          //% "A drifting noise field computed for every pixel, several times over: GPU arithmetic. Scores megapixels per second."
           about: qsTrId("id-about-shader-light") },
         //% "Shader heavy"
         { name: qsTrId("id-stage-shader-heavy"), key: "SHADER-HEAVY", file: "ShaderHigh",
-          //% "The same idea warped twice over, about thirty noise lookups per pixel: the heaviest GPU load here."
+          //% "The same idea warped twice over, about thirty noise lookups per pixel and field: the heaviest GPU arithmetic here. Scores megapixels per second."
           about: qsTrId("id-about-shader-heavy") },
         // the same table walk from three kinds of GPU memory (kan_ibal, forum)
         //% "Table from UBO"
         { name: qsTrId("id-stage-buffer-ubo"), key: "BUFFER-UBO", file: "BufferUbo",
-          //% "Every pixel reads 16 entries of a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Needs OpenGL ES 3.0."
+          //% "Every pixel walks a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Scores million table reads per second. Needs OpenGL ES 3.0."
           about: qsTrId("id-about-buffer-ubo") },
         //% "Table from SSBO"
         { name: qsTrId("id-stage-buffer-ssbo"), key: "BUFFER-SSBO", file: "BufferSsbo",
@@ -103,23 +122,23 @@ Page {
           about: qsTrId("id-about-buffer-texture") },
         //% "Overdraw"
         { name: qsTrId("id-stage-overdraw"), key: "OVERDRAW", file: "Overdraw",
-          //% "72 large translucent squares stacked and turning: every pixel is blended many times, raw fill rate."
+          //% "Large translucent squares stacked and turning: every pixel is blended many times, raw fill rate. Scores layers per second."
           about: qsTrId("id-about-overdraw") },
         //% "Cascade"
         { name: qsTrId("id-stage-cascade"), key: "CASCADE", file: "Cascade",
-          //% "A thousand rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents."
+          //% "Thousands of rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents. Scores squares per second."
           about: qsTrId("id-about-cascade") },
         //% "Icon storm"
         { name: qsTrId("id-stage-icons"), key: "ICONS", file: "Icons",
-          //% "Rockets and flashes on spiral arms, each icon drawn three times: many small images moving every frame."
+          //% "Rockets and flashes on spiral arms, stacked: many small images moving every frame. Scores icons per second."
           about: qsTrId("id-about-icons") },
         //% "Text scale"
         { name: qsTrId("id-stage-scale"), key: "SCALE", file: "Scale",
-          //% "Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way."
+          //% "Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way. Scores texts per second."
           about: qsTrId("id-about-scale") },
         //% "Text reraster"
         { name: qsTrId("id-stage-reraster"), key: "RERASTER", file: "Reraster",
-          //% "The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs."
+          //% "The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs. Scores texts per second."
           about: qsTrId("id-about-reraster") },
         //% "CPU prime"
         { name: qsTrId("id-stage-cpu"), key: "CPU-PRIME", file: "CpuPrime",
@@ -293,6 +312,7 @@ Page {
         batts = []
         clocks = []
         calibratedNow = []
+        recalibrateNext = []
         brightnessSet = mode === "hour" && setDisplayForHour()
         brightnessAtStart = brightnessSet ? hourBrightness
                 : displaySettings.maximumBrightness > 0
@@ -322,11 +342,12 @@ Page {
         samples = []
         lastFps = 0
         stageLoader.setSource(Qt.resolvedUrl("../stages/" + stages[current].file + ".qml"),
-                              { areaTop: areaTop, areaBottom: areaBottom })
+                              { areaTop: areaTop, areaBottom: areaBottom,
+                                renderWidth: renderWidth, renderHeight: renderHeight })
         var item = stageLoader.item
         ramping = false
         if (item && item.ladder !== undefined) {
-            var saved = savedStep(stages[current].key)
+            var saved = savedStep(calibKey(item, stages[current].key))
             rampStep = saved >= 0 ? Math.min(saved, item.ladder.length - 1) : 0
             ramping = saved < 0
             item.load = item.ladder[rampStep]
@@ -381,6 +402,18 @@ Page {
             row.step = item.ladder.indexOf(item.load)
             row.unit = item.unit
             row.score = avg * item.load * (item.perPixel ? renderPixels / 1e6 : 1)
+            // A saved step that now runs far over the mark (calibrated hot or
+            // busy, or a faster driver since) nears the refresh rate, where
+            // the score bends: the next run calibrates the stage again.
+            // A group's step suits its slowest member, so the others may run
+            // faster by right: they only count from four times the mark.
+            var limit = item.calibrationGroup !== undefined ? 4 * rampFps : 2 * rampFps
+            if (avg > limit && row.step < item.ladder.length - 1) {
+                saveStep(calibKey(item, st.key), -1)
+                var rn = recalibrateNext
+                rn.push(st.key)
+                recalibrateNext = rn
+            }
         }
         record(st.key, row)
     }
@@ -447,7 +480,7 @@ Page {
                 // a step under the mark, or the heaviest: keep it, then measure
                 if (fps < page.rampFps || page.rampStep >= item.ladder.length - 1) {
                     page.ramping = false
-                    page.saveStep(page.stages[page.current].key, page.rampStep)
+                    page.saveStep(page.calibKey(item, page.stages[page.current].key), page.rampStep)
                     var cn = page.calibratedNow
                     cn.push(page.stages[page.current].key)
                     page.calibratedNow = cn
@@ -595,16 +628,6 @@ Page {
         visible: page.view === "select"
         contentHeight: selectColumn.height + Theme.paddingLarge * 3
 
-        // the next run finds every load step again
-        PullDownMenu {
-            visible: page.calibrated
-            MenuItem {
-                //% "Calibrate again"
-                text: qsTrId("id-calibrate-again")
-                onClicked: calibConfig.value = "{}"
-            }
-        }
-
         Column {
             id: selectColumn
             width: parent.width
@@ -690,6 +713,8 @@ Page {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 text: page.modeHints[page.mode]
+                      //% "The first run also finds each graphics stage's load, a few seconds per stage."
+                      + (page.mode === "once" && page.needsCalibration ? " " + qsTrId("id-hint-calibrate") : "")
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryHighlightColor
             }
@@ -1009,6 +1034,24 @@ Page {
                 wrapMode: Text.Wrap
                 //% "score: %1"
                 text: qsTrId("id-score-units").arg(units.join("  ·  "))
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+            }
+
+            // which loads this run found, and which it found too light
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * x
+                function names(keys) {
+                    return keys.map(function (k) { return page.results[k] ? page.results[k].name : k }).join(", ")
+                }
+                visible: page.calibratedNow.length > 0 || page.recalibrateNext.length > 0
+                wrapMode: Text.Wrap
+                //% "Load found in this run: %1"
+                text: (page.calibratedNow.length > 0 ? qsTrId("id-calibrated-now").arg(names(page.calibratedNow)) : "")
+                      + (page.calibratedNow.length > 0 && page.recalibrateNext.length > 0 ? "\n" : "")
+                      //% "Ran too light, found again next run: %1"
+                      + (page.recalibrateNext.length > 0 ? qsTrId("id-recalibrate-next").arg(names(page.recalibrateNext)) : "")
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeExtraSmall
             }

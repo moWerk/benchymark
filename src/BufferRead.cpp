@@ -65,9 +65,10 @@ public:
         if (m_texture) f->glDeleteTextures(1, &m_texture);
     }
 
+    // synchronize runs first, so the fixed size is known here
     QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override
     {
-        return new QOpenGLFramebufferObject(size);
+        return new QOpenGLFramebufferObject(m_renderSize.isValid() ? m_renderSize : size);
     }
 
     void synchronize(QQuickFramebufferObject *item) override
@@ -77,6 +78,7 @@ public:
         if (m_mode.isEmpty()) m_mode = b->mode();   // fixed once it runs
         m_lookups = qBound(1, b->lookups(), 1024);
         m_t = float(b->t());
+        m_renderSize = b->renderSize();
         if (!m_report.isEmpty()) {
             QMetaObject::invokeMethod(b, "setFailure", Qt::QueuedConnection, Q_ARG(QString, m_report));
             m_report.clear();
@@ -261,6 +263,7 @@ private:
     }
 
     QQuickWindow *m_window = nullptr;
+    QSize m_renderSize;
     QString m_mode;
     int m_lookups = 16;
     float m_t = 0;
@@ -302,6 +305,16 @@ void BufferRead::setT(qreal t)
     if (t == m_t) return;
     m_t = t;
     emit tChanged();
+    update();
+}
+
+void BufferRead::setRenderSize(const QSize &s)
+{
+    if (s == m_renderSize) return;
+    m_renderSize = s;
+    // a fixed size: the item's own size changes must not make a new FBO
+    setTextureFollowsItemSize(!s.isValid());
+    emit renderSizeChanged();
     update();
 }
 

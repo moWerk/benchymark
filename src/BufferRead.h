@@ -6,6 +6,7 @@
 #define BUFFERREAD_H
 
 #include <QQuickFramebufferObject>
+#include <QSize>
 
 // SailfishOS: the GPU buffer stages (asked for on the forum by kan_ibal,
 // 2026-10-18). Every pixel walks a 16 KB table of 1024 vec4, each index taken
@@ -25,6 +26,9 @@ class BufferRead : public QQuickFramebufferObject
     Q_PROPERTY(int lookups READ lookups WRITE setLookups NOTIFY lookupsChanged)
     // seconds, drives the picture
     Q_PROPERTY(qreal t READ t WRITE setT NOTIFY tChanged)
+    // sfos-2.0: the framebuffer's size in pixels, the page's fixed render
+    // size; empty follows the item (an FBO ignores the stage's layer size)
+    Q_PROPERTY(QSize renderSize READ renderSize WRITE setRenderSize NOTIFY renderSizeChanged)
     // empty while it runs, else why it cannot
     Q_PROPERTY(QString failure READ failure NOTIFY failureChanged)
 
@@ -39,6 +43,8 @@ public:
     qreal t() const { return m_t; }
     void setT(qreal t);
     QString failure() const { return m_failure; }
+    QSize renderSize() const { return m_renderSize; }
+    void setRenderSize(const QSize &s);
 
     // from the render thread, queued
     Q_INVOKABLE void setFailure(const QString &why);
@@ -48,12 +54,14 @@ signals:
     void lookupsChanged();
     void tChanged();
     void failureChanged();
+    void renderSizeChanged();
 
 private:
     QString m_mode = QStringLiteral("ubo");
     int m_lookups = 16;
     qreal m_t = 0;
     QString m_failure;
+    QSize m_renderSize;
 };
 
 #endif // BUFFERREAD_H

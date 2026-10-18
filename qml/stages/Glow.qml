@@ -12,6 +12,14 @@ Item {
     id: stage
     anchors.fill: parent
 
+    // sfos-2.0: the load is the number of glows stacked, each a blur over the whole
+    // picture; the score counts rendered pixels x glows
+    readonly property var ladder: [1, 2, 4, 8, 16, 32]
+    property int load: 1
+    readonly property bool perPixel: true
+    //% "Mpx/s"
+    readonly property string unit: qsTrId("id-unit-mpx")
+
     Wireframe {
         id: boat
         anchors.fill: parent
@@ -22,8 +30,11 @@ Item {
         }
     }
 
+    Repeater {
+        model: stage.load
     Glow {
-        anchors.fill: boat
+        width: boat.width
+        height: boat.height
         source: boat
         color: "#f0c30e"
         samples: 45
@@ -34,6 +45,7 @@ Item {
             NumberAnimation { from: 9; to: 22; duration: 500; easing.type: Easing.InOutSine }
             NumberAnimation { from: 22; to: 9; duration: 500; easing.type: Easing.InOutSine }
         }
+    }
     }
 
     // the boat itself on top of its halo

@@ -13,11 +13,26 @@ Item {
     property alias mode: reader.mode
     // why this GPU cannot run it, empty while it runs; the page skips it then
     readonly property string unsupported: reader.failure
+    // sfos-2.0: the reads per pixel are the load (16 in 1.3.1); the score
+    // counts rendered pixels x reads, millions of table reads per second
+    readonly property var ladder: [4, 8, 16, 32, 64, 128, 256]
+    // the three share one step, so UBO, SSBO and texture always read the
+    // same amount (separate steps made the UBO win on the XA2 by the frame's
+    // fixed cost alone)
+    readonly property string calibrationGroup: "BUFFER"
+    property int load: 16
+    readonly property bool perPixel: true
+    //% "M reads/s"
+    readonly property string unit: qsTrId("id-unit-reads")
+    // the page's fixed render size, handed in at load
+    property int renderWidth: 0
+    property int renderHeight: 0
 
     BufferRead {
         id: reader
         anchors.fill: parent
-        lookups: 16
+        lookups: stage.load
+        renderSize: stage.renderWidth > 0 ? Qt.size(stage.renderWidth, stage.renderHeight) : Qt.size(-1, -1)
         NumberAnimation on t {
             from: 0; to: 10000; duration: 10000000
             loops: Animation.Infinite

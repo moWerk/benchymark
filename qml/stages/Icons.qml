@@ -8,10 +8,18 @@ import QtQuick 2.6
 Item {
     id: stage
     anchors.fill: parent
+
+    // sfos-2.0: the icons drawn are the load (1440 in 1.x, 2 x 240 x 3), the score
+    // icons per second
+    readonly property var ladder: [480, 960, 1920, 3840, 7680, 15360]
+    property int load: 1920
+    readonly property bool perPixel: false
+    //% "icons/s"
+    readonly property string unit: qsTrId("id-unit-icons")
     // spirals out past the screen edge (mo, 2026-10-17): more arms, more icons
     property int count: 240
     // every icon drawn `stack` times on its spot: load the picture does not show
-    property int stack: 3
+    property int stack: Math.max(1, load / 480)
     readonly property int arms: 6
     readonly property real reach: Math.sqrt(width * width + height * height) / 2
     readonly property real size: Math.min(width, height)

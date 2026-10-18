@@ -10,6 +10,14 @@ Item {
     id: stage
     anchors.fill: parent
 
+    // sfos-2.0: the warped field computed `load` times per pixel at offsets, the
+    // first one drawn as before; the score counts rendered pixels x load
+    readonly property var ladder: [1, 2, 4, 8, 16, 32]
+    property int load: 1
+    readonly property bool perPixel: true
+    //% "Mpx/s"
+    readonly property string unit: qsTrId("id-unit-mpx")
+
     ShaderEffect {
         id: fx
         anchors.fill: parent
@@ -22,7 +30,7 @@ Item {
             running: fx.visible
         }
 
-        fragmentShader: "
+        fragmentShader: "#define N " + stage.load + "
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -62,10 +70,20 @@ void main()
 {
     vec2 uv = qt_TexCoord0 * 2.0 - 1.0;
     float r = length(uv);
-    vec2 q = vec2(fbm(uv * 3.0 + t * 0.090), fbm(uv * 3.0 - t * 0.066));
-    vec2 s = vec2(fbm(uv * 3.0 + q * 2.5 + t * 0.042),
-                  fbm(uv * 3.0 + q * 2.5 - t * 0.054));
-    float v = fbm(uv * 4.0 + s * 3.0);
+    vec2 s0 = vec2(0.0), s = vec2(0.0);
+    float v0 = 0.0, v = 0.0;
+    for (int k = 0; k < N; k++) {
+        vec2 o = vec2(float(k) * 1.37, float(k) * -0.71);
+        vec2 q = vec2(fbm(uv * 3.0 + o + t * 0.090), fbm(uv * 3.0 + o - t * 0.066));
+        vec2 sk = vec2(fbm(uv * 3.0 + o + q * 2.5 + t * 0.042),
+                       fbm(uv * 3.0 + o + q * 2.5 - t * 0.054));
+        float vk = fbm(uv * 4.0 + o + sk * 3.0);
+        if (k == 0) { s0 = sk; v0 = vk; }
+        s += sk;
+        v += vk;
+    }
+    s = mix(s0, s / float(N), 0.25);
+    v = mix(v0, v / float(N), 0.25);
     vec3 col = mix(vec3(0.05, 0.10, 0.25), vec3(0.35, 0.85, 0.95), v);
     col = mix(col, vec3(0.95, 0.55, 0.25), clamp(s.x * 0.6, 0.0, 1.0));
     col *= mix(0.70, 1.0, smoothstep(1.04, 0.66, r));

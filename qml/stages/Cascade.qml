@@ -9,7 +9,15 @@ import "Ramp.js" as Ramp
 Item {
     id: stage
     anchors.fill: parent
-    property int count: 500
+
+    // sfos-2.0: the squares are the load (1000 in 1.x, two rings of half), the score
+    // squares per second
+    readonly property var ladder: [250, 500, 1000, 2000, 4000, 8000, 16000]
+    property int load: 1000
+    readonly property bool perPixel: false
+    //% "squares/s"
+    readonly property string unit: qsTrId("id-unit-squares")
+    property int count: load / 2
     readonly property real size: Math.min(width, height)
     readonly property real radius: size * 0.41
 

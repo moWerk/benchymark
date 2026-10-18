@@ -10,6 +10,14 @@ Item {
     id: stage
     anchors.fill: parent
 
+    // sfos-2.0: the texts drawn are the load (220 in 1.x: a ring of 100 and 6 spots of
+    // 20), the score texts per second
+    readonly property var ladder: [130, 160, 220, 340, 580, 1060, 2020, 3940]
+    property int load: 220
+    readonly property bool perPixel: false
+    //% "texts/s"
+    readonly property string unit: qsTrId("id-unit-texts")
+
     readonly property bool reraster: true
     readonly property real size: Math.min(width, height)
     readonly property real radius: size * 0.41
@@ -37,7 +45,7 @@ Item {
 
     // six big numbers in a 2 x 3 grid, each drawn `stack` times on the same
     // spot (mo, 2026-10-17: more text to resize than the picture shows)
-    property int stack: 20
+    property int stack: Math.max(1, (load - 100) / 6)
     Repeater {
         model: 6 * stage.stack
         Text {
