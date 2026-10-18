@@ -357,6 +357,8 @@ Page {
             soc: socName !== "" ? socName : undefined,
             kernel: kernelName,
             gpu: FrameCounter.gpu,
+            gl_version: FrameCounter.glVersion,
+            glsl_version: FrameCounter.glslVersion,
             loop: loop,
             mode: mode,
             loops: loops,
@@ -383,6 +385,12 @@ Page {
     readonly property string osName: log.releaseValue("/etc/os-release", "PRETTY_NAME")
     readonly property string socName: log.socName()
     readonly property string kernelName: log.kernel()
+    // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
+    readonly property string glText: {
+        var gl = FrameCounter.glVersion.match(/OpenGL ES \d+\.\d+/)
+        var sl = FrameCounter.glslVersion.match(/GLSL ES \d+\.\d+/)
+        return (gl ? gl[0] : FrameCounter.glVersion) + "  ·  " + (sl ? sl[0] : FrameCounter.glslVersion)
+    }
 
     // test hooks from main.cpp: SFOS_SELFTEST_RUN=<stage index> runs only that
     // stage (-2 all ticked ones); SFOS_SELFTEST_STOP=<s> ends it after s seconds
@@ -692,11 +700,14 @@ Page {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * x
                 wrapMode: Text.Wrap
-                // model and OS version, resolution and GPU, date (mo, 2026-10-17)
-                // the kernel without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
-                text: page.deviceName + "  ·  v" + page.osName.replace(/^Sailfish OS\s*/, "")
-                      + "  ·  Linux " + page.kernelName.split("-")[0] + "\n"
-                      + Screen.width + " × " + Screen.height + "  ·  " + FrameCounter.gpu + "\n"
+                // one fact a line, named, so the OS version is not read as the
+                // kernel's (a reader on Telegram, 2026-10-18): device, OS,
+                // kernel without its build tag, GPU and resolution, GL, date
+                text: page.deviceName + "\n"
+                      + page.osName + "\n"
+                      + "Linux " + page.kernelName.split("-")[0] + "\n"
+                      + FrameCounter.gpu + "  ·  " + Screen.width + " × " + Screen.height + "\n"
+                      + page.glText + "\n"
                       + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
                       + "  ·  " + page.runtimeText
                       + (page.mode === "hour" ? "  ·  " + page.modeNames.hour : "")
