@@ -243,6 +243,72 @@ Page {
         key: "/apps/harbour-benchymark/showScoreAbout"
         defaultValue: true
     }
+    // The system details in the results, each one switchable in the settings
+    // (mo, 2026-10-18), so a shared picture shows only what its owner wants.
+    ConfigurationValue {
+        id: hiddenDetails
+        key: "/apps/harbour-benchymark/hiddenDetails"
+        defaultValue: "[]"
+    }
+    readonly property var hiddenDetailKeys: {
+        try { return JSON.parse(hiddenDetails.value) } catch (e) { return [] }
+    }
+    function showDetail(key) { return hiddenDetailKeys.indexOf(key) < 0 }
+    readonly property var detailKeys: ["kernel", "device", "time", "os", "gpu", "resolution", "render", "gl", "mode"]
+    readonly property var detailTitles: ({
+        //% "Kernel"
+        kernel: qsTrId("id-detail-kernel"),
+        //% "Device"
+        device: qsTrId("id-detail-device"),
+        //% "Date and runtime"
+        time: qsTrId("id-detail-time"),
+        //% "SailfishOS version"
+        os: qsTrId("id-detail-os"),
+        //% "GPU"
+        gpu: qsTrId("id-detail-gpu"),
+        //% "Screen resolution"
+        resolution: qsTrId("id-detail-resolution"),
+        //% "Render size"
+        render: qsTrId("id-detail-render"),
+        //% "OpenGL version"
+        gl: qsTrId("id-detail-gl"),
+        //% "Run mode"
+        mode: qsTrId("id-detail-mode")
+    })
+    function detailText(key) {
+        switch (key) {
+        // without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
+        case "kernel": return "Linux " + kernelName.split("-")[0]
+        case "device": return deviceName
+        case "time": return runStarted > 0 ? Qt.formatDateTime(new Date(runStarted), "yyyy-MM-dd hh:mm")
+                                             + "  ·  " + runtimeText : ""
+        case "os": return osName
+        case "gpu": return FrameCounter.gpu
+        case "resolution": return Screen.width + " × " + Screen.height
+        //% "drawn at %1 × %2"
+        case "render": return qsTrId("id-render-size").arg(renderWidth).arg(renderHeight)
+        case "gl": return glText
+        //% "loop"
+        case "mode": return mode === "once" ? "" : modeNames[mode]
+                            + (loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + loops : "")
+        }
+        return ""
+    }
+    // for the settings page: each detail with what it shows now
+    function detailList() {
+        return detailKeys.map(function (k) {
+            //% "of the last run"
+            var v = detailText(k)
+            return { key: k, title: detailTitles[k],
+                     value: v !== "" ? v : k === "time" ? qsTrId("id-detail-last-run")
+                            //% "only when not Run once"
+                            : k === "mode" ? qsTrId("id-detail-mode-once") : "" }
+        })
+    }
+    function openSettings() {
+        pageStack.push(Qt.resolvedUrl("SettingsPage.qml"), { details: detailList() })
+    }
+
     function scoreAboutOf(key) {
         for (var i = 0; i < stages.length; i++)
             if (stages[i].key === key) return stages[i].score
@@ -688,7 +754,7 @@ Page {
             MenuItem {
                 //% "Settings"
                 text: qsTrId("id-settings")
-                onClicked: pageStack.push(Qt.resolvedUrl("SettingsPage.qml"))
+                onClicked: page.openSettings()
             }
             MenuItem {
                 //% "Select all"
@@ -738,8 +804,14 @@ Page {
                         anchors.left: sw.right
                         anchors.right: parent.right
                         height: Math.max(sw.height, nameLabel.height + 2 * Theme.paddingSmall)
-                        enabled: showHints.value === true || showHints.value === "true"
-                        onClicked: page.openAbout = row.open ? -1 : index
+                        // hints on: a tap opens the description; off: the whole row
+                        // ticks the stage (mo, 2026-10-18)
+                        onClicked: {
+                            if (showHints.value === true || showHints.value === "true")
+                                page.openAbout = row.open ? -1 : index
+                            else
+                                page.setOn(modelData.key, !page.isOn(modelData.key))
+                        }
                         Label {
                             id: nameLabel
                             anchors.verticalCenter: parent.verticalCenter
@@ -950,6 +1022,12 @@ Page {
 
         // SailfishOS pulls instead of buttons; the nearest to the finger last
         PullDownMenu {
+            // hardest to reach: the details and descriptions, without
+            // leaving the results (mo, 2026-10-18)
+            MenuItem {
+                text: qsTrId("id-settings")
+                onClicked: page.openSettings()
+            }
             MenuItem {
                 //% "Back to stages"
                 text: qsTrId("id-back-to-stages")
@@ -996,29 +1074,17 @@ Page {
                     anchors.verticalCenter: parent.verticalCenter
                     // up to the title, which starts at about 60 % of the width
                     width: parent.width * 0.58 - x
-                    Label {
-                        width: parent.width
-                        // without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
-                        text: "Linux " + page.kernelName.split("-")[0]
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        truncationMode: TruncationMode.Fade
-                    }
-                    Label {
-                        width: parent.width
-                        text: page.deviceName
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        truncationMode: TruncationMode.Fade
-                    }
-                    // when the run was taken, and how long it ran
-                    Label {
-                        width: parent.width
-                        text: Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
-                              + "  ·  " + page.runtimeText
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        truncationMode: TruncationMode.Fade
+                    Repeater {
+                        // when the run was taken, and how long it ran, last
+                        model: ["kernel", "device", "time"]
+                        Label {
+                            width: parent.width
+                            visible: page.showDetail(modelData) && text !== ""
+                            text: page.detailText(modelData)
+                            color: Theme.secondaryColor
+                            font.pixelSize: Theme.fontSizeSmall
+                            truncationMode: TruncationMode.Fade
+                        }
                     }
                 }
             }
@@ -1029,20 +1095,20 @@ Page {
                 // one fact a line, named, so the OS version is not read as the
                 // kernel's (a reader on Telegram, 2026-10-18): OS, GPU and
                 // resolution, GL, date; kernel and device sit in the header
-                text: page.osName + "\n"
-                      + FrameCounter.gpu + "  ·  " + Screen.width + " × " + Screen.height + "\n"
-                      //% "drawn at %1 × %2"
-                      + qsTrId("id-render-size").arg(page.renderWidth).arg(page.renderHeight) + "\n"
-                      + page.glText
-                      // the mode only when it is not a single run
-                      + (page.mode === "hour" ? "\n" + page.modeNames.hour : "")
-                      //% "loop"
-                      + (page.loops > 0 ? (page.mode === "hour" ? "  ·  " : "\n") + qsTrId("id-loop-short") + " × " + page.loops : "")
+                // GPU and screen resolution share a line when both are shown
+                visible: text !== ""
+                text: {
+                    var lines = []
+                    var d = function (k) { return page.showDetail(k) ? page.detailText(k) : "" }
+                    if (d("os") !== "") lines.push(d("os"))
+                    var gpuLine = [d("gpu"), d("resolution")].filter(function (x) { return x !== "" })
+                    if (gpuLine.length) lines.push(gpuLine.join("  ·  "))
+                    ;["render", "gl", "mode"].forEach(function (k) { if (d(k) !== "") lines.push(d(k)) })
+                    return lines.join("\n")
+                }
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeSmall
             }
-
-            Item { width: 1; height: Theme.paddingLarge }
 
             Item { width: 1; height: Theme.paddingLarge }
 
@@ -1066,7 +1132,7 @@ Page {
                     Column {
                         id: nameColumn
                         visible: !modelData.gap
-                        width: tableRow.col * 4.4
+                        width: tableRow.col * 4.2
                         Label {
                             id: nameLabel
                             width: parent.width
@@ -1084,20 +1150,30 @@ Page {
                             font.pixelSize: Theme.fontSizeExtraSmall
                         }
                     }
+                    // the score, and its unit apart and dimmed (mo, 2026-10-18)
                     Label {
                         visible: !modelData.gap
-                        x: tableRow.col * 4.4
+                        x: tableRow.col * 4.2
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 2.6
+                        width: tableRow.col * 1.6
                         horizontalAlignment: Text.AlignRight
                         //% "score"
                         text: tableRow.head ? qsTrId("id-col-score")
                               : !tableRow.r ? ""
-                              : tableRow.r.system ? tableRow.r.value + " " + tableRow.r.unit
+                              : tableRow.r.system ? tableRow.r.value
                               : tableRow.r.score === undefined ? "–"
-                              : page.scoreText(tableRow.r.score) + " " + tableRow.r.unit
+                              : page.scoreText(tableRow.r.score)
                         color: tableRow.head ? Theme.secondaryHighlightColor : Theme.highlightColor
                         font.pixelSize: tableRow.head ? Theme.fontSizeSmall : Theme.fontSizeMedium
+                    }
+                    Label {
+                        visible: !modelData.gap && !tableRow.head
+                        x: tableRow.col * 5.8 + Theme.paddingSmall
+                        y: nameLabel.baselineOffset - baselineOffset
+                        width: tableRow.col * 1.2 - Theme.paddingSmall
+                        text: tableRow.r && tableRow.r.unit ? tableRow.r.unit : ""
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeExtraSmall
                         truncationMode: TruncationMode.Fade
                     }
                 }
@@ -1151,14 +1227,23 @@ Page {
                 width: parent.width
                 height: tempGraph.visible ? tempHead.height + tempGraph.height + Theme.paddingLarge : 0
                 visible: page.temps.length > 1
-                Label {
+                // a title as the stages have, the figures below it
+                Column {
                     id: tempHead
                     x: Theme.horizontalPageMargin
                     y: Theme.paddingLarge
-                    //% "Temperature"
-                    text: qsTrId("id-temperature") + "  " + page.tempSummary
-                    color: Theme.secondaryHighlightColor
-                    font.pixelSize: Theme.fontSizeSmall
+                    width: parent.width - 2 * x
+                    Label {
+                        //% "Temperature"
+                        text: qsTrId("id-temperature")
+                    }
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: page.tempSummary
+                        color: Theme.secondaryHighlightColor
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
                 }
                 Canvas {
                     id: tempGraph
@@ -1209,16 +1294,22 @@ Page {
                 width: parent.width
                 height: battGraph.visible ? battHead.height + battGraph.height + Theme.paddingLarge : 0
                 visible: page.batts.length > 1
-                Label {
+                Column {
                     id: battHead
                     x: Theme.horizontalPageMargin
                     y: Theme.paddingLarge
                     width: parent.width - 2 * x
-                    wrapMode: Text.Wrap
-                    //% "Battery"
-                    text: qsTrId("id-battery") + "  " + page.battSummary
-                    color: Theme.secondaryHighlightColor
-                    font.pixelSize: Theme.fontSizeSmall
+                    Label {
+                        //% "Battery"
+                        text: qsTrId("id-battery")
+                    }
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: page.battSummary
+                        color: Theme.secondaryHighlightColor
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
                 }
                 Canvas {
                     id: battGraph
@@ -1288,16 +1379,22 @@ Page {
                 width: parent.width
                 height: clockGraph.visible ? clockHead.height + clockGraph.height + Theme.paddingLarge : 0
                 visible: page.clocks.length > 1
-                Label {
+                Column {
                     id: clockHead
                     x: Theme.horizontalPageMargin
                     y: Theme.paddingLarge
                     width: parent.width - 2 * x
-                    wrapMode: Text.Wrap
-                    //% "Clocks"
-                    text: qsTrId("id-clocks") + "  " + page.clockSummary
-                    color: Theme.secondaryHighlightColor
-                    font.pixelSize: Theme.fontSizeSmall
+                    Label {
+                        //% "Clocks"
+                        text: qsTrId("id-clocks")
+                    }
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: page.clockSummary
+                        color: Theme.secondaryHighlightColor
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
                 }
                 Canvas {
                     id: clockGraph
