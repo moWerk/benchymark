@@ -731,18 +731,22 @@ Page {
                         automaticCheck: false
                         onClicked: page.setOn(modelData.key, !checked)
                     }
-                    BackgroundItem {
+                    // SailfishOS lights the text on a press, no bar behind it (mo,
+                    // 2026-10-18: the bar came from the AsteroidOS port)
+                    MouseArea {
                         id: nameArea
                         anchors.left: sw.right
                         anchors.right: parent.right
                         height: Math.max(sw.height, nameLabel.height + 2 * Theme.paddingSmall)
-                        onClicked: if (showHints.value) page.openAbout = row.open ? -1 : index
+                        enabled: showHints.value === true || showHints.value === "true"
+                        onClicked: page.openAbout = row.open ? -1 : index
                         Label {
                             id: nameLabel
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - Theme.horizontalPageMargin
                             text: modelData.name
-                            color: nameArea.highlighted || row.open ? Theme.highlightColor : Theme.primaryColor
+                            color: (nameArea.pressed && nameArea.containsMouse) || row.open
+                                   ? Theme.highlightColor : Theme.primaryColor
                             wrapMode: Text.Wrap
                         }
                     }
