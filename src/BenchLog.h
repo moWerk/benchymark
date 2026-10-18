@@ -71,10 +71,11 @@ public:
             if (!tf.open(QIODevice::ReadOnly)) continue;
             bool ok = false;
             const double raw = QString::fromLatin1(tf.readAll()).trimmed().toDouble(&ok);
-            // a sensor that is off reads 0; old kernels (3.4, Moto G 2nd gen)
-            // report whole degrees instead of millidegrees
+            // a sensor that is off reads 0; old kernels report whole degrees
+            // (3.4, Moto G 2nd gen) or tenths (Qualcomm tsens on 4.4, Xperia
+            // XA2: 398 is 39.8) instead of millidegrees, mixed on one phone
             if (!ok || raw == 0) continue;
-            const double c = qAbs(raw) < 200 ? raw : raw / 1000.0;
+            const double c = qAbs(raw) < 200 ? raw : qAbs(raw) < 1500 ? raw / 10.0 : raw / 1000.0;
             if (c < -40 || c > 150) continue;
             QString type;
             if (ty.open(QIODevice::ReadOnly)) type = QString::fromLatin1(ty.readAll()).trimmed().toLower();
@@ -135,12 +136,14 @@ public:
         const QDir cpu(QStringLiteral("/sys/devices/system/cpu/cpufreq"));
         double cpuPct = -1;
         bool capped = false;
+        QList<int> clusterMax;
         for (const QString &p : cpu.entryList(QStringList() << QStringLiteral("policy*"), QDir::Dirs)) {
             const QString base = cpu.filePath(p) + QLatin1Char('/');
             const double cur = sysValue(base + QStringLiteral("scaling_cur_freq")).toDouble();
             const double max = sysValue(base + QStringLiteral("cpuinfo_max_freq")).toDouble();
             const double allowed = sysValue(base + QStringLiteral("scaling_max_freq")).toDouble();
             if (max <= 0) continue;
+            clusterMax << int(max);
             cpuPct = qMax(cpuPct, cur / max * 100);
             if (allowed > 0 && allowed < max) capped = true;
         }
@@ -167,11 +170,19 @@ public:
             if (!type.contains(QLatin1String("cpu")) && !type.contains(QLatin1String("gpu"))
                     && !type.contains(QLatin1String("devfreq")) && !type.contains(QLatin1String("processor")))
                 continue;
-            bool ok = false;
+            bool ok = false, okMax = false;
             const int state = sysValue(base + QStringLiteral("cur_state")).toInt(&ok);
+            const int maxState = sysValue(base + QStringLiteral("max_state")).toInt(&okMax);
             if (!ok) continue;
             anyCooling = true;
-            if (state > 0) cooling++;
+            // Qualcomm's 4.4 kernels (Xperia XA2) put the allowed clock in kHz
+            // into cur_state, not a step: throttled when that clock is no
+            // cluster's maximum
+            if (okMax && state > maxState) {
+                if (!clusterMax.contains(state)) cooling++;
+            } else if (state > 0) {
+                cooling++;
+            }
         }
         if (anyCooling) m.insert(QStringLiteral("cooling"), cooling);
         return m;

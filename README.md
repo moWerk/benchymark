@@ -63,11 +63,11 @@ Tap a stage name on the start page for one sentence on what it tests.
 
 | stage | what it leans on |
 |---|---|
-| Benchy light | two 3DBenchy wireframes, each drawn 10 times: CPU projection, line drawing |
-| Benchy heavy | six boats, each drawn 20 times: 120 wireframes a frame |
-| Benchy glow | a Benchy with a pulsing blur halo over the whole screen |
-| Shader light | a domain-warped noise field per pixel (the watch's CLOUDLIGHT) |
-| Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) |
+| Benchy light | two 3DBenchy wireframes, each drawn 10 times: CPU projection, line drawing | 59 | 102 |
+| Benchy heavy | six boats, each drawn 20 times: 120 wireframes a frame | 25 | 55 |
+| Benchy glow | a Benchy with a pulsing blur halo over the whole screen | 5 | 15 |
+| Shader light | a domain-warped noise field per pixel (the watch's CLOUDLIGHT) | 20 | 109 |
+| Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) | 8 | 33 |
 | Table from UBO | every pixel walks a 16 KB table, 16 reads, each index from the entry before, from a uniform buffer (UBO); OpenGL ES 3.0 |
 | Table from SSBO | the same walk from a shader storage buffer (SSBO); OpenGL ES 3.1 with storage buffers in fragment shaders |
 | Table from texture | the same walk from a float texture (`texelFetch`), the baseline for the two buffers; OpenGL ES 3.0 |
@@ -87,31 +87,35 @@ Xperia 10 II runs are by forum user ahjolinna
 ([thread](https://forum.sailfishos.org/t/35153)); the Jolla Phone's 90 fps in
 Benchy light is most likely its display refresh, the others are capped at 60.
 
-| stage | Jolla Phone (5.2, Mali-G610 MC2) | Xperia 10 II (5.2, Adreno 610) | Jolla C2 (5.1, Mali-G57) | Jolla Tablet (4.6, Intel HD BayTrail) | Moto G 2nd gen (5.1, Adreno 305) |
-|---|---|---|---|---|---|
-| Benchy light | 90 | 60 | 35 | 28 | 57 |
-| Benchy heavy | 42 | 39 | 16 | 14 | 19 |
-| Benchy glow | 20 | 8 | 10 | 4 | 4 |
-| Shader light | 75 | 24 | 32 | 8 | 10 |
-| Shader heavy | 16 | 8 | 7 | 2 | 3 |
-| Overdraw | 34 | 15 | 11 | 4 | 10 |
-| Cascade | 68 | 38 | 40 | 25 | 17 |
-| Icon storm | 79 | 27 | 24 | 13 | 7 |
-| Text scale | 77 | 36 | 44 | 12 | 26 |
-| Text reraster | 49 | 13 | 33 | 7 | 10 |
-| CPU prime | 16327 events/s | 11153 events/s | 9719 events/s | 1271 events/s | 404 events/s |
-| Memory throughput | 6213 MB/s | 3749 MB/s | 650 MB/s | 991 MB/s | 557 MB/s |
-| One million | 26.81 M/s | 13.08 M/s | 8.28 M/s | 5.68 M/s | 2.58 M/s |
-| Storage R/W | 45/35 MB/s | 22/29 MB/s | 27/24 MB/s | 42/32 MB/s | – |
+| stage | Jolla Phone (5.2, Mali-G610 MC2) | Xperia 10 II (5.2, Adreno 610) | Jolla C2 (5.1, Mali-G57) | Jolla Tablet (4.6, Intel HD BayTrail) | Moto G 2nd gen (5.1, Adreno 305) | Xperia XA2 (4.4, Adreno 508) | Xiaomi Pad 6 (5.1, Adreno 650) |
+|---|---|---|---|---|---|---|---|
+| Benchy light | 90 | 60 | 35 | 28 | 57 | 59 | 102 |
+| Benchy heavy | 42 | 39 | 16 | 14 | 19 | 25 | 55 |
+| Benchy glow | 20 | 8 | 10 | 4 | 4 | 5 | 15 |
+| Shader light | 75 | 24 | 32 | 8 | 10 | 20 | 109 |
+| Shader heavy | 16 | 8 | 7 | 2 | 3 | 8 | 33 |
+| Overdraw | 34 | 15 | 11 | 4 | 10 | 15 | 30 |
+| Cascade | 68 | 38 | 40 | 25 | 17 | 24 | 51 |
+| Icon storm | 79 | 27 | 24 | 13 | 7 | 13 | 44 |
+| Text scale | 77 | 36 | 44 | 12 | 26 | 29 | 70 |
+| Text reraster | 49 | 13 | 33 | 7 | 10 | 12 | 21 |
+| CPU prime | 16327 events/s | 11153 events/s | 9719 events/s | 1271 events/s | 404 events/s | 1012 events/s | 17182 events/s |
+| Memory throughput | 6213 MB/s | 3749 MB/s | 650 MB/s | 991 MB/s | 557 MB/s | 1527 MB/s | 13004 MB/s |
+| One million | 26.81 M/s | 13.08 M/s | 8.28 M/s | 5.68 M/s | 2.58 M/s | 5.67 M/s | 20.45 M/s |
+| Storage R/W | 45/35 MB/s | 22/29 MB/s | 27/24 MB/s | 42/32 MB/s | – | – | – |
 
 The table stages came with 1.3.1; on the Jolla C2 (OpenGL ES 3.2) they run at
 19 fps from the UBO, 19 from the SSBO and 38 from the texture: on its Mali the
 two buffers cost the same when every pixel reads its own entries, and the
-texture unit is twice as fast. A GPU or driver that cannot run one shows a dash
+texture unit is twice as fast. The Xperia XA2 (Adreno 508, 1080 × 1920) runs them at
+17, 16 and 18: there the three cost almost the same. A GPU or driver that cannot run one shows a dash
 and the reason, and the JSON says `unsupported`.
 
-(From 1.0.0, before CPU single core existed; the Moto G from 1.2.0, by Mir Inza, storage not run.) The tablet has more than three times the C2's pixels, which the shader and fill
+(From 1.0.0, before CPU single core existed; the Moto G from 1.2.0, by Mir Inza, storage not run; the XA2 from 1.3.1, 1080 × 1920, storage not run. The Pad 6 from 1.3.0, by Mister Magister, 1800 × 2880, storage not run. The Moto G and the XA2 run the armv7hl build, which divides in software, so their CPU prime is low for their chips.) The tablet has more than three times the C2's pixels, which the shader and fill
 stages feel; its memory and storage are faster, its four Atom cores far slower.
+The graphics stages render at each screen's own resolution, so a device with
+more pixels does more work in the shader, glow, overdraw and table stages:
+compare those between devices of similar resolution.
 
 The system stages rebuild the author's 2016 console tests (sysbench cpu and
 memory, `dd`, a bash counting loop) inside the app, because the sandbox runs
@@ -142,7 +146,9 @@ the CPU single core stage, the temperature curve as a thermal test and
 sharing the results, all in 1.1.0
 ([thread](https://forum.sailfishos.org/t/35153)).
 Mister Magister asked for the kernel version and inspired the
-battery drain and CPU throttling curves, all in 1.2.0.
+battery drain and CPU throttling curves, all in 1.2.0, and ran the Xiaomi
+Pad 6, whose results showed that the screen resolution decides much of a
+graphics score.
 Mir Inza shared the Moto G 2nd gen results and with them the bug report
 for the temperature on old kernels that report whole degrees, fixed in 1.2.1.
 Keijø read the OS version as the kernel's in the results header, which
@@ -308,7 +314,7 @@ the result published here — including the parts that do not flatter it.
 **Origin** — machine-designed, with unusually specific human direction.
 
 | | O0 | O1 | O2 | O3 | O4 |
-|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | | 🟪 0.45 | 🟦 0.38 | 🟩 0.11 | 🟨 0.06 | ⬜ 0.00 |
 | | machine chose design **and** expression | human specced, machine designed details | human designed, machine expressed | machine edited human material | no LLM |
 
