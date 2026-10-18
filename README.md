@@ -84,7 +84,7 @@ run, all curves, loads and fps included. The last run is also kept in
 start page hints, the score descriptions, and which system details the
 results show.
 
-<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.0.0-c2-720x2740.png" width="180" alt="Share image of a full run on a Jolla C2, 2.0.0"> <img src="store/screenshot-results-2.0.0-xa2-1080x4605.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.0.0">
+<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.0.0-c2-720x2740.png" width="180" alt="Share image of a full run on a Jolla C2, 2.0.0"> <img src="store/screenshot-results-2.0.0-xa2-1080x4605.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.0.0"> <img src="store/screenshot-results-2.0.0-jollaphone-685x2560.jpg" width="180" alt="Share image of a full run on the Jolla Phone, 2.0.0, by ahjolinna">
 
 | stage | what it leans on | score |
 |---|---|---|
@@ -107,31 +107,33 @@ results show.
 | One million | JavaScript counting to one million, over and over, in a worker | M/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
-Results with 2.0 (scene `sfos-2.0`), by the author:
+Results with 2.0 (scene `sfos-2.0`), by the author; the Jolla Phone run is by
+forum user ahjolinna ([thread](https://forum.sailfishos.org/t/35153)):
 
-| stage | Jolla C2 (5.1, Mali-G57) | Xperia XA2 (4.4, Adreno 508) | Jolla Tablet (4.6, Intel HD BayTrail) |
-|---|---|---|---|
-| Benchy light | 788 boats/s | 3088 boats/s | 968 boats/s |
-| Benchy heavy | 1872 boats/s | 3552 boats/s | 2412 boats/s |
-| Benchy glow | 10.0 Mpx/s | 6.7 Mpx/s | 5.0 Mpx/s |
-| Shader light | 41.5 Mpx/s | 42.4 Mpx/s | 18.4 Mpx/s |
-| Shader heavy | 8.1 Mpx/s | 15.2 Mpx/s | 6.9 Mpx/s |
-| Table from UBO | 335 M reads/s | 457 M reads/s | 112 M reads/s |
-| Table from SSBO | 335 M reads/s | 442 M reads/s | – (needs OpenGL ES 3.1) |
-| Table from texture | 623 M reads/s | 461 M reads/s | 76 M reads/s |
-| Overdraw | 803 layers/s | 1462 layers/s | 342 layers/s |
-| Cascade | 56000 squares/s | 20000 squares/s | 40800 squares/s |
-| Icon storm | 32640 icons/s | 19392 icons/s | 17472 icons/s |
-| Text scale | 10440 texts/s | 6392 texts/s | 4246 texts/s |
-| Text reraster | 7038 texts/s | 1976 texts/s | 1560 texts/s |
-| CPU prime | 9635 events/s | 1012 events/s | 1282 events/s |
-| CPU single core | 1710 events/s | 261 events/s | 359 events/s |
-| Memory throughput | 625 MB/s | 1490 MB/s | 892 MB/s |
-| One million | 8.22 M/s | 5.62 M/s | 6.09 M/s |
-| Storage R/W | 27/24 MB/s | – | 42/32 MB/s |
+| stage | Jolla Phone (5.2, Mali-G610 MC2) | Jolla C2 (5.1, Mali-G57) | Xperia XA2 (4.4, Adreno 508) | Jolla Tablet (4.6, Intel HD BayTrail) |
+|---|---|---|---|---|
+| Benchy light | 6368 boats/s | 788 boats/s | 3088 boats/s | 968 boats/s |
+| Benchy heavy | 7872 boats/s | 1872 boats/s | 3552 boats/s | 2412 boats/s |
+| Benchy glow | 23.5 Mpx/s | 10.0 Mpx/s | 6.7 Mpx/s | 5.0 Mpx/s |
+| Shader light | 258 Mpx/s | 41.5 Mpx/s | 42.4 Mpx/s | 18.4 Mpx/s |
+| Shader heavy | 39.4 Mpx/s | 8.1 Mpx/s | 15.2 Mpx/s | 6.9 Mpx/s |
+| Table from UBO | 2094 M reads/s | 335 M reads/s | 457 M reads/s | 112 M reads/s |
+| Table from SSBO | 2418 M reads/s | 335 M reads/s | 442 M reads/s | – (needs OpenGL ES 3.1) |
+| Table from texture | 3952 M reads/s | 623 M reads/s | 461 M reads/s | 76 M reads/s |
+| Overdraw | 3802 layers/s | 803 layers/s | 1462 layers/s | 342 layers/s |
+| Cascade | 97200 squares/s | 56000 squares/s | 20000 squares/s | 40800 squares/s |
+| Icon storm | 107520 icons/s | 32640 icons/s | 19392 icons/s | 17472 icons/s |
+| Text scale | 37976 texts/s | 10440 texts/s | 6392 texts/s | 4246 texts/s |
+| Text reraster | 19822 texts/s | 7038 texts/s | 1976 texts/s | 1560 texts/s |
+| CPU prime | 16135 events/s | 9635 events/s | 1012 events/s | 1282 events/s |
+| CPU single core | 2853 events/s | 1710 events/s | 261 events/s | 359 events/s |
+| Memory throughput | 6276 MB/s | 625 MB/s | 1490 MB/s | 892 MB/s |
+| One million | 25.99 M/s | 8.22 M/s | 5.62 M/s | 6.09 M/s |
+| Storage R/W | 47/40 MB/s | 27/24 MB/s | – | 42/32 MB/s |
 
-Each GPU reads the table its own way: on the C2's Mali the UBO and the SSBO
-cost the same and the texture is twice as fast, on the XA2's Adreno all three
+Each GPU reads the table its own way: on the Jolla Phone's Mali the SSBO
+beats the UBO and the texture is fastest, on the C2's Mali the UBO and the
+SSBO cost the same and the texture is twice as fast, on the XA2's Adreno all three
 are even, on the tablet's Intel the UBO beats the texture and there is no
 SSBO. The XA2 runs the armv7hl build, which divides in software, so its CPU
 prime is low for its chip. The tablet's i486 build saves an empty Share
