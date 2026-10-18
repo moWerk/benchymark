@@ -693,19 +693,41 @@ Page {
             spacing: Theme.paddingMedium
 
             PageHeader {
+                id: resultHeader
                 title: "Benchymark"
                 description: "v" + appVersion
+
+                // the free space left of the title: the kernel, always short,
+                // then the device (mo, 2026-10-18)
+                Column {
+                    x: Theme.horizontalPageMargin
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width / 2 - x
+                    Label {
+                        width: parent.width
+                        // without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
+                        text: "Linux " + page.kernelName.split("-")[0]
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        truncationMode: TruncationMode.Fade
+                    }
+                    Label {
+                        width: parent.width
+                        text: page.deviceName
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        truncationMode: TruncationMode.Fade
+                    }
+                }
             }
             Label {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * x
                 wrapMode: Text.Wrap
                 // one fact a line, named, so the OS version is not read as the
-                // kernel's (a reader on Telegram, 2026-10-18): device, OS,
-                // kernel without its build tag, GPU and resolution, GL, date
-                text: page.deviceName + "\n"
-                      + page.osName + "\n"
-                      + "Linux " + page.kernelName.split("-")[0] + "\n"
+                // kernel's (a reader on Telegram, 2026-10-18): OS, GPU and
+                // resolution, GL, date; kernel and device sit in the header
+                text: page.osName + "\n"
                       + FrameCounter.gpu + "  ·  " + Screen.width + " × " + Screen.height + "\n"
                       + page.glText + "\n"
                       + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
