@@ -571,18 +571,15 @@ Page {
         var phases = []
         for (var i = 0; i < order.length; i++) {
             var r = results[order[i]]
-            var ix = stageIndex(order[i])
             if (r.unsupported)
                 phases.push({ phase: order[i], unsupported: r.unsupported })
             else if (r.system)
-                phases.push({ phase: order[i], value: r.value, unit: r.unit,
-                              index: isNaN(ix) ? undefined : Math.round(ix) })
+                phases.push({ phase: order[i], value: r.value, unit: r.unit })
             else
                 phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
                               samples: r.seconds, load: r.load, load_step: r.step,
                               score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
-                              unit: r.unit, index: isNaN(ix) ? undefined : Math.round(ix),
-                              calibrated_now: r.score !== undefined
+                              unit: r.unit, calibrated_now: r.score !== undefined
                                       ? calibratedNow.indexOf(order[i]) >= 0 : undefined })
         }
         lastJson = JSON.stringify({
@@ -608,9 +605,6 @@ Page {
             clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             brightness_set_by_run: brightnessSet,
-            index_reference: "Jolla C2 = 100",
-            graphics_index: isNaN(graphicsIndex) ? undefined : Math.round(graphicsIndex),
-            system_index: isNaN(systemIndex) ? undefined : Math.round(systemIndex),
             phases: phases
         }, null, 1)
         log.write(lastJson)
@@ -631,51 +625,6 @@ Page {
     readonly property string socName: log.socName()
     readonly property string kernelName: log.kernel()
     function scoreText(v) { return v >= 100 ? String(Math.round(v)) : v.toFixed(1) }
-
-    // The index: a stage's score against the Jolla C2's, which is 100. The
-    // C2 is the slow one everyone knows, so any device shows what it does
-    // better (mo, 2026-10-18). Its scores from the author's run of
-    // 2026-10-18 (Overdraw: two runs averaged); fixed for scene sfos-2.0.
-    readonly property var reference: ({
-        "BENCHY-LIGHT": 768, "BENCHY-HEAVY": 1848, "BENCHY-GLOW": 10.7,
-        "SHADER-LIGHT": 41.5, "SHADER-HEAVY": 8.1,
-        "BUFFER-UBO": 339.1, "BUFFER-SSBO": 333.6, "BUFFER-TEXTURE": 621.2,
-        "OVERDRAW": 824.4, "CASCADE": 56000, "ICONS": 31488, "SCALE": 11832, "RERASTER": 8092,
-        "CPU-PRIME": 9671, "CPU-SINGLE": 1705, "MEMORY": 622, "ONE-MILLION": 8.07,
-        "STORAGE": 50   // read + write MB/s
-    })
-    // storage is off by default, so the system index leaves it out
-    readonly property var systemIndexKeys: ["CPU-PRIME", "CPU-SINGLE", "MEMORY", "ONE-MILLION"]
-    function stageValue(key, r) {
-        if (!r || r.unsupported) return NaN
-        if (!r.system) return r.score !== undefined ? r.score : NaN
-        var parts = String(r.value).split("/")
-        var v = 0
-        for (var i = 0; i < parts.length; i++) v += parseFloat(parts[i])
-        return v
-    }
-    function stageIndex(key) {
-        var v = stageValue(key, results[key])
-        return isNaN(v) || !reference[key] ? NaN : v / reference[key] * 100
-    }
-    // geometric mean, so no stage outweighs the others; a stage a device
-    // cannot run drops out
-    function meanIndex(keys) {
-        var sum = 0, n = 0
-        for (var i = 0; i < keys.length; i++) {
-            var x = stageIndex(keys[i])
-            if (!isNaN(x) && x > 0) { sum += Math.log(x); n++ }
-        }
-        return n > 0 ? Math.exp(sum / n) : NaN
-    }
-    readonly property real graphicsIndex: {
-        var o = order, r = results   // dependencies
-        return meanIndex(calibratingKeys.filter(function (k) { return r[k] !== undefined }))
-    }
-    readonly property real systemIndex: {
-        var o = order, r = results
-        return meanIndex(systemIndexKeys.filter(function (k) { return r[k] !== undefined }))
-    }
     // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
     readonly property string glText: {
         var gl = FrameCounter.glVersion.match(/OpenGL ES \d+\.\d+/)
@@ -733,11 +682,23 @@ Page {
         visible: page.view === "select"
         contentHeight: selectColumn.height + Theme.paddingLarge * 3
 
+        // the nearest to the finger last: Deselect all, the quickest way to
+        // run only one or a few stages (mo, 2026-10-18)
         PullDownMenu {
             MenuItem {
                 //% "Settings"
                 text: qsTrId("id-settings")
                 onClicked: pageStack.push(Qt.resolvedUrl("SettingsPage.qml"))
+            }
+            MenuItem {
+                //% "Select all"
+                text: qsTrId("id-select-all")
+                onClicked: skippedConfig.value = "[]"
+            }
+            MenuItem {
+                //% "Deselect all"
+                text: qsTrId("id-deselect-all")
+                onClicked: skippedConfig.value = JSON.stringify(page.stages.map(function (st) { return st.key }))
             }
         }
 
@@ -1079,33 +1040,10 @@ Page {
 
             Item { width: 1; height: Theme.paddingLarge }
 
-            // the two headline numbers, the Jolla C2 = 100
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                visible: !isNaN(page.graphicsIndex) || !isNaN(page.systemIndex)
-                //% "Graphics %1"
-                text: (!isNaN(page.graphicsIndex) ? qsTrId("id-index-graphics").arg(Math.round(page.graphicsIndex)) : "")
-                      + (!isNaN(page.graphicsIndex) && !isNaN(page.systemIndex) ? "  ·  " : "")
-                      //% "System %1"
-                      + (!isNaN(page.systemIndex) ? qsTrId("id-index-system").arg(Math.round(page.systemIndex)) : "")
-                color: Theme.highlightColor
-                font.pixelSize: Theme.fontSizeExtraLarge
-                truncationMode: TruncationMode.Fade
-            }
-            Label {
-                x: Theme.horizontalPageMargin
-                visible: !isNaN(page.graphicsIndex) || !isNaN(page.systemIndex)
-                //% "Jolla C2 = 100"
-                text: qsTrId("id-index-reference")
-                color: Theme.secondaryHighlightColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-            }
-
             Item { width: 1; height: Theme.paddingLarge }
 
-            // One table: the stage (and what its score counts, if switched on),
-            // the score with its unit, the index last (mo, 2026-10-18).
+            // One table: the stage (and what its score counts, if switched on)
+            // and the score with its unit (mo, 2026-10-18).
             // Graphics rows first, then a gap, then the system rows.
             Repeater {
                 readonly property var gfx: page.order.filter(function (k) { return !page.results[k].system })
@@ -1120,12 +1058,11 @@ Page {
                     readonly property bool head: modelData.head === true
                     readonly property var r: head || modelData.gap ? null : page.results[modelData]
                     readonly property real col: width / 7
-                    readonly property real ix: r ? page.stageIndex(modelData) : NaN
                     readonly property string about: r ? page.scoreAboutOf(modelData) : ""
                     Column {
                         id: nameColumn
                         visible: !modelData.gap
-                        width: tableRow.col * 3.6
+                        width: tableRow.col * 4.4
                         Label {
                             id: nameLabel
                             width: parent.width
@@ -1145,9 +1082,9 @@ Page {
                     }
                     Label {
                         visible: !modelData.gap
-                        x: tableRow.col * 3.6
+                        x: tableRow.col * 4.4
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 2
+                        width: tableRow.col * 2.6
                         horizontalAlignment: Text.AlignRight
                         //% "score"
                         text: tableRow.head ? qsTrId("id-col-score")
@@ -1155,20 +1092,9 @@ Page {
                               : tableRow.r.system ? tableRow.r.value + " " + tableRow.r.unit
                               : tableRow.r.score === undefined ? "–"
                               : page.scoreText(tableRow.r.score) + " " + tableRow.r.unit
-                        color: tableRow.head ? Theme.secondaryHighlightColor : Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        truncationMode: TruncationMode.Fade
-                    }
-                    Label {
-                        visible: !modelData.gap
-                        x: tableRow.col * 5.6
-                        y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.4
-                        horizontalAlignment: Text.AlignRight
-                        //% "C2 = 100"
-                        text: tableRow.head ? qsTrId("id-col-index") : isNaN(tableRow.ix) ? "–" : Math.round(tableRow.ix)
                         color: tableRow.head ? Theme.secondaryHighlightColor : Theme.highlightColor
                         font.pixelSize: tableRow.head ? Theme.fontSizeSmall : Theme.fontSizeMedium
+                        truncationMode: TruncationMode.Fade
                     }
                 }
             }
