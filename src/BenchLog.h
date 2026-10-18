@@ -137,8 +137,18 @@ public:
         double cpuPct = -1;
         bool capped = false;
         QList<int> clusterMax;
-        for (const QString &p : cpu.entryList(QStringList() << QStringLiteral("policy*"), QDir::Dirs)) {
-            const QString base = cpu.filePath(p) + QLatin1Char('/');
+        // kernels before 4.3 (the Jolla Tablet's 3.10) have no policy*
+        // directories, only each core's own cpu*/cpufreq
+        QStringList bases;
+        for (const QString &p : cpu.entryList(QStringList() << QStringLiteral("policy*"), QDir::Dirs))
+            bases << cpu.filePath(p) + QLatin1Char('/');
+        if (bases.isEmpty()) {
+            const QDir cores(QStringLiteral("/sys/devices/system/cpu"));
+            for (const QString &c : cores.entryList(QStringList() << QStringLiteral("cpu[0-9]*"), QDir::Dirs))
+                if (QFileInfo::exists(cores.filePath(c) + QStringLiteral("/cpufreq/cpuinfo_max_freq")))
+                    bases << cores.filePath(c) + QStringLiteral("/cpufreq/");
+        }
+        for (const QString &base : bases) {
             const double cur = sysValue(base + QStringLiteral("scaling_cur_freq")).toDouble();
             const double max = sysValue(base + QStringLiteral("cpuinfo_max_freq")).toDouble();
             const double allowed = sysValue(base + QStringLiteral("scaling_max_freq")).toDouble();

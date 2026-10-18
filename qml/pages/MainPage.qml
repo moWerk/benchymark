@@ -90,77 +90,113 @@ Page {
         //% "Benchy light"
         { name: qsTrId("id-stage-benchy-light"), key: "BENCHY-LIGHT", file: "BenchyLow",
           //% "Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second."
-          about: qsTrId("id-about-benchy-light") },
+          about: qsTrId("id-about-benchy-light"),
+          //% "Boats drawn per second, two large ones on screen"
+          score: qsTrId("id-score-benchy-light") },
         //% "Benchy heavy"
         { name: qsTrId("id-stage-benchy-heavy"), key: "BENCHY-HEAVY", file: "BenchyHigh",
           //% "Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second."
-          about: qsTrId("id-about-benchy-heavy") },
+          about: qsTrId("id-about-benchy-heavy"),
+          //% "Boats drawn per second, six smaller ones on screen"
+          score: qsTrId("id-score-benchy-heavy") },
         //% "Benchy glow"
         { name: qsTrId("id-stage-glow"), key: "BENCHY-GLOW", file: "Glow",
           //% "A Benchy with a pulsing golden halo, the glow stacked several times: a blur over the whole picture each, the cost of soft effects. Scores megapixels per second."
-          about: qsTrId("id-about-glow") },
+          about: qsTrId("id-about-glow"),
+          //% "Megapixels blurred per second"
+          score: qsTrId("id-score-glow") },
         //% "Shader light"
         { name: qsTrId("id-stage-shader-light"), key: "SHADER-LIGHT", file: "ShaderLow",
           //% "A drifting noise field computed for every pixel, several times over: GPU arithmetic. Scores megapixels per second."
-          about: qsTrId("id-about-shader-light") },
+          about: qsTrId("id-about-shader-light"),
+          //% "Megapixels of noise field per second"
+          score: qsTrId("id-score-shader-light") },
         //% "Shader heavy"
         { name: qsTrId("id-stage-shader-heavy"), key: "SHADER-HEAVY", file: "ShaderHigh",
           //% "The same idea warped twice over, about thirty noise lookups per pixel and field: the heaviest GPU arithmetic here. Scores megapixels per second."
-          about: qsTrId("id-about-shader-heavy") },
+          about: qsTrId("id-about-shader-heavy"),
+          //% "Megapixels of warped field per second"
+          score: qsTrId("id-score-shader-heavy") },
         // the same table walk from three kinds of GPU memory (kan_ibal, forum)
         //% "Table from UBO"
         { name: qsTrId("id-stage-buffer-ubo"), key: "BUFFER-UBO", file: "BufferUbo",
           //% "Every pixel walks a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Scores million table reads per second. Needs OpenGL ES 3.0."
-          about: qsTrId("id-about-buffer-ubo") },
+          about: qsTrId("id-about-buffer-ubo"),
+          //% "Million table reads per second from a uniform buffer"
+          score: qsTrId("id-score-buffer-ubo") },
         //% "Table from SSBO"
         { name: qsTrId("id-stage-buffer-ssbo"), key: "BUFFER-SSBO", file: "BufferSsbo",
           //% "The same table walk from a shader storage buffer (SSBO). Needs OpenGL ES 3.1 and a driver that allows them in fragment shaders."
-          about: qsTrId("id-about-buffer-ssbo") },
+          about: qsTrId("id-about-buffer-ssbo"),
+          //% "Million table reads per second from a storage buffer"
+          score: qsTrId("id-score-buffer-ssbo") },
         //% "Table from texture"
         { name: qsTrId("id-stage-buffer-texture"), key: "BUFFER-TEXTURE", file: "BufferTexture",
           //% "The same table walk from a float texture, the classic way and the baseline for the two buffers. Needs OpenGL ES 3.0."
-          about: qsTrId("id-about-buffer-texture") },
+          about: qsTrId("id-about-buffer-texture"),
+          //% "Million table reads per second from a texture"
+          score: qsTrId("id-score-buffer-texture") },
         //% "Overdraw"
         { name: qsTrId("id-stage-overdraw"), key: "OVERDRAW", file: "Overdraw",
           //% "Large translucent squares stacked and turning: every pixel is blended many times, raw fill rate. Scores layers per second."
-          about: qsTrId("id-about-overdraw") },
+          about: qsTrId("id-about-overdraw"),
+          //% "Translucent layers blended per second"
+          score: qsTrId("id-score-overdraw") },
         //% "Cascade"
         { name: qsTrId("id-stage-cascade"), key: "CASCADE", file: "Cascade",
           //% "Thousands of rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents. Scores squares per second."
-          about: qsTrId("id-about-cascade") },
+          about: qsTrId("id-about-cascade"),
+          //% "Squares moved per second"
+          score: qsTrId("id-score-cascade") },
         //% "Icon storm"
         { name: qsTrId("id-stage-icons"), key: "ICONS", file: "Icons",
           //% "Rockets and flashes on spiral arms, stacked: many small images moving every frame. Scores icons per second."
-          about: qsTrId("id-about-icons") },
+          about: qsTrId("id-about-icons"),
+          //% "Icons drawn per second"
+          score: qsTrId("id-score-icons") },
         //% "Text scale"
         { name: qsTrId("id-stage-scale"), key: "SCALE", file: "Scale",
           //% "Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way. Scores texts per second."
-          about: qsTrId("id-about-scale") },
+          about: qsTrId("id-about-scale"),
+          //% "Texts scaled per second"
+          score: qsTrId("id-score-scale") },
         //% "Text reraster"
         { name: qsTrId("id-stage-reraster"), key: "RERASTER", file: "Reraster",
           //% "The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs. Scores texts per second."
-          about: qsTrId("id-about-reraster") },
+          about: qsTrId("id-about-reraster"),
+          //% "Texts redrawn per second"
+          score: qsTrId("id-score-reraster") },
         //% "CPU prime"
         { name: qsTrId("id-stage-cpu"), key: "CPU-PRIME", file: "CpuPrime",
           //% "All cores count primes as sysbench does; every finished count lights a cell of an Ulam spiral if its number is prime."
-          about: qsTrId("id-about-cpu") },
+          about: qsTrId("id-about-cpu"),
+          //% "Prime counts per second on all cores"
+          score: qsTrId("id-score-cpu") },
         //% "CPU single core"
         { name: qsTrId("id-stage-cpu-single"), key: "CPU-SINGLE", file: "CpuPrimeSingle",
           //% "The same prime counting on one core only: next to the all core figure it shows what a single core does."
-          about: qsTrId("id-about-cpu-single") },
+          about: qsTrId("id-about-cpu-single"),
+          //% "Prime counts per second on one core"
+          score: qsTrId("id-score-cpu-single") },
         //% "Memory throughput"
         { name: qsTrId("id-stage-memory"), key: "MEMORY", file: "Memory",
           //% "Copies memory between two 32 MB buffers as fast as it can: how quickly the phone moves data in RAM."
-          about: qsTrId("id-about-memory") },
+          about: qsTrId("id-about-memory"),
+          //% "Megabytes copied per second"
+          score: qsTrId("id-score-memory") },
         //% "One million"
         { name: qsTrId("id-stage-million"), key: "ONE-MILLION", file: "OneMillion",
           //% "JavaScript counts to one million, over and over: how fast the app's script engine runs a plain loop."
-          about: qsTrId("id-about-million") },
+          about: qsTrId("id-about-million"),
+          //% "Million loop steps per second in JavaScript"
+          score: qsTrId("id-score-million") },
         // last: off at first, an unticked switch among ticked ones looked odd
         //% "Storage performance"
         { name: qsTrId("id-stage-storage"), key: "STORAGE", file: "Storage",
           //% "Writes 256 MB in small blocks past the cache and reads it back. Off by default: it wears the flash a little every run."
-          about: qsTrId("id-about-storage") }
+          about: qsTrId("id-about-storage"),
+          //% "Megabytes read and written per second"
+          score: qsTrId("id-score-storage") }
     ]
 
     // The stages left out, by key, so new stages start ticked. Storage is
@@ -195,6 +231,24 @@ Page {
             : (loopConfig.value === true || loopConfig.value === "true") ? "loop" : "once"
     readonly property bool loop: mode !== "once"
     readonly property int hourSeconds: 3600
+
+    // the settings page's two switches (mo, 2026-10-18)
+    ConfigurationValue {
+        id: showHints
+        key: "/apps/harbour-benchymark/showHints"
+        defaultValue: true
+    }
+    ConfigurationValue {
+        id: showScoreAbout
+        key: "/apps/harbour-benchymark/showScoreAbout"
+        defaultValue: true
+    }
+    function scoreAboutOf(key) {
+        for (var i = 0; i < stages.length; i++)
+            if (stages[i].key === key) return stages[i].score
+        // the storage stage records its row as STORAGE too; CPU rows by key
+        return ""
+    }
 
     property string view: "select"   // select, run, results
     property int openAbout: -1        // the stage whose sentence is open
@@ -517,15 +571,18 @@ Page {
         var phases = []
         for (var i = 0; i < order.length; i++) {
             var r = results[order[i]]
+            var ix = stageIndex(order[i])
             if (r.unsupported)
                 phases.push({ phase: order[i], unsupported: r.unsupported })
             else if (r.system)
-                phases.push({ phase: order[i], value: r.value, unit: r.unit })
+                phases.push({ phase: order[i], value: r.value, unit: r.unit,
+                              index: isNaN(ix) ? undefined : Math.round(ix) })
             else
                 phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
                               samples: r.seconds, load: r.load, load_step: r.step,
                               score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
-                              unit: r.unit, calibrated_now: r.score !== undefined
+                              unit: r.unit, index: isNaN(ix) ? undefined : Math.round(ix),
+                              calibrated_now: r.score !== undefined
                                       ? calibratedNow.indexOf(order[i]) >= 0 : undefined })
         }
         lastJson = JSON.stringify({
@@ -551,6 +608,9 @@ Page {
             clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             brightness_set_by_run: brightnessSet,
+            index_reference: "Jolla C2 = 100",
+            graphics_index: isNaN(graphicsIndex) ? undefined : Math.round(graphicsIndex),
+            system_index: isNaN(systemIndex) ? undefined : Math.round(systemIndex),
             phases: phases
         }, null, 1)
         log.write(lastJson)
@@ -571,6 +631,51 @@ Page {
     readonly property string socName: log.socName()
     readonly property string kernelName: log.kernel()
     function scoreText(v) { return v >= 100 ? String(Math.round(v)) : v.toFixed(1) }
+
+    // The index: a stage's score against the Jolla C2's, which is 100. The
+    // C2 is the slow one everyone knows, so any device shows what it does
+    // better (mo, 2026-10-18). Its scores from the author's run of
+    // 2026-10-18 (Overdraw: two runs averaged); fixed for scene sfos-2.0.
+    readonly property var reference: ({
+        "BENCHY-LIGHT": 768, "BENCHY-HEAVY": 1848, "BENCHY-GLOW": 10.7,
+        "SHADER-LIGHT": 41.5, "SHADER-HEAVY": 8.1,
+        "BUFFER-UBO": 339.1, "BUFFER-SSBO": 333.6, "BUFFER-TEXTURE": 621.2,
+        "OVERDRAW": 824.4, "CASCADE": 56000, "ICONS": 31488, "SCALE": 11832, "RERASTER": 8092,
+        "CPU-PRIME": 9671, "CPU-SINGLE": 1705, "MEMORY": 622, "ONE-MILLION": 8.07,
+        "STORAGE": 50   // read + write MB/s
+    })
+    // storage is off by default, so the system index leaves it out
+    readonly property var systemIndexKeys: ["CPU-PRIME", "CPU-SINGLE", "MEMORY", "ONE-MILLION"]
+    function stageValue(key, r) {
+        if (!r || r.unsupported) return NaN
+        if (!r.system) return r.score !== undefined ? r.score : NaN
+        var parts = String(r.value).split("/")
+        var v = 0
+        for (var i = 0; i < parts.length; i++) v += parseFloat(parts[i])
+        return v
+    }
+    function stageIndex(key) {
+        var v = stageValue(key, results[key])
+        return isNaN(v) || !reference[key] ? NaN : v / reference[key] * 100
+    }
+    // geometric mean, so no stage outweighs the others; a stage a device
+    // cannot run drops out
+    function meanIndex(keys) {
+        var sum = 0, n = 0
+        for (var i = 0; i < keys.length; i++) {
+            var x = stageIndex(keys[i])
+            if (!isNaN(x) && x > 0) { sum += Math.log(x); n++ }
+        }
+        return n > 0 ? Math.exp(sum / n) : NaN
+    }
+    readonly property real graphicsIndex: {
+        var o = order, r = results   // dependencies
+        return meanIndex(calibratingKeys.filter(function (k) { return r[k] !== undefined }))
+    }
+    readonly property real systemIndex: {
+        var o = order, r = results
+        return meanIndex(systemIndexKeys.filter(function (k) { return r[k] !== undefined }))
+    }
     // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
     readonly property string glText: {
         var gl = FrameCounter.glVersion.match(/OpenGL ES \d+\.\d+/)
@@ -628,6 +733,14 @@ Page {
         visible: page.view === "select"
         contentHeight: selectColumn.height + Theme.paddingLarge * 3
 
+        PullDownMenu {
+            MenuItem {
+                //% "Settings"
+                text: qsTrId("id-settings")
+                onClicked: pageStack.push(Qt.resolvedUrl("SettingsPage.qml"))
+            }
+        }
+
         Column {
             id: selectColumn
             width: parent.width
@@ -662,7 +775,7 @@ Page {
                         anchors.left: sw.right
                         anchors.right: parent.right
                         height: Math.max(sw.height, nameLabel.height + 2 * Theme.paddingSmall)
-                        onClicked: page.openAbout = row.open ? -1 : index
+                        onClicked: if (showHints.value) page.openAbout = row.open ? -1 : index
                         Label {
                             id: nameLabel
                             anchors.verticalCenter: parent.verticalCenter
@@ -712,9 +825,13 @@ Page {
                 width: parent.width - 2 * x
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                text: page.modeHints[page.mode]
+                // the hints can be switched off; why the first run is longer stays
+                readonly property bool calibrateNote: page.mode === "once" && page.needsCalibration
+                visible: showHints.value || calibrateNote
+                text: (showHints.value ? page.modeHints[page.mode] : "")
+                      + (showHints.value && calibrateNote ? " " : "")
                       //% "The first run also finds each graphics stage's load, a few seconds per stage."
-                      + (page.mode === "once" && page.needsCalibration ? " " + qsTrId("id-hint-calibrate") : "")
+                      + (calibrateNote ? qsTrId("id-hint-calibrate") : "")
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryHighlightColor
             }
@@ -864,7 +981,26 @@ Page {
     SilicaFlickable {
         anchors.fill: parent
         visible: page.view === "results"
-        contentHeight: resultCapture.height + buttons.height + Theme.paddingLarge * 4
+        contentHeight: resultCapture.height + Theme.paddingLarge * 2
+
+        // SailfishOS pulls instead of buttons; the nearest to the finger last
+        PullDownMenu {
+            MenuItem {
+                //% "Back to stages"
+                text: qsTrId("id-back-to-stages")
+                onClicked: page.view = "select"
+            }
+            MenuItem {
+                //% "Share JSON"
+                text: qsTrId("id-share-json")
+                onClicked: page.shareJson()
+            }
+            MenuItem {
+                //% "Share image"
+                text: qsTrId("id-share-image")
+                onClicked: page.shareResults()
+            }
+        }
 
         // what Share saves as a picture: everything but the buttons, on a dark
         // ground so the PNG is not transparent
@@ -943,72 +1079,96 @@ Page {
 
             Item { width: 1; height: Theme.paddingLarge }
 
-            // graphics: frames per second
+            // the two headline numbers, the Jolla C2 = 100
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * x
+                visible: !isNaN(page.graphicsIndex) || !isNaN(page.systemIndex)
+                //% "Graphics %1"
+                text: (!isNaN(page.graphicsIndex) ? qsTrId("id-index-graphics").arg(Math.round(page.graphicsIndex)) : "")
+                      + (!isNaN(page.graphicsIndex) && !isNaN(page.systemIndex) ? "  ·  " : "")
+                      //% "System %1"
+                      + (!isNaN(page.systemIndex) ? qsTrId("id-index-system").arg(Math.round(page.systemIndex)) : "")
+                color: Theme.highlightColor
+                font.pixelSize: Theme.fontSizeExtraLarge
+                truncationMode: TruncationMode.Fade
+            }
+            Label {
+                x: Theme.horizontalPageMargin
+                visible: !isNaN(page.graphicsIndex) || !isNaN(page.systemIndex)
+                //% "Jolla C2 = 100"
+                text: qsTrId("id-index-reference")
+                color: Theme.secondaryHighlightColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+            }
+
+            Item { width: 1; height: Theme.paddingLarge }
+
+            // One table: the stage (and what its score counts, if switched on),
+            // the score with its unit, the index last (mo, 2026-10-18).
+            // Graphics rows first, then a gap, then the system rows.
             Repeater {
-                // the header only when there is a graphics row under it
-                readonly property var rows: page.order.filter(function (k) { return !page.results[k].system })
-                model: rows.length > 0 ? [{ head: true }].concat(rows) : []
-                Row {
+                readonly property var gfx: page.order.filter(function (k) { return !page.results[k].system })
+                readonly property var sys: page.order.filter(function (k) { return page.results[k].system })
+                model: page.order.length === 0 ? []
+                       : [{ head: true }].concat(gfx, gfx.length > 0 && sys.length > 0 ? [{ gap: true }] : [], sys)
+                Item {
+                    id: tableRow
                     x: Theme.horizontalPageMargin
-                    readonly property var r: modelData.head ? null : page.results[modelData]
-                    readonly property real col: (page.width - 2 * Theme.horizontalPageMargin) / 7
-                    Label {
-                        width: parent.col * 3
-                        //% "Stage"
-                        text: parent.r ? parent.r.name : qsTrId("id-col-stage")
-                        color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
-                        truncationMode: TruncationMode.Fade
+                    width: page.width - 2 * Theme.horizontalPageMargin
+                    height: modelData.gap ? Theme.paddingLarge : nameColumn.height + Theme.paddingSmall
+                    readonly property bool head: modelData.head === true
+                    readonly property var r: head || modelData.gap ? null : page.results[modelData]
+                    readonly property real col: width / 7
+                    readonly property real ix: r ? page.stageIndex(modelData) : NaN
+                    readonly property string about: r ? page.scoreAboutOf(modelData) : ""
+                    Column {
+                        id: nameColumn
+                        visible: !modelData.gap
+                        width: tableRow.col * 3.6
+                        Label {
+                            id: nameLabel
+                            width: parent.width
+                            //% "Stage"
+                            text: tableRow.r ? tableRow.r.name : qsTrId("id-col-stage")
+                            color: tableRow.r ? Theme.primaryColor : Theme.secondaryHighlightColor
+                            truncationMode: TruncationMode.Fade
+                        }
+                        Label {
+                            width: parent.width
+                            visible: tableRow.r !== null && showScoreAbout.value && text !== ""
+                            text: tableRow.about
+                            wrapMode: Text.Wrap
+                            color: Theme.secondaryColor
+                            font.pixelSize: Theme.fontSizeExtraSmall
+                        }
                     }
                     Label {
-                        width: parent.col * 4 / 3
+                        visible: !modelData.gap
+                        x: tableRow.col * 3.6
+                        y: nameLabel.baselineOffset - baselineOffset
+                        width: tableRow.col * 2
                         horizontalAlignment: Text.AlignRight
                         //% "score"
-                        text: parent.r ? (parent.r.score === undefined ? "–" : page.scoreText(parent.r.score))
-                                       : qsTrId("id-col-score")
-                        color: parent.r ? Theme.highlightColor : Theme.secondaryHighlightColor
-                    }
-                    Label {
-                        width: parent.col * 4 / 3
-                        horizontalAlignment: Text.AlignRight
-                        //% "fps"
-                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.avg) : qsTrId("id-col-fps")
-                        color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
-                    }
-                    Label {
-                        width: parent.col * 4 / 3
-                        horizontalAlignment: Text.AlignRight
-                        //% "worst ms"
-                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.worst) : qsTrId("id-col-worst")
-                        color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
-                        font.pixelSize: parent.r ? Theme.fontSizeMedium : Theme.fontSizeExtraSmall
-                    }
-                }
-            }
-
-            Item {
-                width: 1
-                height: Theme.paddingLarge
-                visible: systemRows.count > 0
-            }
-
-            // system: a value and its unit
-            Repeater {
-                id: systemRows
-                model: page.order.filter(function (k) { return page.results[k].system })
-                Row {
-                    x: Theme.horizontalPageMargin
-                    readonly property var r: page.results[modelData]
-                    readonly property real col: (page.width - 2 * Theme.horizontalPageMargin) / 7
-                    Label {
-                        width: parent.col * 4
-                        text: parent.r.name
+                        text: tableRow.head ? qsTrId("id-col-score")
+                              : !tableRow.r ? ""
+                              : tableRow.r.system ? tableRow.r.value + " " + tableRow.r.unit
+                              : tableRow.r.score === undefined ? "–"
+                              : page.scoreText(tableRow.r.score) + " " + tableRow.r.unit
+                        color: tableRow.head ? Theme.secondaryHighlightColor : Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
                         truncationMode: TruncationMode.Fade
                     }
                     Label {
-                        width: parent.col * 3
+                        visible: !modelData.gap
+                        x: tableRow.col * 5.6
+                        y: nameLabel.baselineOffset - baselineOffset
+                        width: tableRow.col * 1.4
                         horizontalAlignment: Text.AlignRight
-                        text: parent.r.value + " " + parent.r.unit
-                        color: Theme.highlightColor
+                        //% "C2 = 100"
+                        text: tableRow.head ? qsTrId("id-col-index") : isNaN(tableRow.ix) ? "–" : Math.round(tableRow.ix)
+                        color: tableRow.head ? Theme.secondaryHighlightColor : Theme.highlightColor
+                        font.pixelSize: tableRow.head ? Theme.fontSizeSmall : Theme.fontSizeMedium
                     }
                 }
             }
@@ -1020,20 +1180,6 @@ Page {
                 wrapMode: Text.Wrap
                 //% "* without O_DIRECT: the read may come from the cache"
                 text: qsTrId("id-no-direct")
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-            }
-
-            // what a score counts, per stage
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * x
-                readonly property var units: page.order.filter(function (k) { return page.results[k].unit })
-                                                       .map(function (k) { return page.results[k].name + " " + page.results[k].unit })
-                visible: units.length > 0
-                wrapMode: Text.Wrap
-                //% "score: %1"
-                text: qsTrId("id-score-units").arg(units.join("  ·  "))
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeExtraSmall
             }
@@ -1279,33 +1425,6 @@ Page {
         }
         }
 
-        Column {
-            id: buttons
-            anchors.top: resultCapture.bottom
-            anchors.topMargin: Theme.paddingLarge * 2
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: Theme.paddingLarge
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: Theme.paddingLarge
-                Button {
-                    //% "Share image"
-                    text: qsTrId("id-share-image")
-                    onClicked: page.shareResults()
-                }
-                Button {
-                    //% "Share JSON"
-                    text: qsTrId("id-share-json")
-                    onClicked: page.shareJson()
-                }
-            }
-            Button {
-                anchors.horizontalCenter: parent.horizontalCenter
-                //% "Back"
-                text: qsTrId("id-back")
-                onClicked: page.view = "select"
-            }
-        }
     }
 
     // Share: the results as a picture in Pictures, then the share menu with it
