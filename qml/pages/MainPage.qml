@@ -318,6 +318,7 @@ Page {
 
     property string view: "select"   // select, run, results
     property int openAbout: -1        // the stage whose sentence is open
+    property string openResult: ""    // the result row whose score line is open
 
     // ── run state ──
     property var plan: []         // stage indices to run, in order
@@ -433,6 +434,7 @@ Page {
         clocks = []
         calibratedNow = []
         recalibrateNext = []
+        openResult = ""
         brightnessSet = mode === "hour" && setDisplayForHour()
         brightnessAtStart = brightnessSet ? hourBrightness
                 : displaySettings.maximumBrightness > 0
@@ -1129,6 +1131,18 @@ Page {
                     readonly property var r: head || modelData.gap ? null : page.results[modelData]
                     readonly property real col: width / 7
                     readonly property string about: r ? page.scoreAboutOf(modelData) : ""
+                    // as on the start page: a tap opens what the score counts,
+                    // one row at a time (mo, 2026-10-18: all at once cluttered)
+                    readonly property bool open: r !== null && page.openResult === modelData
+                    readonly property bool canOpen: r !== null && about !== ""
+                            && (showScoreAbout.value === true || showScoreAbout.value === "true")
+                    Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+                    MouseArea {
+                        id: rowArea
+                        anchors.fill: parent
+                        enabled: tableRow.canOpen
+                        onClicked: page.openResult = tableRow.open ? "" : modelData
+                    }
                     Column {
                         id: nameColumn
                         visible: !modelData.gap
@@ -1138,12 +1152,14 @@ Page {
                             width: parent.width
                             //% "Stage"
                             text: tableRow.r ? tableRow.r.name : qsTrId("id-col-stage")
-                            color: tableRow.r ? Theme.primaryColor : Theme.secondaryHighlightColor
+                            color: !tableRow.r ? Theme.secondaryHighlightColor
+                                   : (rowArea.pressed && rowArea.containsMouse) || tableRow.open
+                                   ? Theme.highlightColor : Theme.primaryColor
                             truncationMode: TruncationMode.Fade
                         }
                         Label {
                             width: parent.width
-                            visible: tableRow.r !== null && showScoreAbout.value && text !== ""
+                            visible: tableRow.open && tableRow.canOpen
                             text: tableRow.about
                             wrapMode: Text.Wrap
                             color: Theme.secondaryColor
@@ -1388,10 +1404,16 @@ Page {
                         //% "Clocks"
                         text: qsTrId("id-clocks")
                     }
+                    // the legend in the lines' colours, then the verdict (mo,
+                    // 2026-10-18: on the graph it sat on the data)
                     Label {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        text: page.clockSummary
+                        textFormat: Text.StyledText
+                        text: "<font color=\"#66bfff\">CPU</font>"
+                              + (page.clocks.some(function (r) { return r[2] !== null })
+                                 ? "  ·  <font color=\"#bf8cff\">GPU</font>" : "")
+                              + "  ·  " + page.clockSummary
                         color: Theme.secondaryHighlightColor
                         font.pixelSize: Theme.fontSizeSmall
                     }
@@ -1438,13 +1460,6 @@ Page {
                         ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
                         ctx.fillText("100 %", 6, Theme.fontSizeExtraSmall + 2)
                         ctx.fillText("0 %", 6, height - 6)
-                        ctx.textAlign = "right"
-                        ctx.fillStyle = Qt.rgba(0.4, 0.75, 1.0, 1)
-                        ctx.fillText("CPU", width - 6, Theme.fontSizeExtraSmall + 2)
-                        if (c.some(function (r) { return r[2] !== null })) {
-                            ctx.fillStyle = Qt.rgba(0.75, 0.55, 1.0, 1)
-                            ctx.fillText("GPU", width - 6, Theme.fontSizeExtraSmall * 2 + 6)
-                        }
                     }
                     Connections { target: page; onViewChanged: clockGraph.requestPaint() }
                 }

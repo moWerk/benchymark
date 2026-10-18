@@ -52,6 +52,11 @@ Page {
                 title: qsTrId("id-settings")
             }
 
+            SectionHeader {
+                //% "Display hints and descriptions"
+                text: qsTrId("id-setting-section-hints")
+            }
+
             TextSwitch {
                 //% "Show hints on the start page"
                 text: qsTrId("id-setting-hints")
@@ -63,9 +68,9 @@ Page {
             }
 
             TextSwitch {
-                //% "Show score descriptions in the results"
+                //% "Score descriptions in the results"
                 text: qsTrId("id-setting-score-about")
-                //% "A line under each stage that says what its score counts."
+                //% "A tap on a stage in the results opens a line on what its score counts."
                 description: qsTrId("id-setting-score-about-about")
                 checked: showScoreAbout.value === true || showScoreAbout.value === "true"
                 automaticCheck: false
