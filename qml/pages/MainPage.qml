@@ -150,7 +150,48 @@ Page {
     property var batts: []        // [seconds since start, percent, watts, status]
     property var clocks: []       // [seconds since start, cpu %, gpu % or null, throttled]
     property int brightnessAtStart: -1   // percent of the maximum
-    DisplaySettings { id: displaySettings }
+    property bool brightnessSet: false   // the run set it (Run one hour)
+    DisplaySettings {
+        id: displaySettings
+        // a run that was killed before it could put the display back
+        onPopulatedChanged: page.restoreDisplay()
+    }
+
+    // Run one hour runs the display at 50 % with automatic brightness off,
+    // so drains compare (mo, 2026-10-18). The user's values are kept in the
+    // settings until they are back, so a killed run restores them at the
+    // next start.
+    readonly property int hourBrightness: 50
+    ConfigurationValue {
+        id: savedDisplay
+        key: "/apps/harbour-benchymark/savedDisplay"
+        defaultValue: ""
+    }
+    function setDisplayForHour() {
+        if (!displaySettings.populated || displaySettings.maximumBrightness <= 0) return false
+        if (savedDisplay.value === "")
+            savedDisplay.value = JSON.stringify({
+                brightness: displaySettings.brightness,
+                auto: displaySettings.autoBrightnessEnabled,
+                als: displaySettings.ambientLightSensorEnabled })
+        displaySettings.autoBrightnessEnabled = false
+        displaySettings.ambientLightSensorEnabled = false
+        displaySettings.brightness = Math.max(1, Math.round(displaySettings.maximumBrightness * hourBrightness / 100))
+        return true
+    }
+    function restoreDisplay() {
+        if (savedDisplay.value === "" || !displaySettings.populated) return
+        try {
+            var d = JSON.parse(savedDisplay.value)
+            displaySettings.ambientLightSensorEnabled = d.als
+            displaySettings.autoBrightnessEnabled = d.auto
+            displaySettings.brightness = d.brightness
+        } catch (e) {
+            console.warn("Benchymark: saved display settings unreadable: " + e)
+        }
+        savedDisplay.value = ""
+    }
+    Component.onDestruction: restoreDisplay()
     Timer {
         interval: 1000
         repeat: true
@@ -195,7 +236,9 @@ Page {
         temps = []
         batts = []
         clocks = []
-        brightnessAtStart = displaySettings.maximumBrightness > 0
+        brightnessSet = mode === "hour" && setDisplayForHour()
+        brightnessAtStart = brightnessSet ? hourBrightness
+                : displaySettings.maximumBrightness > 0
                 ? Math.round(displaySettings.brightness * 100 / displaySettings.maximumBrightness) : -1
         results = ({})
         order = []
@@ -269,6 +312,7 @@ Page {
         hourTimer.stop()
         var cut = atHour === true && current >= 0 && results[stages[current].key] !== undefined
         if (!inGap && !cut) finishStage()
+        if (brightnessSet) restoreDisplay()
         stageLoader.source = ""
         step = -1
         inGap = false
@@ -366,6 +410,7 @@ Page {
             battery: batts,
             clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
+            brightness_set_by_run: brightnessSet,
             phases: phases
         }, null, 1)
         log.write(lastJson)
@@ -520,18 +565,15 @@ Page {
                 }
             }
 
-            // what each mode is for, the chosen one lit (mo, 2026-10-18)
-            Column {
-                anchors.horizontalCenter: parent.horizontalCenter
-                Repeater {
-                    model: page.modes
-                    Label {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: page.modeNames[modelData] + ": " + page.modeHints[modelData]
-                        font.pixelSize: Theme.fontSizeExtraSmall
-                        color: modelData === page.mode ? Theme.highlightColor : Theme.secondaryColor
-                    }
-                }
+            // what the chosen mode is for, only that one (mo, 2026-10-18)
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * x
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                text: page.modeHints[page.mode]
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryHighlightColor
             }
 
             Item { width: 1; height: Theme.paddingLarge * 2 }
@@ -698,11 +740,12 @@ Page {
                 description: "v" + appVersion
 
                 // the free space left of the title: the kernel, always short,
-                // then the device (mo, 2026-10-18)
+                // the device, the time of the run (mo, 2026-10-18)
                 Column {
                     x: Theme.horizontalPageMargin
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width / 2 - x
+                    // up to the title, which starts at about 60 % of the width
+                    width: parent.width * 0.58 - x
                     Label {
                         width: parent.width
                         // without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
@@ -718,6 +761,15 @@ Page {
                         font.pixelSize: Theme.fontSizeSmall
                         truncationMode: TruncationMode.Fade
                     }
+                    // when the run was taken, and how long it ran
+                    Label {
+                        width: parent.width
+                        text: Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
+                              + "  ·  " + page.runtimeText
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        truncationMode: TruncationMode.Fade
+                    }
                 }
             }
             Label {
@@ -729,12 +781,11 @@ Page {
                 // resolution, GL, date; kernel and device sit in the header
                 text: page.osName + "\n"
                       + FrameCounter.gpu + "  ·  " + Screen.width + " × " + Screen.height + "\n"
-                      + page.glText + "\n"
-                      + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
-                      + "  ·  " + page.runtimeText
-                      + (page.mode === "hour" ? "  ·  " + page.modeNames.hour : "")
+                      + page.glText
+                      // the mode only when it is not a single run
+                      + (page.mode === "hour" ? "\n" + page.modeNames.hour : "")
                       //% "loop"
-                      + (page.loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + page.loops : "")
+                      + (page.loops > 0 ? (page.mode === "hour" ? "  ·  " : "\n") + qsTrId("id-loop-short") + " × " + page.loops : "")
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeSmall
             }
@@ -1116,7 +1167,9 @@ Page {
         if (span >= 600 && !charging)
             parts.push((Math.round((last[1] - first[1]) * 36000 / span) / 10).toString().replace("-", "−") + " %/h")
         //% "brightness"
-        if (brightnessAtStart >= 0) parts.push(qsTrId("id-brightness") + " " + brightnessAtStart + " %")
+        if (brightnessAtStart >= 0) parts.push(qsTrId("id-brightness") + " " + brightnessAtStart + " %"
+                //% "set by the run"
+                + (brightnessSet ? " (" + qsTrId("id-set-by-run") + ")" : ""))
         //% "charging"
         if (charging) parts.push(qsTrId("id-charging"))
         return parts.join(", ")
@@ -1139,11 +1192,11 @@ Page {
         loop: qsTrId("id-run-loop")
     })
     readonly property var modeHints: ({
-        //% "comparable results"
+        //% "For comparable results"
         once: qsTrId("id-hint-once"),
-        //% "a defined battery and temperature test"
+        //% "A defined battery and temperature test, ends at 1:00:00. The display runs at 50 % brightness with automatic brightness off, and is set back afterwards."
         hour: qsTrId("id-hint-hour"),
-        //% "overheating and throttling diagnosis"
+        //% "Until you tap: overheating and throttling diagnosis"
         loop: qsTrId("id-hint-loop")
     })
 
