@@ -13,6 +13,8 @@
 #include <QFileInfo>
 #include <QObject>
 #include <QStandardPaths>
+#include <QSysInfo>
+#include <QVariantMap>
 #include <QRegExp>
 #include <QtNumeric>
 #include <QTextStream>
@@ -81,6 +83,41 @@ public:
         return anyHottest > -1000 ? anyHottest : qQNaN();
     }
 
+    // the running kernel, from uname(), e.g. "5.4.233-android12-9-g9c3a5d5b97e3"
+    Q_INVOKABLE QString kernel() const { return QSysInfo::kernelVersion(); }
+
+    // The phone's own battery: percent, status and the power in watts, an
+    // empty map if there is none. The sign of current_now differs between
+    // kernels (negative on the C2 and the tablet when discharging), so the
+    // watts are unsigned and the status says which way they flow.
+    Q_INVOKABLE QVariantMap battery() const
+    {
+        const QDir dir(QStringLiteral("/sys/class/power_supply"));
+        for (const QString &d : dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            const QString base = dir.filePath(d) + QLatin1Char('/');
+            if (sysValue(base + QStringLiteral("type")) != QLatin1String("Battery")) continue;
+            // a headset or stylus battery says scope Device
+            if (sysValue(base + QStringLiteral("scope")) == QLatin1String("Device")) continue;
+            if (sysValue(base + QStringLiteral("present")) == QLatin1String("0")) continue;
+            bool ok = false;
+            const int capacity = sysValue(base + QStringLiteral("capacity")).toInt(&ok);
+            if (!ok) continue;
+            QVariantMap m;
+            m.insert(QStringLiteral("capacity"), capacity);
+            m.insert(QStringLiteral("status"), sysValue(base + QStringLiteral("status")));
+            bool okP = false, okI = false, okV = false;
+            const double p = sysValue(base + QStringLiteral("power_now")).toDouble(&okP);
+            const double i = sysValue(base + QStringLiteral("current_now")).toDouble(&okI);
+            const double v = sysValue(base + QStringLiteral("voltage_now")).toDouble(&okV);
+            if (okP && p != 0)
+                m.insert(QStringLiteral("watts"), qAbs(p) / 1e6);
+            else if (okI && okV)
+                m.insert(QStringLiteral("watts"), qAbs(i) * qAbs(v) / 1e12);
+            return m;
+        }
+        return QVariantMap();
+    }
+
     // a line from /etc/*-release, for the result header
     Q_INVOKABLE QString releaseValue(const QString &file, const QString &key) const
     {
@@ -98,6 +135,14 @@ public:
             }
         }
         return QString();
+    }
+
+private:
+    static QString sysValue(const QString &file)
+    {
+        QFile f(file);
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        return QString::fromLatin1(f.readAll()).trimmed();
     }
 };
 

@@ -9,6 +9,7 @@ import Nemo.KeepAlive 1.2
 import Nemo.Configuration 1.0
 import Benchymark 1.0
 import Sailfish.Share 1.0
+import org.nemomobile.systemsettings 1.0
 
 Page {
     id: page
@@ -126,23 +127,37 @@ Page {
     property var results: ({})    // key -> row
     property var order: []        // keys in the order they finished
     property double runStarted: 0
+    property double runEnded: 0    // with runStarted the exact runtime, for drain per hour
     property double sampledAt: 0   // when the frame count was last taken
 
     DisplayBlanking { preventBlanking: page.view === "run" }
 
     // The temperature over the run, once a second, pauses included: with Run
     // in loop it is the thermal test (asked for on the forum, 2026-10-17).
+    // The battery alongside, for the drain test (asked for on the forum,
+    // 2026-10-18), and the brightness at the start, which drives the drain.
     property var temps: []        // [seconds since start, degrees C]
+    property var batts: []        // [seconds since start, percent, watts, status]
+    property int brightnessAtStart: -1   // percent of the maximum
+    DisplaySettings { id: displaySettings }
     Timer {
         interval: 1000
         repeat: true
         running: page.view === "run"
         onTriggered: {
+            var s = Math.round((Date.now() - page.runStarted) / 1000)
             var c = log.temperature()
-            if (isNaN(c)) return
-            var t = page.temps
-            t.push([Math.round((Date.now() - page.runStarted) / 1000), Math.round(c * 10) / 10])
-            page.temps = t
+            if (!isNaN(c)) {
+                var t = page.temps
+                t.push([s, Math.round(c * 10) / 10])
+                page.temps = t
+            }
+            var b = log.battery()
+            if (b.capacity !== undefined) {
+                var bs = page.batts
+                bs.push([s, b.capacity, b.watts !== undefined ? Math.round(b.watts * 100) / 100 : null, b.status])
+                page.batts = bs
+            }
         }
     }
 
@@ -153,6 +168,9 @@ Page {
         if (p.length === 0) return
         plan = p
         temps = []
+        batts = []
+        brightnessAtStart = displaySettings.maximumBrightness > 0
+                ? Math.round(displaySettings.brightness * 100 / displaySettings.maximumBrightness) : -1
         results = ({})
         order = []
         loops = 0
@@ -225,6 +243,7 @@ Page {
         inGap = false
         gapTimer.stop()
         gapEndTimer.stop()
+        runEnded = Date.now()
         view = "results"
         writeLog()
     }
@@ -298,15 +317,20 @@ Page {
         lastJson = JSON.stringify({
             scene: sceneVersion,
             version: appVersion,
-            finished: new Date().toISOString(),
+            started: new Date(runStarted).toISOString(),
+            finished: new Date(runEnded).toISOString(),
+            runtime_seconds: Math.round((runEnded - runStarted) / 1000),
             resolution: Screen.width + "x" + Screen.height,
             device: deviceName,
             os: osName,
             soc: socName !== "" ? socName : undefined,
+            kernel: kernelName,
             gpu: FrameCounter.gpu,
             loop: loop,
             loops: loops,
             temperature: temps,
+            battery: batts,
+            brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             phases: phases
         }, null, 1)
         log.write(lastJson)
@@ -325,6 +349,7 @@ Page {
     }
     readonly property string osName: log.releaseValue("/etc/os-release", "PRETTY_NAME")
     readonly property string socName: log.socName()
+    readonly property string kernelName: log.kernel()
 
     // test hooks from main.cpp: SFOS_SELFTEST_RUN=<stage index> runs only that
     // stage (-2 all ticked ones); SFOS_SELFTEST_STOP=<s> ends it after s seconds
@@ -616,9 +641,12 @@ Page {
                 width: parent.width - 2 * x
                 wrapMode: Text.Wrap
                 // model and OS version, resolution and GPU, date (mo, 2026-10-17)
-                text: page.deviceName + "  ·  v" + page.osName.replace(/^Sailfish OS\s*/, "") + "\n"
+                // the kernel without its build tag: 5.4.233, not 5.4.233-android12-9-g9c…
+                text: page.deviceName + "  ·  v" + page.osName.replace(/^Sailfish OS\s*/, "")
+                      + "  ·  Linux " + page.kernelName.split("-")[0] + "\n"
                       + Screen.width + " × " + Screen.height + "  ·  " + FrameCounter.gpu + "\n"
                       + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
+                      + "  ·  " + page.runtimeText
                       //% "loop"
                       + (page.loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + page.loops : "")
                 color: Theme.secondaryColor
@@ -764,6 +792,85 @@ Page {
                     Connections { target: page; onViewChanged: tempGraph.requestPaint() }
                 }
             }
+
+            // the battery over the run: the charge, and the power drawn under it
+            Item {
+                width: parent.width
+                height: battGraph.visible ? battHead.height + battGraph.height + Theme.paddingLarge : 0
+                visible: page.batts.length > 1
+                Label {
+                    id: battHead
+                    x: Theme.horizontalPageMargin
+                    y: Theme.paddingLarge
+                    width: parent.width - 2 * x
+                    wrapMode: Text.Wrap
+                    //% "Battery"
+                    text: qsTrId("id-battery") + "  " + page.battSummary
+                    color: Theme.secondaryHighlightColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                Canvas {
+                    id: battGraph
+                    anchors.top: battHead.bottom
+                    anchors.topMargin: Theme.paddingSmall
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    height: Theme.itemSizeHuge
+                    visible: page.batts.length > 1
+                    onVisibleChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var b = page.batts
+                        if (b.length < 2) return
+                        var lo = 100, hi = 0, wMax = 0
+                        for (var i = 0; i < b.length; i++) {
+                            lo = Math.min(lo, b[i][1]); hi = Math.max(hi, b[i][1])
+                            if (b[i][2] !== null) wMax = Math.max(wMax, b[i][2])
+                        }
+                        lo = Math.max(0, lo - 1); hi = Math.min(100, hi + 1)
+                        wMax = Math.ceil(wMax) || 1
+                        var span = b[b.length - 1][0] - b[0][0] || 1
+                        var X = function (s) { return (s - b[0][0]) / span * width }
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                        ctx.lineWidth = 1
+                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+                        // the power, thin and amber, scaled to its own maximum
+                        ctx.strokeStyle = Qt.rgba(1.0, 0.7, 0.25, 0.55)
+                        ctx.lineWidth = 1.5
+                        ctx.beginPath()
+                        var started = false
+                        for (var k = 0; k < b.length; k++) {
+                            if (b[k][2] === null) continue
+                            var wy = height - b[k][2] / wMax * height
+                            if (started) ctx.lineTo(X(b[k][0]), wy)
+                            else { ctx.moveTo(X(b[k][0]), wy); started = true }
+                        }
+                        ctx.stroke()
+                        // the charge, thick and green
+                        ctx.strokeStyle = Qt.rgba(0.45, 0.85, 0.45, 1)
+                        ctx.lineWidth = Math.max(3, Theme.paddingSmall * 0.6)
+                        ctx.lineCap = "round"
+                        ctx.lineJoin = "round"
+                        ctx.beginPath()
+                        for (var j = 0; j < b.length; j++) {
+                            var y = height - (b[j][1] - lo) / (hi - lo) * height
+                            if (j === 0) ctx.moveTo(X(b[j][0]), y)
+                            else ctx.lineTo(X(b[j][0]), y)
+                        }
+                        ctx.stroke()
+                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                        ctx.fillText(hi + " %", 6, Theme.fontSizeExtraSmall + 2)
+                        ctx.fillText(lo + " %", 6, height - 6)
+                        ctx.fillStyle = Qt.rgba(1.0, 0.7, 0.25, 0.8)
+                        ctx.textAlign = "right"
+                        ctx.fillText(wMax + " W", width - 6, Theme.fontSizeExtraSmall + 2)
+                        ctx.fillText("0 W", width - 6, height - 6)
+                    }
+                    Connections { target: page; onViewChanged: battGraph.requestPaint() }
+                }
+            }
         }
         }
 
@@ -827,6 +934,43 @@ Page {
         shareAction.resources = [{ "name": name, "data": lastJson, "type": "application/json" }]
         shareAction.mimeType = "application/json"
         shareAction.trigger()
+    }
+
+    // "58 → 55 %, 1.42 W avg, 0.30 Wh, −18 %/h, brightness 48 %", plus "charging" when
+    // the charger was in at any point; %/h only from ten minutes on, below
+    // that whole percent steps say little
+    readonly property string battSummary: {
+        if (batts.length < 2) return ""
+        var first = batts[0], last = batts[batts.length - 1]
+        var wSum = 0, wN = 0, charging = false
+        for (var i = 0; i < batts.length; i++) {
+            if (batts[i][2] !== null) { wSum += batts[i][2]; wN++ }
+            if (batts[i][3] === "Charging" || batts[i][3] === "Full") charging = true
+        }
+        // the energy drawn: the power summed over the seconds between samples
+        var wh = 0
+        for (var k = 1; k < batts.length; k++)
+            if (batts[k][2] !== null && batts[k - 1][2] !== null)
+                wh += (batts[k][2] + batts[k - 1][2]) / 2 * (batts[k][0] - batts[k - 1][0]) / 3600
+        var parts = [first[1] + " → " + last[1] + " %"]
+        //% "avg"
+        if (wN > 0) parts.push((wSum / wN).toFixed(2) + " W " + qsTrId("id-col-avg"))
+        if (wN > 1) parts.push(wh.toFixed(2) + " Wh")
+        var span = last[0] - first[0]
+        if (span >= 600 && !charging)
+            parts.push((Math.round((last[1] - first[1]) * 36000 / span) / 10).toString().replace("-", "−") + " %/h")
+        //% "brightness"
+        if (brightnessAtStart >= 0) parts.push(qsTrId("id-brightness") + " " + brightnessAtStart + " %")
+        //% "charging"
+        if (charging) parts.push(qsTrId("id-charging"))
+        return parts.join(", ")
+    }
+
+    // the run's length, 0:12:07
+    readonly property string runtimeText: {
+        var t = Math.max(0, Math.round((runEnded - runStarted) / 1000))
+        var two = function (n) { return (n < 10 ? "0" : "") + n }
+        return Math.floor(t / 3600) + ":" + two(Math.floor(t / 60) % 60) + ":" + two(t % 60)
     }
 
     readonly property string tempSummary: {
