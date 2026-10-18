@@ -45,6 +45,19 @@ Page {
         { name: qsTrId("id-stage-shader-heavy"), key: "SHADER-HEAVY", file: "ShaderHigh",
           //% "The same idea warped twice over, about thirty noise lookups per pixel: the heaviest GPU load here."
           about: qsTrId("id-about-shader-heavy") },
+        // the same table walk from three kinds of GPU memory (kan_ibal, forum)
+        //% "Table from UBO"
+        { name: qsTrId("id-stage-buffer-ubo"), key: "BUFFER-UBO", file: "BufferUbo",
+          //% "Every pixel reads 16 entries of a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Needs OpenGL ES 3.0."
+          about: qsTrId("id-about-buffer-ubo") },
+        //% "Table from SSBO"
+        { name: qsTrId("id-stage-buffer-ssbo"), key: "BUFFER-SSBO", file: "BufferSsbo",
+          //% "The same table walk from a shader storage buffer (SSBO). Needs OpenGL ES 3.1 and a driver that allows them in fragment shaders."
+          about: qsTrId("id-about-buffer-ssbo") },
+        //% "Table from texture"
+        { name: qsTrId("id-stage-buffer-texture"), key: "BUFFER-TEXTURE", file: "BufferTexture",
+          //% "The same table walk from a float texture, the classic way and the baseline for the two buffers. Needs OpenGL ES 3.0."
+          about: qsTrId("id-about-buffer-texture") },
         //% "Overdraw"
         { name: qsTrId("id-stage-overdraw"), key: "OVERDRAW", file: "Overdraw",
           //% "72 large translucent squares stacked and turning: every pixel is blended many times, raw fill rate."
@@ -286,6 +299,12 @@ Page {
         var item = stageLoader.item
         // nothing loaded: already recorded (stop() after a last stage)
         if (!item) return
+        // the GPU or driver cannot run it: a dash, and why, not the idle fps
+        if (item.unsupported !== undefined && item.unsupported !== "") {
+            record(stages[current].key, { name: stages[current].name, system: false,
+                                          unsupported: item.unsupported })
+            return
+        }
         if (item.system) {
             var rows = item.results()   // [{ key, name, value, unit }]
             for (var j = 0; j < rows.length; j++)
@@ -378,12 +397,20 @@ Page {
         ignoreUnknownSignals: true
         onFinished: page.next()
     }
+    // a stage that cannot run on this GPU moves on at once
+    Connections {
+        target: stageLoader.item && stageLoader.item.unsupported !== undefined ? stageLoader.item : null
+        ignoreUnknownSignals: true
+        onUnsupportedChanged: if (stageLoader.item.unsupported !== "") page.next()
+    }
 
     function writeLog() {
         var phases = []
         for (var i = 0; i < order.length; i++) {
             var r = results[order[i]]
-            if (r.system)
+            if (r.unsupported)
+                phases.push({ phase: order[i], unsupported: r.unsupported })
+            else if (r.system)
                 phases.push({ phase: order[i], value: r.value, unit: r.unit })
             else
                 phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
@@ -812,21 +839,21 @@ Page {
                         width: parent.col * 4 / 3
                         horizontalAlignment: Text.AlignRight
                         //% "avg"
-                        text: parent.r ? parent.r.avg : qsTrId("id-col-avg")
+                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.avg) : qsTrId("id-col-avg")
                         color: parent.r ? Theme.highlightColor : Theme.secondaryHighlightColor
                     }
                     Label {
                         width: parent.col * 4 / 3
                         horizontalAlignment: Text.AlignRight
                         //% "min"
-                        text: parent.r ? parent.r.min : qsTrId("id-col-min")
+                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.min) : qsTrId("id-col-min")
                         color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
                     }
                     Label {
                         width: parent.col * 4 / 3
                         horizontalAlignment: Text.AlignRight
                         //% "worst ms"
-                        text: parent.r ? parent.r.worst : qsTrId("id-col-worst")
+                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.worst) : qsTrId("id-col-worst")
                         color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
                         font.pixelSize: parent.r ? Theme.fontSizeMedium : Theme.fontSizeExtraSmall
                     }
@@ -868,6 +895,20 @@ Page {
                 wrapMode: Text.Wrap
                 //% "* without O_DIRECT: the read may come from the cache"
                 text: qsTrId("id-no-direct")
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+            }
+
+            // why a GPU buffer stage shows a dash
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * x
+                readonly property var why: page.order.filter(function (k) { return page.results[k].unsupported })
+                                                     .map(function (k) { return page.results[k].name + ": " + page.results[k].unsupported })
+                visible: why.length > 0
+                wrapMode: Text.Wrap
+                //% "– cannot run on this GPU or driver"
+                text: qsTrId("id-unsupported") + "\n" + why.join("\n")
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeExtraSmall
             }

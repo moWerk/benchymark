@@ -11,11 +11,13 @@ CONFIG += sailfishapp sailfishapp_i18n sailfishapp_i18n_idbased sailfishapp_i18n
 SOURCES += src/main.cpp \
     src/Wireframe.cpp \
     src/Dots.cpp \
-    src/SystemBench.cpp
+    src/SystemBench.cpp \
+    src/BufferRead.cpp
 
 HEADERS += src/Wireframe.h \
     src/Dots.h \
     src/SystemBench.h \
+    src/BufferRead.h \
     src/FrameCounter.h \
     src/BenchLog.h \
     src/benchymesh.h
