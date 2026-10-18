@@ -17,9 +17,52 @@ Page {
 
     // Stamped into every result. Different loads on a different renderer
     // than the watch's scene 0.6, so the numbers are not comparable.
-    readonly property string sceneVersion: "sfos-1.0"
+    // sfos-2.0: a fixed render size and calibrated loads with a score
+    // (resolution point by Mister Magister, 2026-10-18), not comparable to 1.x
+    readonly property string sceneVersion: "sfos-2.0"
     readonly property int stageSeconds: 10    // a timed stage, measured
     readonly property int gapSeconds: 2      // between stages
+
+    // Every stage draws into the same number of pixels, the C2's 720 x 1600,
+    // in the screen's own shape, and is scaled up to the panel: a phone with
+    // more pixels gets no more work (mo, 2026-10-18).
+    readonly property real renderPixels: 720 * 1600
+    readonly property real screenAspect: Screen.width / Screen.height
+    readonly property int renderWidth: Math.round(Math.sqrt(renderPixels * screenAspect))
+    readonly property int renderHeight: Math.round(renderPixels / renderWidth)
+
+    // A stage with a `ladder` of loads finds its step on the first run: from
+    // the lightest up, one second to settle and one to measure each, to the
+    // first step under rampFps. The step is kept per scene, so later runs
+    // measure the same 10 seconds right away (mo, 2026-10-18). The score is
+    // fps x load, so it compares whatever step a device chose. Under 25 fps:
+    // near 40 the fixed cost of a frame ate a fifth of the score (XA2,
+    // Overdraw: 1393 layers/s at 36 layers, 1670 at 72, 1728 at 144).
+    readonly property int rampFps: 25
+    ConfigurationValue {
+        id: calibConfig
+        key: "/apps/harbour-benchymark/calibration"
+        defaultValue: "{}"
+    }
+    function calibration() {
+        try { var c = JSON.parse(calibConfig.value); return c[sceneVersion] || {} } catch (e) { return {} }
+    }
+    function savedStep(key) {
+        var s = calibration()[key]
+        return s === undefined ? -1 : s
+    }
+    function saveStep(key, step) {
+        var all = {}
+        try { all = JSON.parse(calibConfig.value) } catch (e) { }
+        var c = all[sceneVersion] || {}
+        c[key] = step
+        all[sceneVersion] = c
+        calibConfig.value = JSON.stringify(all)
+    }
+    readonly property bool calibrated: Object.keys(calibration()).length > 0
+    property bool ramping: false
+    property int rampStep: 0
+    property var calibratedNow: []   // keys calibrated in this run
 
     // In the order that reads best: the bright graphics first, text last,
     // then the system stages, storage at the very end (mo, 2026-10-17).
@@ -249,6 +292,7 @@ Page {
         temps = []
         batts = []
         clocks = []
+        calibratedNow = []
         brightnessSet = mode === "hour" && setDisplayForHour()
         brightnessAtStart = brightnessSet ? hourBrightness
                 : displaySettings.maximumBrightness > 0
@@ -279,6 +323,14 @@ Page {
         lastFps = 0
         stageLoader.setSource(Qt.resolvedUrl("../stages/" + stages[current].file + ".qml"),
                               { areaTop: areaTop, areaBottom: areaBottom })
+        var item = stageLoader.item
+        ramping = false
+        if (item && item.ladder !== undefined) {
+            var saved = savedStep(stages[current].key)
+            rampStep = saved >= 0 ? Math.min(saved, item.ladder.length - 1) : 0
+            ramping = saved < 0
+            item.load = item.ladder[rampStep]
+        }
         FrameCounter.take()
         FrameCounter.takeWorstMs()
         sampledAt = Date.now()
@@ -320,8 +372,17 @@ Page {
             worst = Math.max(worst, samples[i].worst)
         }
         var st = stages[current]
-        record(st.key, { name: st.name, system: false, avg: Math.round(sum / samples.length),
-                         min: min, worst: worst, seconds: samples.length })
+        var row = { name: st.name, system: false, avg: Math.round(sum / samples.length),
+                    min: min, worst: worst, seconds: samples.length }
+        if (item.ladder !== undefined) {
+            // per pixel work counts in millions of rendered pixels
+            var avg = sum / samples.length
+            row.load = item.load
+            row.step = item.ladder.indexOf(item.load)
+            row.unit = item.unit
+            row.score = avg * item.load * (item.perPixel ? renderPixels / 1e6 : 1)
+        }
+        record(st.key, row)
     }
 
     // atHour: the hour ran out mid-stage; a stage that has a full result
@@ -381,11 +442,26 @@ Page {
             if (stageLoader.status !== Loader.Ready) return
             if (!page.warm) { page.warm = true; return }
             page.lastFps = fps
+            var item = stageLoader.item
+            if (page.ramping) {
+                // a step under the mark, or the heaviest: keep it, then measure
+                if (fps < page.rampFps || page.rampStep >= item.ladder.length - 1) {
+                    page.ramping = false
+                    page.saveStep(page.stages[page.current].key, page.rampStep)
+                    var cn = page.calibratedNow
+                    cn.push(page.stages[page.current].key)
+                    page.calibratedNow = cn
+                } else {
+                    page.rampStep++
+                    item.load = item.ladder[page.rampStep]
+                }
+                page.warm = false   // the next second settles
+                return
+            }
             var s = page.samples
             s.push({ fps: fps, worst: worst })
             page.samples = s
             page.elapsed++
-            var item = stageLoader.item
             if (!(item && item.selfTimed) && page.elapsed >= page.stageSeconds)
                 page.next()
         }
@@ -414,7 +490,10 @@ Page {
                 phases.push({ phase: order[i], value: r.value, unit: r.unit })
             else
                 phases.push({ phase: order[i], avg: r.avg, min: r.min, worst_tick_ms: r.worst,
-                              samples: r.seconds })
+                              samples: r.seconds, load: r.load, load_step: r.step,
+                              score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
+                              unit: r.unit, calibrated_now: r.score !== undefined
+                                      ? calibratedNow.indexOf(order[i]) >= 0 : undefined })
         }
         lastJson = JSON.stringify({
             scene: sceneVersion,
@@ -423,6 +502,7 @@ Page {
             finished: new Date(runEnded).toISOString(),
             runtime_seconds: Math.round((runEnded - runStarted) / 1000),
             resolution: Screen.width + "x" + Screen.height,
+            render_size: renderWidth + "x" + renderHeight,
             device: deviceName,
             os: osName,
             soc: socName !== "" ? socName : undefined,
@@ -457,6 +537,7 @@ Page {
     readonly property string osName: log.releaseValue("/etc/os-release", "PRETTY_NAME")
     readonly property string socName: log.socName()
     readonly property string kernelName: log.kernel()
+    function scoreText(v) { return v >= 100 ? String(Math.round(v)) : v.toFixed(1) }
     // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
     readonly property string glText: {
         var gl = FrameCounter.glVersion.match(/OpenGL ES \d+\.\d+/)
@@ -513,6 +594,16 @@ Page {
         anchors.fill: parent
         visible: page.view === "select"
         contentHeight: selectColumn.height + Theme.paddingLarge * 3
+
+        // the next run finds every load step again
+        PullDownMenu {
+            visible: page.calibrated
+            MenuItem {
+                //% "Calibrate again"
+                text: qsTrId("id-calibrate-again")
+                onClicked: calibConfig.value = "{}"
+            }
+        }
 
         Column {
             id: selectColumn
@@ -657,6 +748,10 @@ Page {
     Loader {
         id: stageLoader
         anchors.fill: parent
+        // drawn at the fixed render size, then scaled to the panel
+        layer.enabled: page.view === "run"
+        layer.textureSize: Qt.size(page.renderWidth, page.renderHeight)
+        layer.smooth: true
         visible: page.view === "run" && !page.inGap
     }
 
@@ -702,6 +797,8 @@ Page {
             anchors.horizontalCenter: parent.horizontalCenter
             readonly property var item: stageLoader.item
             text: item && item.system ? (item.live !== "" ? item.live : "–")
+                  //% "calibrating"
+                  : page.ramping ? qsTrId("id-calibrating") + "  ·  " + page.lastFps + " fps"
                   : !page.warm ? "–"
                   : page.lastFps + " fps"
                     + "  ·  " + Math.max(0, page.stageSeconds - page.elapsed) + " s"
@@ -808,6 +905,8 @@ Page {
                 // resolution, GL, date; kernel and device sit in the header
                 text: page.osName + "\n"
                       + FrameCounter.gpu + "  ·  " + Screen.width + " × " + Screen.height + "\n"
+                      //% "drawn at %1 × %2"
+                      + qsTrId("id-render-size").arg(page.renderWidth).arg(page.renderHeight) + "\n"
                       + page.glText
                       // the mode only when it is not a single run
                       + (page.mode === "hour" ? "\n" + page.modeNames.hour : "")
@@ -838,15 +937,16 @@ Page {
                     Label {
                         width: parent.col * 4 / 3
                         horizontalAlignment: Text.AlignRight
-                        //% "avg"
-                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.avg) : qsTrId("id-col-avg")
+                        //% "score"
+                        text: parent.r ? (parent.r.score === undefined ? "–" : page.scoreText(parent.r.score))
+                                       : qsTrId("id-col-score")
                         color: parent.r ? Theme.highlightColor : Theme.secondaryHighlightColor
                     }
                     Label {
                         width: parent.col * 4 / 3
                         horizontalAlignment: Text.AlignRight
-                        //% "min"
-                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.min) : qsTrId("id-col-min")
+                        //% "fps"
+                        text: parent.r ? (parent.r.unsupported ? "–" : parent.r.avg) : qsTrId("id-col-fps")
                         color: parent.r ? Theme.primaryColor : Theme.secondaryHighlightColor
                     }
                     Label {
@@ -895,6 +995,20 @@ Page {
                 wrapMode: Text.Wrap
                 //% "* without O_DIRECT: the read may come from the cache"
                 text: qsTrId("id-no-direct")
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+            }
+
+            // what a score counts, per stage
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * x
+                readonly property var units: page.order.filter(function (k) { return page.results[k].unit })
+                                                       .map(function (k) { return page.results[k].name + " " + page.results[k].unit })
+                visible: units.length > 0
+                wrapMode: Text.Wrap
+                //% "score: %1"
+                text: qsTrId("id-score-units").arg(units.join("  ·  "))
                 color: Theme.secondaryColor
                 font.pixelSize: Theme.fontSizeExtraSmall
             }

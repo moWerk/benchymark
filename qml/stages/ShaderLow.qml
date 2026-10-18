@@ -10,6 +10,14 @@ Item {
     id: stage
     anchors.fill: parent
 
+    // sfos-2.0: the field computed `load` times per pixel at offsets, the
+    // first one drawn as before; the score counts rendered pixels x load
+    readonly property var ladder: [1, 2, 4, 8, 16, 32, 64]
+    property int load: 1
+    readonly property bool perPixel: true
+    //% "Mpx/s"
+    readonly property string unit: qsTrId("id-unit-mpx")
+
     ShaderEffect {
         id: fx
         anchors.fill: parent
@@ -27,7 +35,7 @@ Item {
             running: fx.visible
         }
 
-        fragmentShader: "
+        fragmentShader: "#define N " + stage.load + "
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -67,8 +75,17 @@ void main()
 {
     vec2 uv = qt_TexCoord0 * 2.0 - 1.0;
     float r = length(uv);
-    float w = fbm3(uv * 2.2 + 5.2);
-    float v = fbm3(uv * 2.6 + vec2(w, -w) * 1.5);
+    float w0 = 0.0, v0 = 0.0, w = 0.0, v = 0.0;
+    for (int k = 0; k < N; k++) {
+        vec2 o = vec2(float(k) * 1.37, float(k) * -0.71);
+        float wk = fbm3(uv * 2.2 + 5.2 + o);
+        float vk = fbm3(uv * 2.6 + vec2(wk, -wk) * 1.5 + o);
+        if (k == 0) { w0 = wk; v0 = vk; }
+        w += wk;
+        v += vk;
+    }
+    w = mix(w0, w / float(N), 0.25);
+    v = mix(v0, v / float(N), 0.25);
     float glint = 0.18 * smoothstep(0.75, 0.0, length(uv - glints.xy))
                 + 0.14 * smoothstep(0.65, 0.0, length(uv - glints.zw));
     float d = clamp(v + glint, 0.0, 1.0);

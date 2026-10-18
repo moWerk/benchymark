@@ -8,7 +8,14 @@ import QtQuick 2.6
 Item {
     id: stage
     anchors.fill: parent
-    property int layers: 72
+    // sfos-2.0: the layer count is the load; the score counts layers drawn
+    // per second (the C2 ran 72 in 1.x)
+    readonly property var ladder: [9, 18, 36, 72, 144, 288, 576, 1152]
+    property int load: 72
+    property int layers: load
+    readonly property bool perPixel: false
+    //% "layers/s"
+    readonly property string unit: qsTrId("id-unit-layers")
 
     // SailfishOS: the watch's layers each covered the whole panel, which on
     // the phone read as one flat violet; here every layer is a big rounded
