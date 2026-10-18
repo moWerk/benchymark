@@ -50,6 +50,10 @@ int main(int argc, char *argv[])
     // with SFOS_SELFTEST_STOP=<s> a single stage ends after that many seconds
     view->rootContext()->setContextProperty(QStringLiteral("selftestStop"),
             qEnvironmentVariableIsSet("SFOS_SELFTEST_STOP") ? qgetenv("SFOS_SELFTEST_STOP").toInt() : 0);
+    // with SFOS_SELFTEST_SHARE=1 the run's end makes the share picture into
+    // the app's data directory (share-test.png), no share menu
+    view->rootContext()->setContextProperty(QStringLiteral("selftestShare"),
+            qEnvironmentVariableIsSet("SFOS_SELFTEST_SHARE"));
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
     return app->exec();

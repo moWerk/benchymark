@@ -556,6 +556,7 @@ Page {
         runEnded = Date.now()
         view = "results"
         writeLog()
+        if (typeof selftestShare !== "undefined" && selftestShare) shareResults()
     }
 
     function next() {
@@ -1020,7 +1021,7 @@ Page {
     SilicaFlickable {
         anchors.fill: parent
         visible: page.view === "results"
-        contentHeight: resultCapture.height + Theme.paddingLarge * 2
+        contentHeight: resultLoader.height + Theme.paddingLarge * 2
 
         // SailfishOS pulls instead of buttons; the nearest to the finger last
         PullDownMenu {
@@ -1047,16 +1048,29 @@ Page {
             }
         }
 
-        // what Share saves as a picture: everything but the buttons, on a dark
-        // ground so the PNG is not transparent
+        // the results; Share draws a second one off screen (see below)
+        Loader {
+            id: resultLoader
+            width: parent.width
+            sourceComponent: resultsComponent
+        }
+    }
+
+    Component {
+        id: resultsComponent
+        // The results, once on the page and once off screen for Share: the
+        // shared copy shows every system detail and no open description,
+        // whatever this viewer switched (mo, 2026-10-18), on a dark ground
+        // so the PNG is not transparent.
         Item {
             id: resultCapture
-            width: parent.width
+            property bool shareMode: false
+            width: parent ? parent.width : page.width
             height: resultColumn.height + Theme.paddingLarge
             Rectangle {
                 anchors.fill: parent
                 color: "#0d1426"
-                visible: page.capturing
+                visible: resultCapture.shareMode
             }
 
         Column {
@@ -1074,17 +1088,28 @@ Page {
                 Column {
                     x: Theme.horizontalPageMargin
                     anchors.verticalCenter: parent.verticalCenter
-                    // up to the title, which starts at about 60 % of the width
-                    width: parent.width * 0.58 - x
+                    // up to the title, measured: a fixed share ran under it on
+                    // the XA2's larger font (seen in a shared picture)
+                    width: parent.width - titleMetrics.width - 3 * Theme.horizontalPageMargin
+                    TextMetrics {
+                        id: titleMetrics
+                        font.pixelSize: Theme.fontSizeLarge
+                        font.family: Theme.fontFamilyHeading
+                        text: "Benchymark"
+                    }
                     Repeater {
                         // when the run was taken, and how long it ran, last
                         model: ["kernel", "device", "time"]
                         Label {
                             width: parent.width
-                            visible: page.showDetail(modelData) && text !== ""
+                            visible: (resultCapture.shareMode || page.showDetail(modelData)) && text !== ""
                             text: page.detailText(modelData)
                             color: Theme.secondaryColor
+                            // a long device name or the runtime shrinks to fit
+                            // before it fades (the XA2's larger font)
                             font.pixelSize: Theme.fontSizeSmall
+                            fontSizeMode: Text.HorizontalFit
+                            minimumPixelSize: Theme.fontSizeTiny
                             truncationMode: TruncationMode.Fade
                         }
                     }
@@ -1101,7 +1126,7 @@ Page {
                 visible: text !== ""
                 text: {
                     var lines = []
-                    var d = function (k) { return page.showDetail(k) ? page.detailText(k) : "" }
+                    var d = function (k) { return resultCapture.shareMode || page.showDetail(k) ? page.detailText(k) : "" }
                     if (d("os") !== "") lines.push(d("os"))
                     var gpuLine = [d("gpu"), d("resolution")].filter(function (x) { return x !== "" })
                     if (gpuLine.length) lines.push(gpuLine.join("  ·  "))
@@ -1133,7 +1158,7 @@ Page {
                     readonly property string about: r ? page.scoreAboutOf(modelData) : ""
                     // as on the start page: a tap opens what the score counts,
                     // one row at a time (mo, 2026-10-18: all at once cluttered)
-                    readonly property bool open: r !== null && page.openResult === modelData
+                    readonly property bool open: r !== null && !resultCapture.shareMode && page.openResult === modelData
                     readonly property bool canOpen: r !== null && about !== ""
                             && (showScoreAbout.value === true || showScoreAbout.value === "true")
                     Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
@@ -1146,7 +1171,7 @@ Page {
                     Column {
                         id: nameColumn
                         visible: !modelData.gap
-                        width: tableRow.col * 4.2
+                        width: tableRow.col * 3.5
                         Label {
                             id: nameLabel
                             width: parent.width
@@ -1169,9 +1194,9 @@ Page {
                     // the score, and its unit apart and dimmed (mo, 2026-10-18)
                     Label {
                         visible: !modelData.gap
-                        x: tableRow.col * 4.2
+                        x: tableRow.col * 3.5
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.6
+                        width: tableRow.col * 1.5
                         horizontalAlignment: Text.AlignRight
                         //% "score"
                         text: tableRow.head ? qsTrId("id-col-score")
@@ -1184,9 +1209,9 @@ Page {
                     }
                     Label {
                         visible: !modelData.gap && !tableRow.head
-                        x: tableRow.col * 5.8 + Theme.paddingSmall
+                        x: tableRow.col * 5 + Theme.paddingSmall
                         y: nameLabel.baselineOffset - baselineOffset
-                        width: tableRow.col * 1.2 - Theme.paddingSmall
+                        width: tableRow.col * 2 - Theme.paddingSmall
                         text: tableRow.r && tableRow.r.unit ? tableRow.r.unit : ""
                         color: Theme.secondaryColor
                         font.pixelSize: Theme.fontSizeExtraSmall
@@ -1466,26 +1491,66 @@ Page {
             }
         }
         }
+    }
 
+    // Share's copy: off screen, full height, drawn only while sharing
+    Loader {
+        id: shareLoader
+        active: false
+        x: page.width * 2
+        width: page.width
+        sourceComponent: resultsComponent
+        onLoaded: item.shareMode = true
+    }
+    // the picture takes a moment: the page dims to half black and says so
+    // (mo, 2026-10-18)
+    Rectangle {
+        anchors.fill: parent
+        visible: shareLoader.active
+        color: Qt.rgba(0, 0, 0, 0.5)
+        z: 50
+        MouseArea { anchors.fill: parent }   // no taps through while it works
+        Label {
+            anchors.centerIn: parent
+            //% "Assembling screenshot…"
+            text: qsTrId("id-share-assembling")
+            color: Theme.highlightColor
+            font.pixelSize: Theme.fontSizeLarge
+        }
+    }
+    // the graphs are Canvases: give them a moment to draw before the grab
+    Timer {
+        id: shareGrabTimer
+        interval: 700
+        onTriggered: page.grabShare()
     }
 
     // Share: the results as a picture in Pictures, then the share menu with it
-    property bool capturing: false
     ShareAction {
         id: shareAction
         //% "Share results"
         title: qsTrId("id-share-results")
     }
     function shareResults() {
-        capturing = true
-        resultCapture.grabToImage(function (result) {
-            capturing = false
-            var file = StandardPaths.pictures + "/benchymark-"
-                    + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".png"
-            if (!result.saveToFile(file)) {
+        shareLoader.active = true
+        shareGrabTimer.restart()
+    }
+    function grabShare() {
+        var item = shareLoader.item
+        if (!item) return
+        item.grabToImage(function (result) {
+            // the test hook keeps it in the app's data directory instead
+            var test = typeof selftestShare !== "undefined" && selftestShare
+            var file = test ? log.path().replace("last-run.json", "share-test.png")
+                     : StandardPaths.pictures + "/benchymark-"
+                       + Qt.formatDateTime(new Date(runStarted), "yyyyMMdd-hhmmss") + ".png"
+            var saved = result.saveToFile(file)
+            shareLoader.active = false
+            if (!saved) {
                 console.warn("Benchymark: could not save " + file)
                 return
             }
+            if (test) { console.log("Benchymark: share picture " + file); return }
             shareAction.resources = [file]
             shareAction.mimeType = "image/png"
             shareAction.trigger()
