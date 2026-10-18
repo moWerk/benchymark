@@ -171,6 +171,21 @@ public:
             const double max = sysValue(base + QStringLiteral("max_freq")).toDouble();
             if (max > 0) { m.insert(QStringLiteral("gpu"), qRound(cur / max * 100)); break; }
         }
+        // MediaTek (the Jolla Phone's Mali-G610) has no GPU devfreq: its GED
+        // driver gives "<step> <kHz>", e.g. "22 385000". The maximum comes from
+        // the step table if it reads as kHz, else it is the fastest clock seen.
+        if (!m.contains(QStringLiteral("gpu"))) {
+            const QStringList ged = sysValue(QStringLiteral("/sys/kernel/ged/hal/current_freqency"))
+                                        .split(QLatin1Char(' '), QString::SkipEmptyParts);
+            bool ok = false;
+            const double cur = ged.size() >= 2 ? ged.at(1).toDouble(&ok) : 0;
+            if (ok && cur > 0) {
+                if (m_gpuTableMax < 0) m_gpuTableMax = mtkTableMax();
+                m_gpuSeenMax = qMax(m_gpuSeenMax, cur);
+                const double max = qMax(m_gpuTableMax, m_gpuSeenMax);
+                m.insert(QStringLiteral("gpu"), qRound(cur / max * 100));
+            }
+        }
         const QDir cool(QStringLiteral("/sys/class/thermal"));
         int cooling = 0;
         bool anyCooling = false;
@@ -218,6 +233,21 @@ public:
     }
 
 private:
+    mutable double m_gpuTableMax = -1;
+    mutable double m_gpuSeenMax = 0;
+
+    // the fastest step in MediaTek's GPU step table, 0 if it is unreadable or
+    // not between 100 MHz and 3 GHz in kHz
+    static double mtkTableMax()
+    {
+        const QString t = sysValue(QStringLiteral("/proc/gpufreqv2/gpu_working_opp_table"));
+        QRegExp re(QStringLiteral("freq[^0-9]{0,8}(\\d+)"), Qt::CaseInsensitive);
+        double max = 0;
+        for (int pos = 0; (pos = re.indexIn(t, pos)) >= 0; pos += re.matchedLength())
+            max = qMax(max, re.cap(1).toDouble());
+        return max >= 100000 && max <= 3000000 ? max : 0;
+    }
+
     static QString sysValue(const QString &file)
     {
         QFile f(file);
