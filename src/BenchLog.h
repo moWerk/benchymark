@@ -118,6 +118,61 @@ public:
         return QVariantMap();
     }
 
+    // What the kernel does against heat, read each second (the user cannot
+    // read the journal, and the sandbox even less, so the state itself):
+    //  cpu      the fastest cluster's clock in percent of its maximum
+    //  gpu      the GPU's clock in percent of its maximum (devfreq), if any
+    //  cooling  the cooling devices in use (thermal-cpufreq, devfreq, cpu
+    //           hotplug with cur_state above 0); above 0 the kernel throttles
+    //  capped   a cluster's allowed maximum is below its hardware maximum
+    Q_INVOKABLE QVariantMap throttle() const
+    {
+        QVariantMap m;
+        const QDir cpu(QStringLiteral("/sys/devices/system/cpu/cpufreq"));
+        double cpuPct = -1;
+        bool capped = false;
+        for (const QString &p : cpu.entryList(QStringList() << QStringLiteral("policy*"), QDir::Dirs)) {
+            const QString base = cpu.filePath(p) + QLatin1Char('/');
+            const double cur = sysValue(base + QStringLiteral("scaling_cur_freq")).toDouble();
+            const double max = sysValue(base + QStringLiteral("cpuinfo_max_freq")).toDouble();
+            const double allowed = sysValue(base + QStringLiteral("scaling_max_freq")).toDouble();
+            if (max <= 0) continue;
+            cpuPct = qMax(cpuPct, cur / max * 100);
+            if (allowed > 0 && allowed < max) capped = true;
+        }
+        if (cpuPct >= 0) {
+            m.insert(QStringLiteral("cpu"), qRound(cpuPct));
+            m.insert(QStringLiteral("capped"), capped);
+        }
+        const QDir dev(QStringLiteral("/sys/class/devfreq"));
+        for (const QString &d : dev.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (!d.contains(QLatin1String("gpu"), Qt::CaseInsensitive)
+                    && !d.contains(QLatin1String("mali"), Qt::CaseInsensitive)
+                    && !d.contains(QLatin1String("kgsl"), Qt::CaseInsensitive)) continue;
+            const QString base = dev.filePath(d) + QLatin1Char('/');
+            const double cur = sysValue(base + QStringLiteral("cur_freq")).toDouble();
+            const double max = sysValue(base + QStringLiteral("max_freq")).toDouble();
+            if (max > 0) { m.insert(QStringLiteral("gpu"), qRound(cur / max * 100)); break; }
+        }
+        const QDir cool(QStringLiteral("/sys/class/thermal"));
+        int cooling = 0;
+        bool anyCooling = false;
+        for (const QString &c : cool.entryList(QStringList() << QStringLiteral("cooling_device*"))) {
+            const QString base = cool.filePath(c) + QLatin1Char('/');
+            const QString type = sysValue(base + QStringLiteral("type")).toLower();
+            if (!type.contains(QLatin1String("cpu")) && !type.contains(QLatin1String("gpu"))
+                    && !type.contains(QLatin1String("devfreq")) && !type.contains(QLatin1String("processor")))
+                continue;
+            bool ok = false;
+            const int state = sysValue(base + QStringLiteral("cur_state")).toInt(&ok);
+            if (!ok) continue;
+            anyCooling = true;
+            if (state > 0) cooling++;
+        }
+        if (anyCooling) m.insert(QStringLiteral("cooling"), cooling);
+        return m;
+    }
+
     // a line from /etc/*-release, for the result header
     Q_INVOKABLE QString releaseValue(const QString &file, const QString &key) const
     {

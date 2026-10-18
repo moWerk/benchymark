@@ -109,7 +109,17 @@ Page {
         key: "/apps/harbour-benchymark/loop"
         defaultValue: false
     }
-    readonly property bool loop: loopConfig.value === true || loopConfig.value === "true"
+    // once, hour or loop (mo, 2026-10-18); the old loop switch carries over
+    ConfigurationValue {
+        id: modeConfig
+        key: "/apps/harbour-benchymark/mode"
+        defaultValue: ""
+    }
+    readonly property var modes: ["once", "hour", "loop"]
+    readonly property string mode: modes.indexOf(modeConfig.value) >= 0 ? modeConfig.value
+            : (loopConfig.value === true || loopConfig.value === "true") ? "loop" : "once"
+    readonly property bool loop: mode !== "once"
+    readonly property int hourSeconds: 3600
 
     property string view: "select"   // select, run, results
     property int openAbout: -1        // the stage whose sentence is open
@@ -138,6 +148,7 @@ Page {
     // 2026-10-18), and the brightness at the start, which drives the drain.
     property var temps: []        // [seconds since start, degrees C]
     property var batts: []        // [seconds since start, percent, watts, status]
+    property var clocks: []       // [seconds since start, cpu %, gpu % or null, throttled]
     property int brightnessAtStart: -1   // percent of the maximum
     DisplaySettings { id: displaySettings }
     Timer {
@@ -158,7 +169,21 @@ Page {
                 bs.push([s, b.capacity, b.watts !== undefined ? Math.round(b.watts * 100) / 100 : null, b.status])
                 page.batts = bs
             }
+            var th = log.throttle()
+            if (th.cpu !== undefined) {
+                var cl = page.clocks
+                cl.push([s, th.cpu, th.gpu !== undefined ? th.gpu : null,
+                         (th.cooling || 0) > 0 || th.capped === true])
+                page.clocks = cl
+            }
         }
+    }
+
+    // Run one hour: ends at exactly 1:00:00, wherever the sequence is
+    Timer {
+        id: hourTimer
+        interval: page.hourSeconds * 1000
+        onTriggered: page.stop(true)
     }
 
     function start() {
@@ -169,6 +194,7 @@ Page {
         plan = p
         temps = []
         batts = []
+        clocks = []
         brightnessAtStart = displaySettings.maximumBrightness > 0
                 ? Math.round(displaySettings.brightness * 100 / displaySettings.maximumBrightness) : -1
         results = ({})
@@ -176,6 +202,7 @@ Page {
         loops = 0
         view = "run"
         runStarted = Date.now()
+        if (mode === "hour") hourTimer.restart()
         beginStep(0)
     }
 
@@ -235,9 +262,13 @@ Page {
                          min: min, worst: worst, seconds: samples.length })
     }
 
-    function stop() {
+    // atHour: the hour ran out mid-stage; a stage that has a full result
+    // from an earlier round keeps it rather than the cut one
+    function stop(atHour) {
         if (view !== "run") return
-        if (!inGap) finishStage()
+        hourTimer.stop()
+        var cut = atHour === true && current >= 0 && results[stages[current].key] !== undefined
+        if (!inGap && !cut) finishStage()
         stageLoader.source = ""
         step = -1
         inGap = false
@@ -327,9 +358,11 @@ Page {
             kernel: kernelName,
             gpu: FrameCounter.gpu,
             loop: loop,
+            mode: mode,
             loops: loops,
             temperature: temps,
             battery: batts,
+            clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             phases: phases
         }, null, 1)
@@ -468,18 +501,28 @@ Page {
                 id: loopToggle
                 anchors.horizontalCenter: parent.horizontalCenter
                 // "run": a sequence is run (mo, 2026-10-17)
-                text: page.loop
-                      //% "Run in loop"
-                      ? qsTrId("id-run-loop")
-                      //% "Run once"
-                      : qsTrId("id-run-once")
+                text: page.modeNames[page.mode]
                 color: loopArea.pressed ? Theme.highlightColor : Theme.primaryColor
                 font.pixelSize: Theme.fontSizeLarge
                 MouseArea {
                     id: loopArea
                     anchors.fill: parent
                     anchors.margins: -Theme.paddingLarge
-                    onClicked: loopConfig.value = !page.loop
+                    onClicked: modeConfig.value = page.modes[(page.modes.indexOf(page.mode) + 1) % page.modes.length]
+                }
+            }
+
+            // what each mode is for, the chosen one lit (mo, 2026-10-18)
+            Column {
+                anchors.horizontalCenter: parent.horizontalCenter
+                Repeater {
+                    model: page.modes
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: page.modeNames[modelData] + ": " + page.modeHints[modelData]
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: modelData === page.mode ? Theme.highlightColor : Theme.secondaryColor
+                    }
                 }
             }
 
@@ -598,9 +641,18 @@ Page {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.paddingLarge * 2
         //% "Tap to stop"
-        text: qsTrId("id-tap-to-stop")
+        text: qsTrId("id-tap-to-stop") + (page.mode === "hour" ? "  ·  " + page.hourLeft : "")
         color: "white"
         opacity: 0.6
+    }
+    // the hour's countdown under the run, once a second
+    property string hourLeft: ""
+    Timer {
+        interval: 1000
+        repeat: true
+        triggeredOnStart: true
+        running: page.view === "run" && page.mode === "hour"
+        onTriggered: page.hourLeft = page.clockText(page.hourSeconds - (Date.now() - page.runStarted) / 1000)
     }
 
     MouseArea {
@@ -647,6 +699,7 @@ Page {
                       + Screen.width + " × " + Screen.height + "  ·  " + FrameCounter.gpu + "\n"
                       + Qt.formatDateTime(new Date(page.runStarted), "yyyy-MM-dd hh:mm")
                       + "  ·  " + page.runtimeText
+                      + (page.mode === "hour" ? "  ·  " + page.modeNames.hour : "")
                       //% "loop"
                       + (page.loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + page.loops : "")
                 color: Theme.secondaryColor
@@ -871,6 +924,76 @@ Page {
                     Connections { target: page; onViewChanged: battGraph.requestPaint() }
                 }
             }
+
+            // the clocks over the run, red where the kernel throttled
+            Item {
+                width: parent.width
+                height: clockGraph.visible ? clockHead.height + clockGraph.height + Theme.paddingLarge : 0
+                visible: page.clocks.length > 1
+                Label {
+                    id: clockHead
+                    x: Theme.horizontalPageMargin
+                    y: Theme.paddingLarge
+                    width: parent.width - 2 * x
+                    wrapMode: Text.Wrap
+                    //% "Clocks"
+                    text: qsTrId("id-clocks") + "  " + page.clockSummary
+                    color: Theme.secondaryHighlightColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+                Canvas {
+                    id: clockGraph
+                    anchors.top: clockHead.bottom
+                    anchors.topMargin: Theme.paddingSmall
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    height: Theme.itemSizeHuge
+                    visible: page.clocks.length > 1
+                    onVisibleChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.clearRect(0, 0, width, height)
+                        var c = page.clocks
+                        if (c.length < 2) return
+                        var span = c[c.length - 1][0] - c[0][0] || 1
+                        var X = function (s) { return (s - c[0][0]) / span * width }
+                        var Y = function (p) { return height - Math.min(100, p) / 100 * height }
+                        // throttled seconds as red bands behind the lines
+                        ctx.fillStyle = Qt.rgba(0.9, 0.2, 0.2, 0.3)
+                        for (var i = 1; i < c.length; i++)
+                            if (c[i][3]) ctx.fillRect(X(c[i - 1][0]), 0, Math.max(1, X(c[i][0]) - X(c[i - 1][0])), height)
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                        ctx.lineWidth = 1
+                        ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+                        var line = function (col, color, w) {
+                            ctx.strokeStyle = color
+                            ctx.lineWidth = w
+                            ctx.beginPath()
+                            var started = false
+                            for (var j = 0; j < c.length; j++) {
+                                if (c[j][col] === null) continue
+                                if (started) ctx.lineTo(X(c[j][0]), Y(c[j][col]))
+                                else { ctx.moveTo(X(c[j][0]), Y(c[j][col])); started = true }
+                            }
+                            ctx.stroke()
+                        }
+                        line(2, Qt.rgba(0.75, 0.55, 1.0, 0.7), 1.5)   // GPU, thin violet
+                        line(1, Qt.rgba(0.4, 0.75, 1.0, 1), Math.max(3, Theme.paddingSmall * 0.6))   // CPU
+                        ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                        ctx.fillText("100 %", 6, Theme.fontSizeExtraSmall + 2)
+                        ctx.fillText("0 %", 6, height - 6)
+                        ctx.textAlign = "right"
+                        ctx.fillStyle = Qt.rgba(0.4, 0.75, 1.0, 1)
+                        ctx.fillText("CPU", width - 6, Theme.fontSizeExtraSmall + 2)
+                        if (c.some(function (r) { return r[2] !== null })) {
+                            ctx.fillStyle = Qt.rgba(0.75, 0.55, 1.0, 1)
+                            ctx.fillText("GPU", width - 6, Theme.fontSizeExtraSmall * 2 + 6)
+                        }
+                    }
+                    Connections { target: page; onViewChanged: clockGraph.requestPaint() }
+                }
+            }
         }
         }
 
@@ -967,10 +1090,40 @@ Page {
     }
 
     // the run's length, 0:12:07
-    readonly property string runtimeText: {
-        var t = Math.max(0, Math.round((runEnded - runStarted) / 1000))
+    readonly property string runtimeText: clockText((runEnded - runStarted) / 1000)
+    function clockText(seconds) {
+        var t = Math.max(0, Math.round(seconds))
         var two = function (n) { return (n < 10 ? "0" : "") + n }
         return Math.floor(t / 3600) + ":" + two(Math.floor(t / 60) % 60) + ":" + two(t % 60)
+    }
+
+    readonly property var modeNames: ({
+        //% "Run once"
+        once: qsTrId("id-run-once"),
+        //% "Run one hour"
+        hour: qsTrId("id-run-hour"),
+        //% "Run in loop"
+        loop: qsTrId("id-run-loop")
+    })
+    readonly property var modeHints: ({
+        //% "comparable results"
+        once: qsTrId("id-hint-once"),
+        //% "a defined battery and temperature test"
+        hour: qsTrId("id-hint-hour"),
+        //% "overheating and throttling diagnosis"
+        loop: qsTrId("id-hint-loop")
+    })
+
+    // "throttled 14 % of the run, first at 0:03:42" or "not throttled"
+    readonly property string clockSummary: {
+        if (clocks.length < 2) return ""
+        var n = 0, first = -1
+        for (var i = 0; i < clocks.length; i++)
+            if (clocks[i][3]) { n++; if (first < 0) first = clocks[i][0] }
+        //% "not throttled"
+        if (n === 0) return qsTrId("id-not-throttled")
+        //% "throttled %1 % of the run, first at %2"
+        return qsTrId("id-throttled").arg(Math.round(n * 100 / clocks.length)).arg(clockText(first))
     }
 
     readonly property string tempSummary: {
