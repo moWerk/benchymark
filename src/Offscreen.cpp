@@ -156,7 +156,7 @@ QString OffscreenRun::load(const QUrl &source, const QVariantMap &properties, in
     }
     m_item->setParentItem(m_window->contentItem());
     m_item->setSize(QSizeF(width, height));
-    m_frameNo = firstFrame;
+    m_frameNo = 0;
     emit itemChanged();
     return QString();
 }
@@ -183,7 +183,10 @@ void OffscreenRun::renderFrame()
         f->glDeleteSync(static_cast<GLsync>(m_fences[slot]));
         m_fences[slot] = nullptr;
     }
-    if (m_item) m_item->setProperty("t", double(m_frameNo) / 60.0);
+    // measured time only: a copy for the screen does not move the picture on
+    const double t = !m_running ? startSeconds
+                   : startSeconds + ((m_measuring ? m_warmupMs : 0) + phaseMs()) / 1000.0;
+    if (m_item) m_item->setProperty("t", t);
     m_control->polishItems();
     m_control->sync();
     m_control->render();

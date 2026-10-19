@@ -1,7 +1,6 @@
-// The stages' motion as functions of their time t, seconds at 60 frames
-// per second: off screen a stage draws frame after frame as fast as the
-// device can, so its picture follows the frame number, not the clock, and
-// every device draws the same frames (2.2).
+// The stages' motion as functions of their time t in seconds, set by the
+// page on screen and by OffscreenRun off screen: every device measures the
+// same six seconds of animation (2.2).
 .pragma library
 
 // 0 to 1 once per period

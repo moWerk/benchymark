@@ -40,8 +40,13 @@ private:
 // scaling to the panel. On screen, the frame rate of a composited window
 // carried the refresh cap and a fixed cost of 12-25 ms per frame, and the
 // scores bent around both (night audit, 2026-10-19). The stage's picture
-// is a function of its frame number (its property t, seconds at 60 frames
-// per second), so every device draws the same frames.
+// is a function of its time t, which runs from 2 to 4 s during the
+// warm-up and from 4 to 10 s while measured, on every device: all of
+// them measure the same six seconds of animation and draw as many frames
+// of it as they can. (Driven by the frame number, a fast and a slow
+// device measured different stretches of it, and the work per frame
+// changes along the way: the C2's Overdraw read 650 or 1050 by where its
+// frames began.)
 class OffscreenRun : public QObject
 {
     Q_OBJECT
@@ -61,10 +66,9 @@ public:
     int previewMs() const { return m_previewMs; }
     void setPreviewMs(int ms);
 
-    // The frame the stage starts at, the same with or without the page's
-    // two seconds on screen before (which end there): every device draws
-    // the same frames either way.
-    static const int firstFrame = 120;
+    // The stage's time at the warm-up's start: the page's two seconds on
+    // screen before end there, so the picture carries on.
+    static constexpr double startSeconds = 2.0;
     // builds the stage; "" when it stands, else why not
     Q_INVOKABLE QString load(const QUrl &source, const QVariantMap &properties,
                              int width = 720, int height = 1600);
@@ -114,7 +118,7 @@ private:
     int m_measureMs = 0;
     int m_previewMs = 1000;
     int m_serial = 0;
-    qint64 m_frameNo = 0;      // the frame drawn next: the stage's time
+    qint64 m_frameNo = 0;      // frames drawn since load
     int m_frames = 0;          // frames counted in the measured time
     int m_halfFrames = -1;     // and at its half
     double m_halfMs = 0;

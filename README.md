@@ -60,8 +60,8 @@ device landed on, by 40-170 %. 2.2 measures differently:
   shows a copy of its frames while it warms up
 - **The same work everywhere**: each graphics stage has one fixed load,
   the same on every device (320 boats, 72 layers, 4000 squares, ...), and
-  its motion follows the frame number, not the clock: every device draws
-  exactly the same frames. No calibration, nothing per device
+  every device measures the same six seconds of its animation, drawing as
+  many frames of it as it can. No calibration, nothing per device
 - **Measured**: two seconds of warm-up, not counted, then six seconds. The
   score is the work drawn over the time it took, with the GPU finished, in
   the stage's own unit (boats/s, Mpx/s, M reads/s, layers/s, squares/s,
@@ -133,28 +133,29 @@ tapped is shown beside it, stage by stage, with the ratio.
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
 Results with 2.2 (scene `sfos-2.2`), by the author, the mean of two full
-runs back to back (2026-10-19); the two agree within ±2 % on nearly every
-stage, at most 10 % (the XA2's Icons):
+runs back to back (2026-10-19); the two agree within ±1 % on nearly every
+stage. The exceptions lean on the CPU: the XA2's Icons by 18 % and Cascade
+by 5 % (it parks and wakes its cores), the tablet's One million by 5 %:
 
 | stage | Xperia XA2 (4.4, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) | Jolla C2 (5.1, Mali-G57) |
 |---|---|---|---|
-| Benchy large | 12719 boats/s | 2184 boats/s | 959 boats/s |
-| Benchy small | 13008 boats/s | 5061 boats/s | 2273 boats/s |
-| Benchy glow | 45.5 Mpx/s | 19.5 Mpx/s | 38.6 Mpx/s |
-| Shader light | 50.4 Mpx/s | 30.2 Mpx/s | 48.0 Mpx/s |
+| Benchy large | 12739 boats/s | 2320 boats/s | 999 boats/s |
+| Benchy small | 12879 boats/s | 5041 boats/s | 2365 boats/s |
+| Benchy glow | 45.5 Mpx/s | 19.6 Mpx/s | 38.5 Mpx/s |
+| Shader light | 50.5 Mpx/s | 30.1 Mpx/s | 48.0 Mpx/s |
 | Shader heavy | 17.4 Mpx/s | 7.3 Mpx/s | 8.6 Mpx/s |
-| Table from UBO | 635 M reads/s | 327 M reads/s | 413 M reads/s |
+| Table from UBO | 635 M reads/s | 327 M reads/s | 414 M reads/s |
 | Table from SSBO | 615 M reads/s | – (needs OpenGL ES 3.1) | 414 M reads/s |
-| Table from texture | 648 M reads/s | 150 M reads/s | 964 M reads/s |
-| Overdraw | 2305 layers/s | 722 layers/s | 662 layers/s |
-| Cascade | 96126 squares/s | 91230 squares/s | 85879 squares/s |
-| Icon storm | 16041 icons/s | 17595 icons/s | 30960 icons/s |
-| CPU prime | 9435 events/s (8 threads) | 1290 events/s (4) | 9826 events/s (8) |
-| CPU single core | 1358 events/s | 359 events/s | 1718 events/s |
-| Memory throughput | 1509 MB/s | 909 MB/s | 632 MB/s |
-| One million | 48.8 M/s | 305 M/s | 246 M/s |
+| Table from texture | 636 M reads/s | 147 M reads/s | 979 M reads/s |
+| Overdraw | 2281 layers/s | 755 layers/s | 921 layers/s |
+| Cascade | 98813 squares/s | 88393 squares/s | 86478 squares/s |
+| Icon storm | 17635 icons/s | 17323 icons/s | 30574 icons/s |
+| CPU prime | 9482 events/s (8 threads) | 1297 events/s (4) | 9819 events/s (8) |
+| CPU single core | 1368 events/s | 358 events/s | 1720 events/s |
+| Memory throughput | 1501 MB/s | 924 MB/s | 630 MB/s |
+| One million | 52.0 M/s | 295 M/s | 250 M/s |
 
-The XA2 draws the Benchy boats six to thirteen times faster than the C2,
+The XA2 draws the Benchy boats five to thirteen times faster than the C2,
 though the C2's single core is faster: on the C2 the lines limit (small
 boats, with half the lines' length, score 2.4 times the large ones), on the
 XA2 the projection on the CPU does (large and small score alike). The C2's Mali reads a table from a
@@ -184,7 +185,7 @@ By the author; the Jolla Phone run is by forum user ahjolinna
 | Icon storm | 107520 icons/s | 32640 icons/s | 19392 icons/s | 17472 icons/s |
 | Text scale | 37976 texts/s | 10440 texts/s | 6392 texts/s | 4246 texts/s |
 | Text reraster | 19822 texts/s | 7038 texts/s | 1976 texts/s | 1560 texts/s |
-| CPU prime | 16135 events/s | 9635 events/s | 1012 events/s | 1282 events/s |
+| CPU prime | 16135 events/s (8 threads) | 9635 events/s (4) | 1012 events/s (8) | 1282 events/s |
 | CPU single core | 2853 events/s | 1710 events/s | 261 events/s | 359 events/s |
 | Memory throughput | 6276 MB/s | 625 MB/s | 1490 MB/s | 892 MB/s |
 | One million | 25.99 M/s | 8.22 M/s | 5.62 M/s | 6.09 M/s |
@@ -221,7 +222,7 @@ Xiaomi Pad 6 by Mister Magister. The Jolla Phone's 90 fps and the Pad 6's
 | Icon storm | 79 | 27 | 24 | 13 | 7 | 13 | 44 |
 | Text scale | 77 | 36 | 44 | 12 | 26 | 29 | 70 |
 | Text reraster | 49 | 13 | 33 | 7 | 10 | 12 | 21 |
-| CPU prime | 16327 events/s | 11153 events/s | 9719 events/s | 1271 events/s | 404 events/s | 1012 events/s | 17182 events/s |
+| CPU prime | 16327 events/s (8 threads) | 11153 events/s (4) | 9719 events/s (8) | 1271 events/s | 404 events/s | 1012 events/s | 17182 events/s |
 | Memory throughput | 6213 MB/s | 3749 MB/s | 650 MB/s | 991 MB/s | 557 MB/s | 1527 MB/s | 13004 MB/s |
 | One million | 26.81 M/s | 13.08 M/s | 8.28 M/s | 5.68 M/s | 2.58 M/s | 5.67 M/s | 20.45 M/s |
 | Storage R/W | 45/35 MB/s | 22/29 MB/s | 27/24 MB/s | 42/32 MB/s | – | – | – |
