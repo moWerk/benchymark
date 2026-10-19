@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
     view->rootContext()->setContextProperty(QStringLiteral("buildArch"), QSysInfo::buildCpuArchitecture());
     view->rootContext()->setContextProperty(QStringLiteral("cpuArch"), QSysInfo::currentCpuArchitecture());
     view->rootContext()->setContextProperty(QStringLiteral("appVersion"), QStringLiteral(APP_VERSION));
-    // Test hook: SFOS_SELFTEST_RUN=<mode> starts that run at once (0 full
-    // sequence, 1 loop all, 2+ one stage); the result lands in last-run.json.
+    // Test hook: SFOS_SELFTEST_RUN=<n> runs stage n alone at once, -2 all
+    // ticked stages; the result lands in last-run.json and the saved runs.
     // a value that is not a number counts as unset
     bool ok = false;
     const int run = qEnvironmentVariableIntValue("SFOS_SELFTEST_RUN", &ok);
@@ -62,6 +62,14 @@ int main(int argc, char *argv[])
     // the app's data directory (share-test.png), no share menu
     view->rootContext()->setContextProperty(QStringLiteral("selftestShare"),
             qEnvironmentVariableIntValue("SFOS_SELFTEST_SHARE") == 1);
+    // with SFOS_SELFTEST_FIXED=1 a stage measures its saved step as it is,
+    // no ramp, no new ramp: the linearity check of the night audit
+    view->rootContext()->setContextProperty(QStringLiteral("selftestFixed"),
+            qEnvironmentVariableIntValue("SFOS_SELFTEST_FIXED") == 1);
+    // with SFOS_SELFTEST_PAGE=settings|runs|compare that page opens at
+    // start, for screenshots of pages a smashed screen cannot reach
+    view->rootContext()->setContextProperty(QStringLiteral("selftestPage"),
+            QString::fromLatin1(qgetenv("SFOS_SELFTEST_PAGE")));
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
     return app->exec();

@@ -55,7 +55,8 @@ Item {
                            unit: oldFps ? "fps" : p.unit,
                            score: oldFps ? p.avg : p.score, unsupported: p.unsupported,
                            topped: p.topped === true, capped: p.capped === true,
-                           partial: p.partial === true }
+                           partial: p.partial === true, slopeFailed: p.slope_failed === true,
+                           noisy: p.noisy === true, overhead: p.overhead_ms }
         }
         return r
     }
@@ -70,6 +71,15 @@ Item {
     readonly property var cappedKeys: flagged("capped")
     readonly property var toppedKeys: flagged("topped")
     readonly property var partialKeys: flagged("partial")
+    readonly property var singleKeys: flagged("slopeFailed")
+    readonly property var noisyKeys: flagged("noisy")
+    // the median of the stages' frame overhead, ms
+    readonly property real overheadMs: {
+        var v = order.map(function (k) { return results[k] ? results[k].overhead : undefined })
+                     .filter(function (x) { return x !== undefined && x !== null && isFinite(x) })
+                     .sort(function (x, y) { return x - y })
+        return v.length ? v[Math.floor(v.length / 2)] : NaN
+    }
     readonly property double runStarted: run && run.started ? Date.parse(run.started) : 0
     readonly property double runEnded: run && run.finished ? Date.parse(run.finished) : 0
     readonly property int brightnessAtStart: run && run.brightness_percent !== undefined ? run.brightness_percent : -1
@@ -360,6 +370,12 @@ Item {
                 if (view.toppedKeys.length) l.push(qsTrId("id-flag-topped").arg(names(view.toppedKeys)))
                 //% "Stopped early, fewer seconds measured: %1"
                 if (view.partialKeys.length) l.push(qsTrId("id-flag-partial").arg(names(view.partialKeys)))
+                //% "Measured at one load only, the frame's own cost is in the score: %1"
+                if (view.singleKeys.length) l.push(qsTrId("id-flag-single").arg(names(view.singleKeys)))
+                //% "Mostly frame overhead, the score is less certain: %1"
+                if (view.noisyKeys.length) l.push(qsTrId("id-flag-noisy").arg(names(view.noisyKeys)))
+                //% "Every frame costs %1 ms besides the work (compositing, scaling to the screen); the scores leave it out"
+                if (isFinite(view.overheadMs)) l.push(qsTrId("id-overhead").arg(view.overheadMs.toFixed(1)))
                 //% "Scene %1: these scores do not compare with %2"
                 if (view.run && view.run.scene && view.run.scene !== view.currentScene)
                     l.push(qsTrId("id-flag-scene").arg(view.run.scene).arg(view.currentScene))

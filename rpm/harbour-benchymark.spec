@@ -20,8 +20,11 @@ BuildRequires:  qt5-qttools-linguist
 
 %description
 Benchymark runs rendering stages, a rotating 3DBenchy wireframe, shader
-fields, text and fill rate tests, and shows frames per second for each
-in a table to share. Ported from AsteroidOS.
+fields, GPU table reads, text and fill rate tests, plus CPU, memory and
+storage tests. Every device draws the same 720 x 1600 canvas and each
+stage calibrates its load, so the scores (work per second) compare
+between devices. Results are saved and can be shared as a picture or
+JSON. Ported from AsteroidOS.
 
 %if 0%{?_chum}
 Title: Benchymark
@@ -39,7 +42,7 @@ Screenshots:
  - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-start.png
  - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-benchy-heavy.png
  - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-cpu-prime.png
- - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-results.png
+ - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/store/screenshot-results-2.0.0-c2-720x2740.png
  - https://raw.githubusercontent.com/moWerk/benchymark/sailfishos/screenshots/benchymark-about.png
 Links:
   Homepage: https://github.com/moWerk/benchymark/tree/sailfishos

@@ -38,30 +38,43 @@ Tick the stages you want, choose a run mode, start:
   the next start), so drains compare
 - **Run in loop**: until you tap, to diagnose overheating and throttling
 
-### Scores that compare across devices (2.0)
+### Scores that compare across devices (2.0, reworked in 2.2)
 
 Up to 1.3 every stage drew at the screen's own resolution and the result was
 frames per second. A tablet with four times the pixels did four times the
 work, and fast phones hit their refresh rate (60, 90, 120 Hz) and stopped
-telling anything. Since 2.0:
+telling anything. Since 2.0, and as audited for 2.2:
 
-- **One render size for everyone**: every stage is laid out and drawn at
-  1.15 million pixels, 720 × 1600 in the screen's own shape, and scaled to
-  the panel as a whole (since 2.2.0 also the blurs and glyphs inside a
-  stage, which before worked at the screen's size)
+- **One canvas for everyone**: every stage is laid out and drawn on the same
+  720 × 1600 canvas on every device and scaled to fit the screen, with black
+  bars on other shapes. Blurs, glyphs, boat and icon sizes do the same work
+  everywhere (2.0 drew 1.15 million pixels in the screen's own shape; the
+  shape still changed five stages, and blurs and glyphs worked at the
+  screen's size)
 - **Calibrated load**: on its first run on a device, each graphics stage
   raises its load step by step (more boats, layers, squares, icons, texts,
   noise fields or table reads) until it falls under 25 fps for two seconds
-  in a row, and keeps that step. Later runs measure their 10 seconds right
-  away. A stage that runs over 50 fps for three seconds finds its step again
-  at once, in the same run, and measures anew (since 2.1.0)
-- **A score instead of fps**: the work done per second, in the stage's own
-  unit: boats/s, Mpx/s, M reads/s, layers/s, squares/s, icons/s, texts/s.
-  The three table stages share one step, so UBO, SSBO and texture always
-  read the same amount
+  in a row, and keeps that step. A stage that later runs over 32 fps finds
+  its step again at once, in the same run; one far under 8 fps on the next
+  run. The three table stages share one step, the heaviest any of them
+  needed
+- **The work beyond the frame's own cost**: each graphics stage is measured
+  at two loads, its step and the next, six seconds each. The score is the
+  extra work over the extra frame time, in the stage's own unit (boats/s,
+  Mpx/s, M reads/s, layers/s, squares/s, icons/s, texts/s). Every frame also
+  costs a fixed time for compositing and scaling to the screen, 10-15 ms on
+  an Xperia XA2 and 20-30 ms on the Jolla Tablet; measured at one load, as up
+  to 2.1, that cost made a score rise 40-170 % from one load step to the next,
+  so it depended on where a device's calibration landed. The results show
+  that overhead, and the one-load score stays in the JSON
+- **Marks**: the results say when a score may be capped by the refresh rate,
+  is a lower bound (heaviest load and still fast), was measured at one load
+  only, is mostly frame overhead, or was cut short, and when a saved run is
+  from an older scene
 
-Each graphics stage runs 10 seconds on a black background (the ambience must
-not change the result), the system stages run their own course. The results
+Each graphics stage runs 12 seconds on a black background (the ambience must
+not change the result), the system stages run their own course and count
+from their second second on. The results
 show the device, kernel, OS, GPU, screen and render size, the OpenGL ES and
 GLSL versions, the date and exact runtime, every stage's score with its unit
 (a tap on a stage says what its score counts), then three curves over the

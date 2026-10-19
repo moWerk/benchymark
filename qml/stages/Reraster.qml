@@ -3,9 +3,8 @@
 //
 // RERASTER: the same picture as SCALE, resized by animating
 // font.pixelSize with native text rendering, so every size is rasterised
-// again. SCALE against RERASTER is what animating text size costs. The
-// glyph cache rasterises each size once per frame for all copies; every
-// copy then lays out and rebuilds its glyph nodes anew.
+// again. SCALE against RERASTER is what animating text size costs. Every
+// stacked copy has its own size, so each one is rasterised anew.
 import QtQuick 2.6
 
 Item {
@@ -34,6 +33,13 @@ Item {
     // work, from run to run (night audit; it was the watch's minute)
     readonly property string mm: "42"
 
+    // Each stacked copy a few pixels larger than the one before: the glyph
+    // cache keeps one rasterisation per size, so copies of one size were
+    // rasterised once for all, and the work did not grow with the load (night
+    // audit, 2026-10-19: four times the texts, 14 % more frame time on the
+    // XA2). 64 sizes, up to a fifth larger.
+    function copySize(c) { return 1 + (c % 64) * 0.003 }
+
     // `stack` copies of the picture, each drawn on the same spots
     readonly property int stack: Math.max(1, Math.round(load / 106))
     Repeater {
@@ -45,7 +51,8 @@ Item {
             opacity: 0.5
             renderType: stage.reraster ? Text.NativeRendering : Text.QtRendering
             font.bold: true
-            font.pixelSize: stage.reraster ? stage.baseGlyph * 0.42 * stage.k : stage.baseGlyph * 0.42
+            font.pixelSize: stage.reraster ? stage.baseGlyph * 0.42 * stage.k * stage.copySize(Math.floor(index / 100))
+                                           : stage.baseGlyph * 0.42
             scale: stage.reraster ? 1 : stage.k
             x: stage.width / 2 + stage.radius * 0.72 * Math.cos(a) - width / 2
             y: stage.height / 2 + stage.radius * 0.72 * Math.sin(a) - height / 2
@@ -65,7 +72,8 @@ Item {
             color: "#f0c30e"
             renderType: stage.reraster ? Text.NativeRendering : Text.QtRendering
             font.bold: true
-            font.pixelSize: stage.reraster ? stage.baseGlyph * stage.k : stage.baseGlyph
+            font.pixelSize: stage.reraster ? stage.baseGlyph * stage.k * stage.copySize(Math.floor(index / 6))
+                                           : stage.baseGlyph
             scale: stage.reraster ? 1 : stage.k
         }
     }

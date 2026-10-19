@@ -86,7 +86,10 @@ Item {
     // can read 0 ms on a fast phone, so the sum over all runs counts
     function results() {
         var v = stage.countMs > 0 ? stage.counted / 1000 / stage.countMs : 0
+        // the stage's wall time too, to check the worker's ms timing
+        var wall = stage.counted / 1000 / Math.max(1, Date.now() - stage.t0)
         return [{ key: "ONE-MILLION", name: qsTrId("id-stage-million"),
-                  value: Math.round(v * 100) / 100, unit: "M/s" }]
+                  value: Math.round(v * 100) / 100, unit: "M/s",
+                  detail: { wall_m_per_s: Math.round(wall * 100) / 100, counted: stage.counted, count_ms: stage.countMs } }]
     }
 }

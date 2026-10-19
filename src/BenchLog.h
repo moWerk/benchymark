@@ -10,6 +10,10 @@
 
 #include <QDir>
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QVariantList>
 #include <QFile>
 #include <QFileInfo>
 #include <QObject>
@@ -77,6 +81,27 @@ public:
     Q_INVOKABLE QString readRun(const QString &name) const
     {
         return readText(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
+    }
+    // The list's lines without parsing whole runs in QML: an hour run is
+    // large, and Settings read every file on each open (night audit).
+    // Newest first: { file, started, mode, version, scene, runtime, stages }.
+    Q_INVOKABLE QVariantList runSummaries() const
+    {
+        QVariantList out;
+        for (const QString &name : runs()) {
+            const QJsonObject o = QJsonDocument::fromJson(readRun(name).toUtf8()).object();
+            if (o.isEmpty()) continue;
+            QVariantMap m;
+            m.insert(QStringLiteral("file"), name);
+            m.insert(QStringLiteral("started"), o.value(QStringLiteral("started")).toString());
+            m.insert(QStringLiteral("mode"), o.value(QStringLiteral("mode")).toString());
+            m.insert(QStringLiteral("version"), o.value(QStringLiteral("version")).toString());
+            m.insert(QStringLiteral("scene"), o.value(QStringLiteral("scene")).toString());
+            m.insert(QStringLiteral("runtime"), o.value(QStringLiteral("runtime_seconds")).toDouble(-1));
+            m.insert(QStringLiteral("stages"), o.value(QStringLiteral("phases")).toArray().size());
+            out << m;
+        }
+        return out;
     }
     Q_INVOKABLE bool deleteRun(const QString &name) const
     {

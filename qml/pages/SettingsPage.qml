@@ -21,6 +21,7 @@ Page {
     property var details: []
     property var stageInfo: ({})
     property string currentStarted: ""   // the run on the main page, marked
+    property int startTab: 0
 
     BenchLog { id: log }
 
@@ -65,20 +66,21 @@ Page {
     // the saved runs, newest first
     ListModel { id: runsModel }
     function loadRuns() {
-        var names = log.runs()
+        var list = log.runSummaries()
         runsModel.clear()
-        for (var i = 0; i < names.length; i++) {
-            var r
-            try { r = JSON.parse(log.readRun(names[i])) } catch (e) { continue }
-            var started = Date.parse(r.started)
+        for (var i = 0; i < list.length; i++) {
+            var r = list[i]
             runsModel.append({
-                file: names[i],
-                started: r.started || "",
-                when: Qt.formatDateTime(new Date(started), "yyyy-MM-dd hh:mm"),
-                runtime: r.runtime_seconds !== undefined ? clockText(r.runtime_seconds) : "",
-                //% "%n stages"
-                about: [modeNames[r.mode] || "", qsTrId("id-n-stages", (r.phases || []).length),
-                        r.version ? "v" + r.version : ""].filter(function (x) { return x !== "" }).join("  ·  ")
+                file: r.file,
+                started: r.started,
+                when: r.started ? Qt.formatDateTime(new Date(Date.parse(r.started)), "yyyy-MM-dd hh:mm") : r.file,
+                runtime: r.runtime >= 0 ? clockText(r.runtime) : "",
+                //% "Stages: %1"
+                about: [modeNames[r.mode] || "", qsTrId("id-stages-count").arg(r.stages),
+                        r.version ? "v" + r.version : "",
+                        // an older scene's scores do not compare with this one's
+                        r.scene && r.scene !== "sfos-2.2" ? r.scene : ""]
+                       .filter(function (x) { return x !== "" }).join("  ·  ")
             })
         }
     }
@@ -89,11 +91,20 @@ Page {
         try { r = JSON.parse(log.readRun(file)) } catch (e) { return }
         pageStack.push(Qt.resolvedUrl("ResultsPage.qml"), { run: r, stageInfo: stageInfo })
     }
+    // Compare: a long press picks run A, the next tap picks B
+    property string compareFrom: ""
+    property string compareFromWhen: ""
+    function openCompare(fileB) {
+        var a, b
+        try { a = JSON.parse(log.readRun(compareFrom)); b = JSON.parse(log.readRun(fileB)) } catch (e) { return }
+        compareFrom = ""
+        pageStack.push(Qt.resolvedUrl("ComparePage.qml"), { runA: a, runB: b, stageInfo: stageInfo })
+    }
 
     TabView {
         id: tabs
         anchors.fill: parent
-        currentIndex: 0
+        currentIndex: settingsPage.startTab
         header: TabBar {
             model: ListModel {
                 ListElement {
@@ -211,6 +222,20 @@ Page {
                 anchors.fill: parent
                 model: runsModel
 
+                // while a run waits for its partner: what to do next
+                header: Label {
+                    x: Theme.horizontalPageMargin
+                    width: runsList.width - 2 * x
+                    height: settingsPage.compareFrom !== "" ? implicitHeight + Theme.paddingLarge : 0
+                    visible: settingsPage.compareFrom !== ""
+                    wrapMode: Text.Wrap
+                    verticalAlignment: Text.AlignVCenter
+                    //% "Tap a run to compare with %1, or tap it again to cancel"
+                    text: qsTrId("id-compare-pick").arg(settingsPage.compareFromWhen)
+                    color: Theme.highlightColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+
                 ViewPlaceholder {
                     enabled: runsList.count === 0
                     //% "No saved runs yet"
@@ -223,15 +248,34 @@ Page {
                 delegate: ListItem {
                     id: runItem
                     contentHeight: Theme.itemSizeMedium
-                    onClicked: settingsPage.openRun(model.file)
+                    onClicked: {
+                        if (settingsPage.compareFrom === "") settingsPage.openRun(model.file)
+                        else if (settingsPage.compareFrom === model.file) settingsPage.compareFrom = ""
+                        else settingsPage.openCompare(model.file)
+                    }
+                    // the picked run A stays lit until B is tapped
+                    highlighted: down || menuOpen || settingsPage.compareFrom === model.file
                     menu: ContextMenu {
+                        MenuItem {
+                            //% "Compare with…"
+                            text: qsTrId("id-compare-with")
+                            onClicked: {
+                                settingsPage.compareFrom = model.file
+                                settingsPage.compareFromWhen = model.when
+                            }
+                        }
                         MenuItem {
                             //% "Delete"
                             text: qsTrId("id-delete")
-                            onClicked: runItem.remorseDelete(function () {
-                                log.deleteRun(model.file)
-                                runsModel.remove(index)
-                            })
+                            // the file as it was at the tap, the row found by it
+                            onClicked: {
+                                var f = model.file
+                                runItem.remorseDelete(function () {
+                                    log.deleteRun(f)
+                                    for (var i = 0; i < runsModel.count; i++)
+                                        if (runsModel.get(i).file === f) { runsModel.remove(i); break }
+                                })
+                            }
                         }
                     }
 
@@ -240,7 +284,7 @@ Page {
                         x: Theme.horizontalPageMargin
                         y: Theme.paddingSmall
                         //% "this run"
-                        text: model.when + (model.started === settingsPage.currentStarted
+                        text: model.when + (model.started !== "" && model.started === settingsPage.currentStarted
                                             ? "  ·  " + qsTrId("id-this-run") : "")
                         color: runItem.highlighted ? Theme.highlightColor : Theme.primaryColor
                     }
