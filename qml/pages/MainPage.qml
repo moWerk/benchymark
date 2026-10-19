@@ -661,9 +661,18 @@ Page {
 
     BenchLog { id: log }
     // The single last run of 2.0 and before joins the saved runs once, at
-    // the first start, before a new run overwrites it.
+    // the first start, before a new run overwrites it. Only once: in 2.1.0
+    // an emptied list took last-run.json in again at every start, so the
+    // newest run came back after it was deleted (ahjolinna, 2026-10-19).
+    ConfigurationValue {
+        id: runsImported
+        key: "/apps/harbour-benchymark/runsImported"
+        defaultValue: false
+    }
     Component.onCompleted: {
-        if (log.runs().length > 0) return
+        if (runsImported.value === true || runsImported.value === "true") return
+        runsImported.value = true
+        if (log.hasRunsFolder()) return
         try {
             var last = JSON.parse(log.readLast())
             if (last.started)

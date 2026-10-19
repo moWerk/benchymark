@@ -64,6 +64,8 @@ public:
         out << json << "\n";
         return true;
     }
+    // the folder exists from 2.1.0 on, even when every run was deleted
+    Q_INVOKABLE bool hasRunsFolder() const { return QDir(runsPath()).exists(); }
     Q_INVOKABLE QStringList runs() const
     {
         QStringList l = QDir(runsPath()).entryList(QStringList() << QStringLiteral("run-*.json"),
