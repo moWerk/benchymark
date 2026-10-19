@@ -8,6 +8,11 @@
 #include <QQuickView>
 #include <QStandardPaths>
 #include <QSysInfo>
+#include <QSocketNotifier>
+#include <csignal>
+#include <cstring>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <QScopedPointer>
 #include <QtQml>
 
@@ -17,6 +22,16 @@
 #include "Dots.h"
 #include "SystemBench.h"
 #include "BufferRead.h"
+
+// SIGTERM (the system ending the app, a shutdown) quits through Qt, so the
+// page's teardown saves a run in progress; the handler only writes to a
+// pipe, the quit happens in the event loop (night audit, 2026-10-19)
+static int sigtermFd[2];
+static void onSigterm(int)
+{
+    const char c = 1;
+    if (::write(sigtermFd[1], &c, 1) < 0) { }
+}
 
 int main(int argc, char *argv[])
 {
@@ -34,6 +49,17 @@ int main(int argc, char *argv[])
     qmlRegisterType<MemoryEngine>("Benchymark", 1, 0, "MemoryEngine");
     qmlRegisterType<StorageEngine>("Benchymark", 1, 0, "StorageEngine");
     qmlRegisterType<BufferRead>("Benchymark", 1, 0, "BufferRead");
+
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, sigtermFd) == 0) {
+        QSocketNotifier *sn = new QSocketNotifier(sigtermFd[0], QSocketNotifier::Read, app.data());
+        QObject::connect(sn, &QSocketNotifier::activated, app.data(), &QCoreApplication::quit);
+        struct sigaction sa;
+        std::memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = onSigterm;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART;
+        ::sigaction(SIGTERM, &sa, nullptr);
+    }
 
     QScopedPointer<QQuickView> view(SailfishApp::createView());
     // frames as presented, counted on the render thread

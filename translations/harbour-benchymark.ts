@@ -288,85 +288,85 @@
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-load-error">
-        <location filename="../qml/pages/MainPage.qml" line="719"/>
+        <location filename="../qml/pages/MainPage.qml" line="720"/>
         <source>could not be loaded</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-settings">
-        <location filename="../qml/pages/MainPage.qml" line="1018"/>
+        <location filename="../qml/pages/MainPage.qml" line="1023"/>
         <location filename="../qml/pages/ResultsPane.qml" line="35"/>
         <location filename="../qml/pages/SettingsPage.qml" line="112"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-select-all">
-        <location filename="../qml/pages/MainPage.qml" line="1023"/>
+        <location filename="../qml/pages/MainPage.qml" line="1028"/>
         <source>Select all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-deselect-all">
-        <location filename="../qml/pages/MainPage.qml" line="1028"/>
+        <location filename="../qml/pages/MainPage.qml" line="1033"/>
         <source>Deselect all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-calibrate">
-        <location filename="../qml/pages/MainPage.qml" line="1133"/>
+        <location filename="../qml/pages/MainPage.qml" line="1138"/>
         <source>The first run also finds each graphics stage&apos;s load, a few seconds per stage.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-calibrating">
-        <location filename="../qml/pages/MainPage.qml" line="1255"/>
+        <location filename="../qml/pages/MainPage.qml" line="1260"/>
         <source>calibrating</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1323"/>
+        <location filename="../qml/pages/MainPage.qml" line="1328"/>
         <location filename="../qml/pages/ResultsView.qml" line="111"/>
         <location filename="../qml/pages/SettingsPage.qml" line="56"/>
         <source>Run one hour</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1325"/>
+        <location filename="../qml/pages/MainPage.qml" line="1330"/>
         <location filename="../qml/pages/ResultsView.qml" line="113"/>
         <location filename="../qml/pages/SettingsPage.qml" line="58"/>
         <source>Run in loop</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-once">
-        <location filename="../qml/pages/MainPage.qml" line="1329"/>
+        <location filename="../qml/pages/MainPage.qml" line="1334"/>
         <source>For comparable results</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1331"/>
+        <location filename="../qml/pages/MainPage.qml" line="1336"/>
         <source>A defined battery and temperature test, ends at 1:00:00. The display runs at 50 % brightness with automatic brightness off, and is set back afterwards.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1333"/>
+        <location filename="../qml/pages/MainPage.qml" line="1338"/>
         <source>Until you tap: overheating and throttling diagnosis</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-once">
-        <location filename="../qml/pages/MainPage.qml" line="1321"/>
+        <location filename="../qml/pages/MainPage.qml" line="1326"/>
         <location filename="../qml/pages/ResultsView.qml" line="115"/>
         <location filename="../qml/pages/SettingsPage.qml" line="54"/>
         <source>Run once</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-start">
-        <location filename="../qml/pages/MainPage.qml" line="1145"/>
+        <location filename="../qml/pages/MainPage.qml" line="1150"/>
         <source>Start</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-next">
-        <location filename="../qml/pages/MainPage.qml" line="1221"/>
+        <location filename="../qml/pages/MainPage.qml" line="1226"/>
         <source>Next: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-tap-to-stop">
-        <location filename="../qml/pages/MainPage.qml" line="1273"/>
+        <location filename="../qml/pages/MainPage.qml" line="1278"/>
         <source>Tap to stop</source>
         <translation type="unfinished"></translation>
     </message>
@@ -513,7 +513,8 @@
     </message>
     <message id="id-flag-spread">
         <location filename="../qml/pages/ResultsView.qml" line="376"/>
-        <source>Its two measurements lay more than 10 % apart: %1</source>
+        <source>Uncertain by more than ±10 % (its two measurements differ): %1</source>
+        <oldsource>Its two measurements lay more than 10 % apart: %1</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-overhead">

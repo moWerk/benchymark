@@ -372,7 +372,7 @@ Item {
                 if (view.partialKeys.length) l.push(qsTrId("id-flag-partial").arg(names(view.partialKeys)))
                 //% "Measured at one load only, the frame's own cost is in the score: %1"
                 if (view.singleKeys.length) l.push(qsTrId("id-flag-single").arg(names(view.singleKeys)))
-                //% "Its two measurements lay more than 10 % apart: %1"
+                //% "Uncertain by more than ±10 % (its two measurements differ): %1"
                 if (view.noisyKeys.length) l.push(qsTrId("id-flag-spread").arg(names(view.noisyKeys)))
                 //% "Every frame costs %1 ms besides the work (compositing, scaling to the screen); the scores leave it out"
                 if (isFinite(view.overheadMs)) l.push(qsTrId("id-overhead").arg(view.overheadMs.toFixed(1)))

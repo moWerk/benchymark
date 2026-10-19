@@ -149,7 +149,12 @@ Item {
                 console.warn("Benchymark: could not save " + file)
                 return
             }
-            if (pane.shareTest) { console.log("Benchymark: share picture " + file); return }
+            if (pane.shareTest) {
+                // the real path once too, so the folder making is tested
+                var real = log.screenshotsDir() + "/benchymark-selftest.png"
+                console.log("Benchymark: share picture " + file + ", copy " + real + " " + result.saveToFile(real))
+                return
+            }
             shareAction.resources = [file]
             shareAction.mimeType = "image/png"
         })

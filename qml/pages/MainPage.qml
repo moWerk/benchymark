@@ -471,6 +471,7 @@ Page {
         msSum = 0
         rampLog = []
         measurePhase = 0
+        stageMeasured = 0
         pointA = null
         pointB = null
         windows = []
@@ -761,6 +762,7 @@ Page {
             page.frameSum += smp.frames
             page.msSum += smp.ms
             page.elapsed++
+            page.stageMeasured++
             // Three seconds over the mark (32 fps): the step is too light for
             // this device now (calibrated hot, or a slow second kept it), and
             // fixed cost and refresh bend the score. The step is found again
@@ -965,7 +967,10 @@ Page {
     // test hooks from main.cpp: SFOS_SELFTEST_RUN=<stage index> runs only that
     // stage (-2 all ticked ones); SFOS_SELFTEST_STOP=<s> ends it after s seconds
     readonly property int selftestSeconds: typeof selftestStop !== "undefined" ? selftestStop : 0
-    onElapsedChanged: if (selftestSeconds > 0 && elapsed >= selftestSeconds) stop()
+    // the stage's measured seconds over all its windows (elapsed restarts
+    // with each window of the two loads)
+    property int stageMeasured: 0
+    onStageMeasuredChanged: if (selftestSeconds > 0 && stageMeasured >= selftestSeconds) stop()
     Timer {
         interval: 1500
         running: typeof selftestRun !== "undefined" && selftestRun !== -1
