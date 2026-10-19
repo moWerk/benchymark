@@ -32,7 +32,11 @@ Page {
     // the scaling to the panel, vsync) drops out. Measured at one load, the
     // score rose 20-60 % per step on the XA2 and the tablet, so it depended
     // on where a device's calibration landed (night audit, 2026-10-19).
-    readonly property int pointSeconds: 6
+    // The two loads take turns, A B A B, three seconds each: measured one
+    // after the other, the first ran while the CPU clock was still rising
+    // and a slope came out 40 % high (XA2 Cascade, night audit).
+    readonly property int pointSeconds: 3
+    readonly property int pointWindows: 4
     readonly property int gapSeconds: 2      // between stages
 
     // Every stage draws on the C2's 720 x 1600 and is scaled to fit the
@@ -308,9 +312,10 @@ Page {
     property double frameSum: 0   // this stage's measured frames
     property double msSum: 0      // and the time they took
     property var rampLog: []      // this stage's ramp: [step, fps] per second
-    property int measurePhase: 0  // 0 the first load, 1 the second
-    property var pointA: null     // the first load's samples, when on the second
-    property bool extended: false // the second load moved one step further
+    property int measurePhase: 0  // the window: even the first load, odd the second
+    property var pointA: null     // the first load's windows so far
+    property var pointB: null     // the second load's
+    property var windows: []      // every window: { load, frames, ms }, in turn
     property var passes: []       // every finished stage of the run, per pass
     property int interruptions: 0 // stages restarted after the app was in the background
     property int savedAt: 0       // seconds into the run of the last save on the way
@@ -467,7 +472,8 @@ Page {
         rampLog = []
         measurePhase = 0
         pointA = null
-        extended = false
+        pointB = null
+        windows = []
         lastFps = 0
         ramping = false
         rampConfirm = false
@@ -553,8 +559,11 @@ Page {
             return
         }
         // the first load's window, and the second's if it was reached
-        var a = pointA !== null ? pointA : { samples: samples, frames: frameSum, ms: msSum, load: item.load }
-        var b = pointA !== null ? { samples: samples, frames: frameSum, ms: msSum, load: item.load } : null
+        // the window running at the stop counts too
+        bankWindow(item)
+        var a = pointA
+        var b = pointB
+        if (a === null) return
         if (a.samples.length === 0 || a.ms <= 0 || a.frames <= 0) return
         var fpsOf = function (w) { return w.frames * 1000 / w.ms }
         var listOf = function (w) {
@@ -569,7 +578,7 @@ Page {
         var st = stages[current]
         var row = { name: st.name, system: false, avg: Math.round(avg * 10) / 10,
                     min: Math.round(min * 10) / 10, worst: Math.round(worst), seconds: a.samples.length,
-                    fps: listOf(a), partial: a.samples.length < pointSeconds }
+                    fps: listOf(a), partial: a.samples.length < pointSeconds * pointWindows / 2 }
         if (item.ladder !== undefined) {
             // per pixel work counts in millions of rendered pixels
             var k = item.perPixel ? renderPixels / 1e6 : 1
@@ -599,13 +608,24 @@ Page {
                     // what every frame costs besides the work: compositing,
                     // the scaling to the panel, vsync
                     row.overheadMs = Math.round((ta - a.load * dt / dl) * 10) / 10
-                    // most of the frame is overhead: the difference is small
-                    // against the noise
-                    row.noisy = row.overheadMs / ta > 0.6
+                    // The two A-B pairs give two scores of their own; how far
+                    // they lie apart is the score's own uncertainty, marked
+                    // past 10 % (night audit: CPU-bound stages on the XA2)
+                    var pair = function (w1, w2) {
+                        var d = w2.ms / w2.frames - w1.ms / w1.frames
+                        return w1.frames > 0 && w2.frames > 0 && d / (w2.load - w1.load) > 0
+                               ? (w2.load - w1.load) * k / (d / 1000) : NaN
+                    }
+                    if (windows.length >= 4) {
+                        var s1 = pair(windows[0], windows[1]), s2 = pair(windows[2], windows[3])
+                        row.spreadPct = isFinite(s1) && isFinite(s2)
+                                ? Math.round(Math.abs(s1 - s2) / (s1 + s2) * 1000) / 10 : undefined
+                        row.noisy = row.spreadPct === undefined || row.spreadPct > 10
+                    }
                 } else {
                     row.slopeFailed = true
                 }
-                if (b.samples.length < pointSeconds) row.partial = true
+                if (b.samples.length < pointSeconds * pointWindows / 2) row.partial = true
             } else {
                 row.slopeFailed = row.steps > 1
                 row.partial = row.steps > 1 || row.partial
@@ -766,8 +786,7 @@ Page {
             }
             if (item.ladder !== undefined) {
                 if (page.elapsed >= page.pointSeconds) {
-                    if (page.measurePhase === 0 && page.startPointB(item)) return
-                    if (page.measurePhase === 1 && page.extendPointB(item)) return
+                    if (page.measurePhase + 1 < page.pointWindows && page.nextWindow(item)) return
                     page.next()
                 }
             } else if (!(item && item.selfTimed) && page.elapsed >= page.stageSeconds) {
@@ -775,37 +794,47 @@ Page {
             }
         }
     }
-    // the second load: the next step up, at the top the one below
-    function startPointB(item) {
-        var at = item.ladder.indexOf(item.load)
-        var s2 = at + 1 < item.ladder.length ? at + 1 : at - 1
-        if (at < 0 || s2 < 0) return false
-        pointA = { samples: samples, frames: frameSum, ms: msSum, load: item.load, step: at }
-        measurePhase = 1
+    // the window's seconds into the load they were measured at
+    function bankWindow(item) {
+        if (samples.length === 0) return
+        var odd = measurePhase % 2 === 1
+        var acc = odd ? pointB : pointA
+        if (acc === null) acc = { samples: [], frames: 0, ms: 0, load: item.load,
+                                  step: item.ladder !== undefined ? item.ladder.indexOf(item.load) : -1 }
+        acc.samples = acc.samples.concat(samples)
+        acc.frames += frameSum
+        acc.ms += msSum
+        if (odd) pointB = acc
+        else pointA = acc
+        var ws = windows
+        ws.push({ load: item.load, frames: frameSum, ms: msSum })
+        windows = ws
         samples = []
         frameSum = 0
         msSum = 0
-        elapsed = 0
-        item.load = item.ladder[s2]
-        openWindow()
-        return true
     }
-    // Too little more frame time for the difference to stand above the
-    // noise: one step further up, once
-    function extendPointB(item) {
-        if (extended || frameSum <= 0 || pointA === null) return false
+    // the other load: the next step up, at the top the one below
+    function nextWindow(item) {
         var at = item.ladder.indexOf(item.load)
-        if (at !== pointA.step + 1 || at + 1 >= item.ladder.length) return false
-        if (msSum / frameSum >= 1.6 * pointA.ms / pointA.frames) return false
-        extended = true
-        samples = []
-        frameSum = 0
-        msSum = 0
+        if (at < 0) return false
+        var other
+        if (measurePhase % 2 === 0) {
+            other = at + 1 < item.ladder.length ? at + 1 : at - 1
+            if (other < 0) return false
+        } else {
+            other = pointA !== null ? pointA.step : at
+        }
+        bankWindow(item)
+        measurePhase++
         elapsed = 0
-        item.load = item.ladder[at + 1]
+        item.load = item.ladder[other]
         openWindow()
         return true
     }
+    // Always the next step, never further: a second load two steps up gave
+    // the CPU-bound stages (Benchy light, Cascade) 50-90 % higher scores,
+    // their cost per item still falling with the load, while one step
+    // repeated within 2-9 % (XA2, night audit)
 
     // a stage that times itself (storage) says when it is through
     Connections {
@@ -840,7 +869,7 @@ Page {
                               reramped: r.reramped || undefined, ramp: r.ramp && r.ramp.length ? r.ramp : undefined,
                               load2: r.load2, fps2: r.fps2, ms_per_frame: r.msPerFrame, ms_per_frame2: r.msPerFrame2,
                               score_single: r.scoreSingle !== undefined ? Math.round(r.scoreSingle * 10) / 10 : undefined,
-                              overhead_ms: r.overheadMs, noisy: r.noisy || undefined,
+                              overhead_ms: r.overheadMs, noisy: r.noisy || undefined, spread_pct: r.spreadPct,
                               slope_failed: r.slopeFailed || undefined,
                               topped: r.topped || undefined, capped: r.capped || undefined,
                               partial: r.partial || undefined })
