@@ -75,8 +75,10 @@ device landed on, by 40-170 %. 2.2 measures differently:
   cores sleep between frames (an Xperia XA2 about three times higher)
 
 Each graphics stage takes eight seconds on a black background (the ambience
-must not change the result); the system stages run their own course and
-count from their second second on. The results
+must not change the result), ten with **Show stages moving** (Settings, on
+by default): two seconds on screen at the display's own pace first, for the
+eye, not measured. The system stages run their own course and count from
+their second second on. The results
 show the device, kernel, OS, GPU, screen and render size, the OpenGL ES and
 GLSL versions, the date and exact runtime, every stage's score with its unit
 (a tap on a stage says what its score counts), then three curves over the
@@ -128,35 +130,36 @@ tapped is shown beside it, stage by stage, with the ratio.
 | One million | JavaScript counting to one million, over and over, in a worker, timed by the worker itself | M/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
-Results with 2.2 (scene `sfos-2.2`), by the author, from the audit build of
-2026-10-19; the Jolla C2 follows. "Overhead" is the time every frame costs
-besides the work, which the scores leave out:
+Results with 2.2 (scene `sfos-2.2`), by the author, the mean of two full
+runs back to back (2026-10-19); the two agree within ±2 % on nearly every
+stage, at most 10 % (the XA2's Icons):
 
-| stage | Xperia XA2 (4.4, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) |
-|---|---|---|
-| Benchy large | 3613 boats/s (±23 %) | 2502 boats/s |
-| Benchy small | 5487 boats/s | 5682 boats/s |
-| Benchy glow | 44.5 Mpx/s | 19.4 Mpx/s |
-| Shader light | 58.8 Mpx/s | 32.6 Mpx/s |
-| Shader heavy | 16.6 Mpx/s | 7.7 Mpx/s |
-| Table from UBO | 660 M reads/s | 311 M reads/s |
-| Table from SSBO | 630 M reads/s | – (needs OpenGL ES 3.1) |
-| Table from texture | 628 M reads/s | 152 M reads/s |
-| Overdraw | 1890 layers/s | 747 layers/s |
-| Cascade | 26240 squares/s | 96255 squares/s |
-| Icon storm | 18787 icons/s | 18058 icons/s |
-| CPU prime | 9500 events/s (8 threads) | 1231 events/s (4) |
-| CPU single core | 1355 events/s | 361 events/s |
-| Memory throughput | 1509 MB/s | 937 MB/s |
-| One million | 54.7 M/s | 292 M/s |
-| frame overhead | 12.4 ms | ~25 ms |
+| stage | Xperia XA2 (4.4, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) | Jolla C2 (5.1, Mali-G57) |
+|---|---|---|---|
+| Benchy large | 12719 boats/s | 2184 boats/s | 959 boats/s |
+| Benchy small | 13008 boats/s | 5061 boats/s | 2273 boats/s |
+| Benchy glow | 45.5 Mpx/s | 19.5 Mpx/s | 38.6 Mpx/s |
+| Shader light | 50.4 Mpx/s | 30.2 Mpx/s | 48.0 Mpx/s |
+| Shader heavy | 17.4 Mpx/s | 7.3 Mpx/s | 8.6 Mpx/s |
+| Table from UBO | 635 M reads/s | 327 M reads/s | 413 M reads/s |
+| Table from SSBO | 615 M reads/s | – (needs OpenGL ES 3.1) | 414 M reads/s |
+| Table from texture | 648 M reads/s | 150 M reads/s | 964 M reads/s |
+| Overdraw | 2305 layers/s | 722 layers/s | 662 layers/s |
+| Cascade | 96126 squares/s | 91230 squares/s | 85879 squares/s |
+| Icon storm | 16041 icons/s | 17595 icons/s | 30960 icons/s |
+| CPU prime | 9435 events/s (8 threads) | 1290 events/s (4) | 9826 events/s (8) |
+| CPU single core | 1358 events/s | 359 events/s | 1718 events/s |
+| Memory throughput | 1509 MB/s | 909 MB/s | 632 MB/s |
+| One million | 48.8 M/s | 305 M/s | 246 M/s |
 
-GPU-bound stages repeat within about 5 % between runs; the scene graph's
-CPU-bound ones (Benchy large, Cascade) vary 10-20 % on the
-XA2, and the results mark a row uncertain by more than ±10 % (its two
-measurements differ). One million compares script engines: the tablet's x86 JIT counts
-five times faster than the XA2's armv7. The tablet's graphics driver hands
-back a blank picture, so its Share image is empty (Share JSON works).
+The XA2 draws the Benchy boats six to thirteen times faster than the C2,
+though the C2's single core is faster: on the C2 the lines limit (small
+boats, with half the lines' length, score 2.4 times the large ones), on the
+XA2 the projection on the CPU does (large and small score alike). The C2's Mali reads a table from a
+texture best and the Adreno all three ways alike; the tablet has no
+SSBO. One million compares script engines: the x86 and aarch64 JITs count
+five times faster than the XA2's armv7. The tablet's graphics driver
+hands back a blank picture, so its Share image is empty (Share JSON works).
 
 <details>
 <summary>Results with 2.0 (scene `sfos-2.0`, one load per stage: not comparable with 2.2)</summary>
