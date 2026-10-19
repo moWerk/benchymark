@@ -54,35 +54,16 @@ Item {
                            system: p.value !== undefined, value: p.value,
                            unit: oldFps ? "fps" : p.unit,
                            score: oldFps ? p.avg : p.score, unsupported: p.unsupported,
-                           topped: p.topped === true, capped: p.capped === true,
-                           partial: p.partial === true, slopeFailed: p.slope_failed === true,
-                           noisy: p.noisy === true, superlinear: p.superlinear === true,
-                           // a negative overhead is the row's own fault, not the frame's
-                           overhead: p.superlinear === true ? undefined : p.overhead_ms }
+                           partial: p.partial === true, noisy: p.noisy === true }
         }
         return r
     }
     readonly property var temps: run && run.temperature ? run.temperature : []
     readonly property var batts: run && run.battery ? run.battery : []
     readonly property var clocks: run && run.clocks ? run.clocks : []
-    readonly property var calibratedNow: phases.filter(function (p) { return p.calibrated_now === true })
-                                               .map(function (p) { return p.phase })
-    readonly property var recalibrateNext: run && run.recalibrate_next ? run.recalibrate_next : []
-    readonly property var recalibrateHeavy: run && run.recalibrate_heavy ? run.recalibrate_heavy : []
     function flagged(f) { return order.filter(function (k) { return results[k] && results[k][f] }) }
-    readonly property var cappedKeys: flagged("capped")
-    readonly property var toppedKeys: flagged("topped")
     readonly property var partialKeys: flagged("partial")
-    readonly property var singleKeys: flagged("slopeFailed")
     readonly property var noisyKeys: flagged("noisy")
-    readonly property var superlinearKeys: flagged("superlinear")
-    // the median of the stages' frame overhead, ms
-    readonly property real overheadMs: {
-        var v = order.map(function (k) { return results[k] ? results[k].overhead : undefined })
-                     .filter(function (x) { return x !== undefined && x !== null && isFinite(x) })
-                     .sort(function (x, y) { return x - y })
-        return v.length ? v[Math.floor(v.length / 2)] : NaN
-    }
     readonly property double runStarted: run && run.started ? Date.parse(run.started) : 0
     readonly property double runEnded: run && run.finished ? Date.parse(run.finished) : 0
     readonly property int brightnessAtStart: run && run.brightness_percent !== undefined ? run.brightness_percent : -1
@@ -350,7 +331,7 @@ Item {
             font.pixelSize: Theme.fontSizeExtraSmall
         }
 
-        // which loads this run found, and which it found too light
+        // what the marks say, and whether the run compares at all
         Label {
             x: Theme.horizontalPageMargin
             width: parent.width - 2 * x
@@ -361,26 +342,10 @@ Item {
             // checkable before it is compared (night audit)
             readonly property var lines: {
                 var l = []
-                //% "Load found in this run: %1"
-                if (view.calibratedNow.length) l.push(qsTrId("id-calibrated-now").arg(names(view.calibratedNow)))
-                //% "Ran too light, found again next run: %1"
-                if (view.recalibrateNext.length) l.push(qsTrId("id-recalibrate-next").arg(names(view.recalibrateNext)))
-                //% "Ran too heavy, found again next run: %1"
-                if (view.recalibrateHeavy.length) l.push(qsTrId("id-recalibrate-heavy").arg(names(view.recalibrateHeavy)))
-                //% "Near the display's refresh rate, the score may be capped: %1"
-                if (view.cappedKeys.length) l.push(qsTrId("id-flag-capped").arg(names(view.cappedKeys)))
-                //% "At the heaviest load and still fast, the score is a lower bound: %1"
-                if (view.toppedKeys.length) l.push(qsTrId("id-flag-topped").arg(names(view.toppedKeys)))
                 //% "Stopped early, fewer seconds measured: %1"
                 if (view.partialKeys.length) l.push(qsTrId("id-flag-partial").arg(names(view.partialKeys)))
-                //% "Measured at one load only, the frame's own cost is in the score: %1"
-                if (view.singleKeys.length) l.push(qsTrId("id-flag-single").arg(names(view.singleKeys)))
-                //% "Uncertain by more than ±10 % (its two measurements differ): %1"
+                //% "Uncertain by more than ±10 % (the two halves of its measurement differ): %1"
                 if (view.noisyKeys.length) l.push(qsTrId("id-flag-spread").arg(names(view.noisyKeys)))
-                //% "Frame time grew faster than the load, scored at one load: %1"
-                if (view.superlinearKeys.length) l.push(qsTrId("id-flag-superlinear").arg(names(view.superlinearKeys)))
-                //% "Every frame costs %1 ms besides the work (compositing, scaling to the screen); the scores leave it out"
-                if (isFinite(view.overheadMs)) l.push(qsTrId("id-overhead").arg(view.overheadMs.toFixed(1)))
                 //% "Scene %1: these scores do not compare with %2"
                 if (view.run && view.run.scene && view.run.scene !== view.currentScene)
                     l.push(qsTrId("id-flag-scene").arg(view.run.scene).arg(view.currentScene))

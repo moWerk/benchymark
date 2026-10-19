@@ -7,15 +7,16 @@
 import QtQuick 2.6
 import QtGraphicalEffects 1.0
 import Benchymark 1.0
+import "Motion.js" as Motion
 
 Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the load is the number of glows stacked, each a blur over the whole
-    // picture; the score counts rendered pixels x glows
-    readonly property var ladder: [1, 2, 4, 8, 16, 32]
-    property int load: 1
+    // the glows stacked, each a blur over the whole picture, the same on
+    // every device (2.2); the score counts rendered pixels x glows
+    property int load: 2
+    property real t: 0
     readonly property bool perPixel: true
     //% "Mpx/s"
     readonly property string unit: qsTrId("id-unit-mpx")
@@ -24,10 +25,7 @@ Item {
         id: boat
         anchors.fill: parent
         visible: false
-        NumberAnimation on angle {
-            from: 0; to: 360; duration: 4000
-            loops: Animation.Infinite
-        }
+        angle: 360 * Motion.cycle(stage.t, 4)
     }
 
     Repeater {
@@ -44,11 +42,7 @@ Item {
         // Radius 22 with 45 samples is the blur's own fast path.
         radius: 22
         samples: 45
-        SequentialAnimation on spread {
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.1; to: 0.45; duration: 500; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 0.45; to: 0.1; duration: 500; easing.type: Easing.InOutSine }
-        }
+        spread: Motion.swing(stage.t, 0.1, 0.45, 0.5)
     }
     }
 

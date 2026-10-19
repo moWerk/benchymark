@@ -11,6 +11,7 @@
 #include <QSocketNotifier>
 #include <csignal>
 #include <cstring>
+#include <cstdio>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <QScopedPointer>
@@ -22,6 +23,8 @@
 #include "Dots.h"
 #include "SystemBench.h"
 #include "BufferRead.h"
+#include "Offscreen.h"
+#include <QTimer>
 
 // SIGTERM (the system ending the app, a shutdown) quits through Qt, so the
 // page's teardown saves a run in progress; the handler only writes to a
@@ -49,6 +52,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<MemoryEngine>("Benchymark", 1, 0, "MemoryEngine");
     qmlRegisterType<StorageEngine>("Benchymark", 1, 0, "StorageEngine");
     qmlRegisterType<BufferRead>("Benchymark", 1, 0, "BufferRead");
+    qmlRegisterType<OffscreenRun>("Benchymark", 1, 0, "OffscreenRun");
 
     if (::socketpair(AF_UNIX, SOCK_STREAM, 0, sigtermFd) == 0) {
         QSocketNotifier *sn = new QSocketNotifier(sigtermFd[0], QSocketNotifier::Read, app.data());
@@ -70,6 +74,7 @@ int main(int argc, char *argv[])
                      frames, &FrameCounter::readGpu, Qt::DirectConnection);
     frames->watch(view.data());
     view->rootContext()->setContextProperty(QStringLiteral("FrameCounter"), frames);
+    view->engine()->addImageProvider(QStringLiteral("offscreen"), OffscreenRun::images());
     // the build's and the device's CPU architecture, for comparing CPU scores
     // (an armv7hl build on an ARMv8 core is a different program)
     view->rootContext()->setContextProperty(QStringLiteral("buildArch"), QSysInfo::buildCpuArchitecture());
@@ -88,15 +93,28 @@ int main(int argc, char *argv[])
     // the app's data directory (share-test.png), no share menu
     view->rootContext()->setContextProperty(QStringLiteral("selftestShare"),
             qEnvironmentVariableIntValue("SFOS_SELFTEST_SHARE") == 1);
-    // with SFOS_SELFTEST_FIXED=1 a stage measures its saved step as it is,
-    // no ramp, no new ramp: the linearity check of the night audit
-    view->rootContext()->setContextProperty(QStringLiteral("selftestFixed"),
-            qEnvironmentVariableIntValue("SFOS_SELFTEST_FIXED") == 1);
     // with SFOS_SELFTEST_PAGE=settings|runs|compare that page opens at
     // start, for screenshots of pages a smashed screen cannot reach
     view->rootContext()->setContextProperty(QStringLiteral("selftestPage"),
             QString::fromLatin1(qgetenv("SFOS_SELFTEST_PAGE")));
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
-    return app->exec();
+    // test hook: one graphics stage off screen at given loads, see Offscreen.h
+    const QString offTest = QString::fromLatin1(qgetenv("SFOS_OFFSCREEN_TEST"));
+    if (!offTest.isEmpty()) {
+        OffscreenSelftest *t = new OffscreenSelftest(view->engine(), offTest, app.data());
+        QTimer::singleShot(1500, t, &OffscreenSelftest::start);
+    }
+    const int rc = app->exec();
+    // The window and the page go first: the page saves a run cut short.
+    view.reset();
+    // Then the process ends without Qt's own exit routines: the scene graph
+    // of the off-screen stages (QQuickRenderControl) and the window's render
+    // loop each tidy up at exit in Qt 5.6, and whichever goes second crashes
+    // (C2, gdb: QSGRenderLoop::cleanup in qt_call_post_routines, 2026-10-19).
+    // Pending events (settings on their way to dconf) are handed over first.
+    app->processEvents();
+    app->processEvents();
+    std::fflush(nullptr);
+    ::_exit(rc);
 }

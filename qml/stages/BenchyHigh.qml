@@ -6,14 +6,16 @@
 // SailfishOS: projected in C++ (Wireframe), drawn as line geometry.
 import QtQuick 2.6
 import Benchymark 1.0
+import "Motion.js" as Motion
 
 Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the boats drawn per frame are the load (120 in 1.x), the score boats per second
-    readonly property var ladder: [30, 60, 120, 240, 480, 960, 1920, 3840]
-    property int load: 120
+    // the boats drawn per frame, the same on every device (2.2); the score
+    // boats per second
+    property int load: 640
+    property real t: 0
     readonly property bool perPixel: false
     //% "boats/s"
     readonly property string unit: qsTrId("id-unit-boats")
@@ -23,10 +25,6 @@ Item {
         anchors.fill: parent
         copies: 6
         stack: Math.max(1, stage.load / 6)
-        NumberAnimation on angle {
-            from: 0; to: 360; duration: 4000
-            loops: Animation.Infinite
-            running: boat.visible
-        }
+        angle: 360 * Motion.cycle(stage.t, 4)
     }
 }

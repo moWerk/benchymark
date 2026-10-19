@@ -12,12 +12,14 @@ SOURCES += src/main.cpp \
     src/Wireframe.cpp \
     src/Dots.cpp \
     src/SystemBench.cpp \
-    src/BufferRead.cpp
+    src/BufferRead.cpp \
+    src/Offscreen.cpp
 
 HEADERS += src/Wireframe.h \
     src/Dots.h \
     src/SystemBench.h \
     src/BufferRead.h \
+    src/Offscreen.h \
     src/FrameCounter.h \
     src/BenchLog.h \
     src/benchymesh.h

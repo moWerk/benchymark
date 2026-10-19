@@ -5,15 +5,16 @@
 // counter-rotating: many moving children under transformed parents.
 import QtQuick 2.6
 import "Ramp.js" as Ramp
+import "Motion.js" as Motion
 
 Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the squares are the load (1000 in 1.x, two rings of half), the score
-    // squares per second
-    readonly property var ladder: [250, 500, 1000, 2000, 4000, 8000, 16000]
-    property int load: 1000
+    // the squares in two rings, the same on every device (2.2; 1000 in
+    // 1.x); the score squares per second
+    property int load: 4000
+    property real t: 0
     readonly property bool perPixel: false
     //% "squares/s"
     readonly property string unit: qsTrId("id-unit-squares")
@@ -38,11 +39,7 @@ Item {
                 rotation: index * 9
             }
         }
-        SequentialAnimation on scale {
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.55; to: 1.25; duration: 800; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1.25; to: 0.55; duration: 800; easing.type: Easing.InOutSine }
-        }
+        scale: Motion.swing(stage.t, 0.55, 1.25, 0.8)
     }
 
     Item {
@@ -62,14 +59,7 @@ Item {
                 rotation: -index * 7
             }
         }
-        SequentialAnimation on scale {
-            loops: Animation.Infinite
-            NumberAnimation { from: 1.2; to: 0.5; duration: 800; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 0.5; to: 1.2; duration: 800; easing.type: Easing.InOutSine }
-        }
-        NumberAnimation on rotation {
-            from: 0; to: -360; duration: 9000
-            loops: Animation.Infinite
-        }
+        scale: Motion.swing(stage.t, 1.2, 0.5, 0.8)
+        rotation: -360 * Motion.cycle(stage.t, 9)
     }
 }

@@ -4,15 +4,16 @@
 // ICON STORM (the watch's DRAWCALLS): many SVG icons on spiral orbits, all
 // moving every frame: gold flashes, and Twemoji rockets behind them.
 import QtQuick 2.6
+import "Motion.js" as Motion
 
 Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the icons drawn are the load (1440 in 1.x, 2 x 240 x 3), the score
-    // icons per second
-    readonly property var ladder: [480, 960, 1920, 3840, 7680, 15360]
-    property int load: 1920
+    // the icons, the same on every device (2.2; 1440 in 1.x, 2 x 240 x 3);
+    // the score icons per second
+    property int load: 960
+    property real t: 0
     readonly property bool perPixel: false
     //% "icons/s"
     readonly property string unit: qsTrId("id-unit-icons")
@@ -24,10 +25,10 @@ Item {
     readonly property real reach: Math.sqrt(width * width + height * height) / 2
     readonly property real size: Math.min(width, height)
     readonly property real radius: size * 0.41
-    property real spin: 0
+    readonly property real spin: 2 * Math.PI * Motion.cycle(t, 5)
 
     // behind the stars: Twemoji rockets, circling faster
-    property real rocketSpin: 0
+    readonly property real rocketSpin: 2 * Math.PI * Motion.cycle(t, 3.5)
     Repeater {
         model: stage.count * stage.stack
         Image {
@@ -44,10 +45,6 @@ Item {
             x: stage.width / 2 + rad * Math.cos(a + stage.rocketSpin) - width / 2
             y: stage.height / 2 + rad * Math.sin(a + stage.rocketSpin) - height / 2
         }
-    }
-    NumberAnimation on rocketSpin {
-        from: 0; to: 2 * Math.PI; duration: 3500
-        loops: Animation.Infinite
     }
 
     Repeater {
@@ -66,10 +63,5 @@ Item {
             x: stage.width / 2 + rad * Math.cos(a - stage.spin) - width / 2
             y: stage.height / 2 + rad * Math.sin(a - stage.spin) - height / 2
         }
-    }
-
-    NumberAnimation on spin {
-        from: 0; to: 2 * Math.PI; duration: 5000
-        loops: Animation.Infinite
     }
 }

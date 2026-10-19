@@ -38,49 +38,45 @@ Tick the stages you want, choose a run mode, start:
   the next start), so drains compare
 - **Run in loop**: until you tap, to diagnose overheating and throttling
 
-### Scores that compare across devices (2.0, reworked in 2.2)
+### Scores that compare across devices (2.2)
 
 Up to 1.3 every stage drew at the screen's own resolution and the result was
-frames per second. A tablet with four times the pixels did four times the
+frames per second: a tablet with four times the pixels did four times the
 work, and fast phones hit their refresh rate (60, 90, 120 Hz) and stopped
-telling anything. Since 2.0, and as audited for 2.2:
+telling anything. 2.0 promised scores that compare across devices and did
+not deliver them. It drew a fixed number of pixels in the screen's own
+shape, found a load per device that fell under 25 fps, and counted frames
+on screen. Testers on more devices showed the flaws, and an audit
+(2026-10-19) found the cause in the method itself: the frame rate of a
+window on screen carries the refresh cap and a fixed cost of 12-25 ms per
+frame for compositing and scaling, so a score depended on which load a
+device landed on, by 40-170 %. 2.2 measures differently:
 
-- **One canvas for everyone**: every stage is laid out and drawn on the same
-  720 × 1600 canvas on every device and scaled to fit the screen, with black
-  bars on other shapes. Blurs, glyphs, boat and icon sizes do the same work
-  everywhere (2.0 drew 1.15 million pixels in the screen's own shape; the
-  shape still changed five stages, and blurs and glyphs worked at the
-  screen's size)
-- **Calibrated load**: on its first run on a device, each graphics stage
-  raises its load step by step (more boats, layers, squares, icons, texts,
-  noise fields or table reads) until it falls under 25 fps for two seconds
-  in a row, and keeps that step. A stage that later runs over 32 fps finds
-  its step again at once, in the same run; one far under 8 fps on the next
-  run. The three table stages share one step, the heaviest any of them
-  needed
-- **The work beyond the frame's own cost**: each graphics stage is measured
-  at two loads, its step and the next, in turns of three seconds (A B A B),
-  so a clock that is still rising hits both alike. The score is the
-  extra work over the extra frame time, in the stage's own unit (boats/s,
-  Mpx/s, M reads/s, layers/s, squares/s, icons/s). Every frame also
-  costs a fixed time for compositing and scaling to the screen, 10-15 ms on
-  an Xperia XA2 and 20-30 ms on the Jolla Tablet; measured at one load, as up
-  to 2.1, that cost made a score rise 40-170 % from one load step to the next,
-  so it depended on where a device's calibration landed. The results show
-  that overhead, and the one-load score stays in the JSON
-- **Marks**: the results say when a score may be capped by the refresh rate,
-  is a lower bound (heaviest load and still fast), was measured at one load
-  only, is mostly frame overhead, was cut short, or had its two measurements
-  differ by more than ±10 %, and when a saved run is from an older scene. A
-  stage whose frame time grew faster than its load (caches overflowing: the
-  overhead comes out below zero) is scored at one load and marked
+- **One canvas for everyone**: every stage is laid out and drawn on the
+  same 720 × 1600 canvas, on every device
+- **Off screen**: a graphics stage draws into a framebuffer of its own, as
+  fast as the device can, with no vsync, no compositor and no scaling to
+  the screen (`src/Offscreen.*`, Qt's QQuickRenderControl). The screen
+  shows a copy of its frames while it warms up
+- **The same work everywhere**: each graphics stage has one fixed load,
+  the same on every device (320 boats, 72 layers, 4000 squares, ...), and
+  its motion follows the frame number, not the clock: every device draws
+  exactly the same frames. No calibration, nothing per device
+- **Measured**: two seconds of warm-up, not counted, then six seconds. The
+  score is the work drawn over the time it took, with the GPU finished, in
+  the stage's own unit (boats/s, Mpx/s, M reads/s, layers/s, squares/s,
+  icons/s). The two halves of the six seconds give two scores of their own;
+  a row whose halves differ by more than ±10 % is marked
+- **What it means**: the throughput of the device's drawing, CPU and GPU
+  together, under full load. That is not the frame rate an app gets on
+  screen: off screen nothing waits for the display, so the CPU never idles
+  between frames and keeps its clock up. Stages whose work is mostly on the
+  CPU (Benchy, Cascade) score much higher than on screen on a phone whose
+  cores sleep between frames (an Xperia XA2 about three times higher)
 
-Each graphics stage runs 16 to 24 seconds (12 measured) on a black background (the ambience must
-not change the result): after every load change the frame rate can still
-climb while the clocks follow, so seconds are dropped until two in a row
-agree within 5 %, at most three. The countdown covers the whole stage and
-holds while a second is dropped; the system stages run their own course and count
-from their second second on. The results
+Each graphics stage takes eight seconds on a black background (the ambience
+must not change the result); the system stages run their own course and
+count from their second second on. The results
 show the device, kernel, OS, GPU, screen and render size, the OpenGL ES and
 GLSL versions, the date and exact runtime, every stage's score with its unit
 (a tap on a stage says what its score counts), then three curves over the
@@ -234,12 +230,11 @@ measured from inside the sandbox at all. With the drawing running alongside,
 the numbers are not comparable to the 2016 ones either.
 
 **Not comparable with the watch.** The results are stamped scene `sfos-2.2`.
-The watch's scene 0.6 runs other loads on another renderer (Qt 6), and Qt 5.6
-on SailfishOS has no QtQuick.Shapes or MultiEffect, so the Benchy is drawn by
-a C++ scene graph item (`src/Wireframe.*`), the shaders are GLSL ES 1.00
-inline (the table stages are raw OpenGL ES 3.x in `src/BufferRead.*`, since
-ShaderEffect cannot bind buffers), and the frame count comes from the window's
-`frameSwapped` in C++.
+The watch's scene 0.6 runs other loads on another renderer (Qt 6) and on
+screen, and Qt 5.6 on SailfishOS has no QtQuick.Shapes or MultiEffect, so the
+Benchy is drawn by a C++ scene graph item (`src/Wireframe.*`), the shaders are
+GLSL ES 1.00 inline, and the table stages are raw OpenGL ES 3.x in
+`src/BufferRead.*`, since ShaderEffect cannot bind buffers.
 
 Install: `devel-su pkcon install-local harbour-benchymark-2.2.0-1.<arch>.rpm`
 (aarch64, armv7hl or i486; built for SailfishOS 4.5, runs on 4.4 too). Build
@@ -249,10 +244,12 @@ The icon is generated by `tools/benchy_icon.py`, the mesh header by
 one stage at start (-2 all ticked ones), `SFOS_SELFTEST_STOP=<s>` ends it
 after that many measured seconds, `SFOS_SELFTEST_SHARE=1` saves the share
 picture as `share-test.png` in the app's data directory (and a copy in
-Pictures/Screenshots), `SFOS_SELFTEST_FIXED=1` measures the saved steps as
-they are (no ramp), `SFOS_SELFTEST_PAGE=settings|runs|compare` opens that
-page. The scripts of the 2.2 audit (`dev-bench-*.sh/.py` in the author's
-workspace) drive these over ssh.
+Pictures/Screenshots), `SFOS_SELFTEST_PAGE=settings|runs|compare` opens that
+page, `SFOS_OFFSCREEN_TEST=<stage file>:<load>,<load>,...[:<warm ms>:<measure ms>]`
+measures one graphics stage off screen at the loads given, logs each result
+and quits. Scripts in the author's workspace drive these over ssh. A
+headless test with the display off needs a wakelock: with autosleep the
+device suspends every second or two, and the run measures the naps.
 
 Credits for the phone version: Twemoji graphics (c) Twitter, Inc and other
 contributors, CC-BY 4.0 (the rocket); ionicons, MIT (the flash); the icon's

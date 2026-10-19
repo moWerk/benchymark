@@ -10,29 +10,23 @@ Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the warped field computed `load` times per pixel at offsets, the
-    // first one drawn as before; the score counts rendered pixels x load
-    readonly property var ladder: [1, 2, 4, 8, 16, 32]
+    // the field computed `load` times per pixel at offsets, the same on
+    // every device (2.2); the score counts rendered pixels x load
     property int load: 1
+    property real t: 0
     readonly property bool perPixel: true
     //% "Mpx/s"
     readonly property string unit: qsTrId("id-unit-mpx")
 
-    // A driver that cannot compile a heavy step draws nothing and reads as
-    // a fast GPU: it climbs to the heaviest step, and the results mark it as
-    // a lower bound. ShaderEffect.status cannot tell: Qt 5.6 reports Error
-    // with an empty log for shaders that compile and draw (XA2, night audit).
+    // ShaderEffect.status cannot tell a driver that fails the shader: Qt 5.6
+    // reports Error with an empty log for shaders that compile and draw
+    // (XA2, night audit).
     ShaderEffect {
         id: fx
         anchors.fill: parent
 
-        property real t: 0
+        property real t: stage.t
 
-        NumberAnimation on t {
-            from: 0; to: 10000; duration: 10000000
-            loops: Animation.Infinite
-            running: fx.visible
-        }
 
         fragmentShader: "#define N " + stage.load + "
 #ifdef GL_FRAGMENT_PRECISION_HIGH

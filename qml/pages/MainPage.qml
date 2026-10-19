@@ -14,118 +14,50 @@ Page {
     id: page
     allowedOrientations: Orientation.Portrait
 
-    // Stamped into every result. Different loads on a different renderer
-    // than the watch's scene 0.6, so the numbers are not comparable.
+    // Stamped into every result; runs of another scene do not compare.
     // sfos-2.0: a fixed render size and calibrated loads with a score
-    // (resolution point by Mister Magister, 2026-10-18), not comparable to 1.x
-    // sfos-2.2: every stage on one fixed 720 x 1600 canvas, laid out and
-    // drawn at that size on every device and scaled to fit, so blurs, glyphs
-    // and sizes do the same work everywhere (Michał, 2026-10-19; night audit:
-    // the screen's shape still changed five stages); the score from all
-    // frames over all measured time; scores capped near the refresh or past
-    // the mark found again in the run
+    // (resolution point by Mister Magister, 2026-10-18), not comparable to 1.x.
+    // sfos-2.2: every graphics stage drawn off screen on one 720 x 1600
+    // canvas, with the same fixed load on every device, as fast as the
+    // device can draw (rework of 2026-10-19). On screen the frame rate
+    // carried the refresh cap and a fixed 12-25 ms per frame for compositing
+    // and scaling, and the scores bent around both (night audit).
     readonly property string sceneVersion: "sfos-2.2"
-    readonly property int stageSeconds: 10    // a timed stage, measured
-    // A graphics stage is measured at two loads, its calibrated step and the
-    // next, this many seconds each: the score is the extra work over the
-    // extra frame time, so the fixed cost every frame carries (compositing,
-    // the scaling to the panel, vsync) drops out. Measured at one load, the
-    // score rose 20-60 % per step on the XA2 and the tablet, so it depended
-    // on where a device's calibration landed (night audit, 2026-10-19).
-    // The two loads take turns, A B A B, three seconds each: measured one
-    // after the other, the first ran while the CPU clock was still rising
-    // and a slope came out 40 % high (XA2 Cascade, night audit).
-    readonly property int pointSeconds: 3
-    readonly property int pointWindows: 4
-    // After a load change the frame rate can climb for seconds while the
-    // clocks follow (C2 Overdraw: 9.2, 12.1, 12.5 fps): seconds are dropped
-    // until two in a row agree within 5 %, three at most, the first always.
-    readonly property int settleMax: 3
-    readonly property real settleTolerance: 0.05
+    readonly property int stageSeconds: 10    // a system stage, measured
+    // A graphics stage: two seconds not measured while clocks and caches
+    // settle, then six measured; how far its two halves' scores lie apart
+    // is the measurement's own spread.
+    // with "Show stages moving", two seconds on screen at the display's own
+    // pace before that, for the eye only: not measured (mo, 2026-10-19)
+    readonly property int introSeconds: 2
+    ConfigurationValue {
+        id: showMotion
+        key: "/apps/harbour-benchymark/showMotion"
+        defaultValue: true
+    }
+    readonly property bool motion: showMotion.value === true || showMotion.value === "true"
+    property bool intro: false   // a graphics stage on screen before it is measured
+    readonly property int warmupSeconds: 2
+    readonly property int measureSeconds: 6
     readonly property int gapSeconds: 2      // between stages
 
-    // Every stage draws on the C2's 720 x 1600 and is scaled to fit the
-    // panel, with black bars on other shapes: a phone with more pixels or
+    // Every stage draws on the C2's 720 x 1600: a phone with more pixels or
     // another shape gets exactly the same work (mo, 2026-10-18; the shape
     // since the night audit, 2026-10-19).
     readonly property int renderWidth: 720
     readonly property int renderHeight: 1600
     readonly property real renderPixels: renderWidth * renderHeight
-
-    // A stage with a `ladder` of loads finds its step on the first run: from
-    // the lightest up, one second to settle and one to measure each, to the
-    // first step under rampFps. The step is kept per scene, so later runs
-    // measure the same 10 seconds right away (mo, 2026-10-18). The score is
-    // fps x load, so it compares whatever step a device chose. Under 25 fps:
-    // near 40 the fixed cost of a frame ate a fifth of the score (XA2,
-    // Overdraw: 1393 layers/s at 36 layers, 1670 at 72, 1728 at 144).
-    readonly property int rampFps: 25
-    // A stage measured over this runs too light: its fixed cost per frame and
-    // the refresh bend the score (XA2 Overdraw read 20 % low at 39 fps), so
-    // its step is found again at once. Never above 80 % of the refresh.
     readonly property real refreshHz: FrameCounter.refreshRate > 0 ? FrameCounter.refreshRate : 60
-    readonly property real tooLightFps: Math.min(1.3 * rampFps, 0.8 * refreshHz)
-    ConfigurationValue {
-        id: calibConfig
-        key: "/apps/harbour-benchymark/calibration"
-        defaultValue: "{}"
-    }
-    function calibration() {
-        try { var c = JSON.parse(calibConfig.value); return c[sceneVersion] || {} } catch (e) { return {} }
-    }
-    function savedStep(key) {
-        var s = calibration()[key]
-        return s === undefined ? -1 : s
-    }
-    // stages of one calibration group keep one step under the group's name
-    function calibKey(item, key) {
-        return item && item.calibrationGroup !== undefined ? item.calibrationGroup : key
-    }
-    readonly property var groupOf: ({ "BUFFER-UBO": "BUFFER", "BUFFER-SSBO": "BUFFER", "BUFFER-TEXTURE": "BUFFER" })
-    // a step of -1 forgets the stage, its next run calibrates it again
-    function saveStep(key, step) {
-        var all = {}
-        try { all = JSON.parse(calibConfig.value) } catch (e) { }
-        var c = all[sceneVersion] || {}
-        if (step < 0) delete c[key]
-        else c[key] = step
-        all[sceneVersion] = c
-        calibConfig.value = JSON.stringify(all)
-    }
-    // the stages with a ladder, for the start page's hint
-    readonly property var calibratingKeys: ["BENCHY-LIGHT", "BENCHY-HEAVY", "BENCHY-GLOW",
+    // the stages drawn off screen; the system stages run on screen
+    readonly property var graphicsKeys: ["BENCHY-LIGHT", "BENCHY-HEAVY", "BENCHY-GLOW",
         "SHADER-LIGHT", "SHADER-HEAVY", "BUFFER-UBO", "BUFFER-SSBO", "BUFFER-TEXTURE",
         "OVERDRAW", "CASCADE", "ICONS"]
-    // Set, not bound: as a binding it was evaluated again and again while
-    // the page stack built the page, 18 binding loop warnings per start.
-    property bool needsCalibration: false
-    function updateNeedsCalibration() {
-        var c = calibration()
-        needsCalibration = stages.some(function (st) {
-            return isOn(st.key) && calibratingKeys.indexOf(st.key) >= 0
-                   && c[groupOf[st.key] || st.key] === undefined })
-    }
-    Connections {
-        target: calibConfig
-        onValueChanged: page.updateNeedsCalibration()
-    }
-    onSkippedChanged: updateNeedsCalibration()
-    property var recalibrateNext: []   // keys whose step ran too light in this run
-    property var recalibrateHeavy: []  // and too heavy
-    property bool ramping: false
-    property int rampStep: 0
-    // A step counts only after two seconds under the mark in a row: the
-    // first stage's first second fell under it while the run was starting,
-    // and a Pad 6 kept the lightest step (Michał, 2026-10-19).
-    property bool rampConfirm: false
-    property bool reramped: false    // this stage found its step again already
-    property var calibratedNow: []   // keys calibrated in this run
 
     // In the order that reads best: the bright graphics first, text last,
     // then the system stages, storage at the very end (mo, 2026-10-17).
     // `about` is the one-sentence manual shown under the name on a tap.
-    // sfos-2.0: a graphics stage draws as much as this device needs to fall
-    // under 25 fps, found on its first run, and scores the work per second.
+    // A graphics stage scores its work per second (2.2: a fixed load, off
+    // screen); a system stage its own figure.
     readonly property var stages: [
         //% "Benchy large"
         { name: qsTrId("id-stage-benchy-light"), key: "BENCHY-LIGHT", file: "BenchyLow",
@@ -305,21 +237,12 @@ Page {
     property int step: -1         // position in plan
     readonly property int current: step >= 0 && step < plan.length ? plan[step] : -1
     property bool inGap: false
-    property int elapsed: 0       // measured seconds in this stage
-    property bool warm: false     // the first second after a load is discarded
-    property bool settled: false  // and the next ones until the rate holds
-    property real settlePrev: 0   // the last dropped second's fps
-    property int settleSeconds: 0 // seconds dropped in this window
-    property int lastFps: 0
+    property int elapsed: 0       // measured seconds of a system stage
+    property bool warm: false     // its first second is not measured
+    property int stageLeft: 0     // the stage's seconds left, for the run's line
+    property int lastFps: 0       // a graphics stage's frames per second so far
+    property int previewSerial: 0 // the newest copy of its frames for the screen
     property int loops: 0
-    property var samples: []      // this stage: { frames, ms, worst } per second
-    property double frameSum: 0   // this stage's measured frames
-    property double msSum: 0      // and the time they took
-    property var rampLog: []      // this stage's ramp: [step, fps] per second
-    property int measurePhase: 0  // the window: even the first load, odd the second
-    property var pointA: null     // the first load's windows so far
-    property var pointB: null     // the second load's
-    property var windows: []      // every window: { load, frames, ms }, in turn
     property var passes: []       // every finished stage of the run, per pass
     property int interruptions: 0 // stages restarted after the app was in the background
     property int savedAt: 0       // seconds into the run of the last save on the way
@@ -327,7 +250,6 @@ Page {
     property var order: []        // keys in the order they finished
     property double runStarted: 0
     property double runEnded: 0    // with runStarted the exact runtime, for drain per hour
-    property double sampledAt: 0   // when the frame count was last taken
 
     DisplayBlanking { preventBlanking: page.view === "run" }
 
@@ -437,9 +359,6 @@ Page {
         temps = []
         batts = []
         clocks = []
-        calibratedNow = []
-        recalibrateNext = []
-        recalibrateHeavy = []
         passes = []
         interruptions = 0
         savedAt = 0
@@ -470,46 +389,72 @@ Page {
         inGap = false
         elapsed = 0
         warm = false
-        samples = []
-        frameSum = 0
-        msSum = 0
-        rampLog = []
-        measurePhase = 0
-        stageMeasured = 0
-        pointA = null
-        pointB = null
-        windows = []
         lastFps = 0
-        ramping = false
-        rampConfirm = false
-        reramped = false
-        // in the background nothing is drawn: the stage loads when the app
-        // is back (onActiveChanged below)
-        if (!Qt.application.active) { stageLoader.source = ""; return }
-        stageLoader.setSource(Qt.resolvedUrl("../stages/" + stages[current].file + ".qml"),
-                              { areaTop: Math.max(0, (areaTop - stageLoader.y) / stageScale),
-                                areaBottom: Math.min(renderHeight, (areaBottom - stageLoader.y) / stageScale),
-                                renderWidth: renderWidth, renderHeight: renderHeight })
-        var item = stageLoader.item
-        if (item && item.ladder !== undefined) {
-            var saved = savedStep(calibKey(item, stages[current].key))
-            rampStep = saved >= 0 ? Math.min(saved, item.ladder.length - 1) : 0
-            ramping = saved < 0
-            item.load = item.ladder[rampStep]
+        previewSerial = 0
+        intro = false
+        introTimer.stop()
+        introClock.stop()
+        // in the background nothing runs: the stage starts when the app is
+        // back (onActiveChanged below)
+        if (!Qt.application.active) { stageLoader.source = ""; offscreen.unload(); return }
+        var st = stages[current]
+        var props = { areaTop: Math.max(0, (areaTop - stageLoader.y) / stageScale),
+                      areaBottom: Math.min(renderHeight, (areaBottom - stageLoader.y) / stageScale),
+                      renderWidth: renderWidth, renderHeight: renderHeight }
+        if (graphicsKeys.indexOf(st.key) >= 0 && motion) {
+            // first on screen, moving in real time; then measured
+            intro = true
+            stageLoader.setSource(Qt.resolvedUrl("../stages/" + st.file + ".qml"), props)
+            stageLeft = introSeconds + warmupSeconds + measureSeconds
+            introClock.restart()
+            introTimer.restart()
+        } else if (graphicsKeys.indexOf(st.key) >= 0) {
+            measureGraphics()
+        } else {
+            stageLoader.setSource(Qt.resolvedUrl("../stages/" + st.file + ".qml"), props)
+            stageLeft = stageSeconds + 1
+            fpsTimer.restart()
         }
-        openWindow()
     }
-    // A new measuring window from now, its first second discarded: after a
-    // stage is built, after a load change and after a pause, so the build
-    // time and the gap never count as frames or seconds (night audit).
-    function openWindow() {
-        FrameCounter.reset()
-        sampledAt = Date.now()
-        warm = false
-        settled = false
-        settlePrev = 0
-        settleSeconds = 0
-        fpsTimer.restart()
+    // the stage's time on screen, as off screen: seconds at 60 frames each
+    NumberAnimation {
+        id: introClock
+        target: stageLoader.item
+        property: "t"
+        from: 0; to: page.introSeconds
+        duration: page.introSeconds * 1000
+    }
+    Timer {
+        id: introTimer
+        interval: page.introSeconds * 1000
+        onTriggered: page.measureGraphics()
+    }
+    // the countdown during the two seconds on screen
+    Timer {
+        interval: 1000
+        repeat: true
+        running: page.intro && introTimer.running
+        onTriggered: page.stageLeft = Math.max(0, page.stageLeft - 1)
+    }
+    function measureGraphics() {
+        var st = stages[current]
+        intro = false
+        introClock.stop()
+        stageLoader.source = ""
+        var props = { areaTop: Math.max(0, (areaTop - stageLoader.y) / stageScale),
+                      areaBottom: Math.min(renderHeight, (areaBottom - stageLoader.y) / stageScale),
+                      renderWidth: renderWidth, renderHeight: renderHeight }
+        var err = offscreen.load(Qt.resolvedUrl("../stages/" + st.file + ".qml"), props,
+                                 renderWidth, renderHeight)
+        if (err !== "") {
+            console.warn("Benchymark: " + st.key + ": " + err)
+            //% "could not be loaded"
+            record(st.key, { name: st.name, system: false, unsupported: qsTrId("id-stage-load-error") })
+            next()
+            return
+        }
+        stageLeft = warmupSeconds + measureSeconds
+        offscreen.measure(warmupSeconds * 1000, measureSeconds * 1000)
     }
     // The app went to the background mid-stage (cover, a call, the lock
     // screen): the stage stops, its threads too, and starts over when the
@@ -519,8 +464,13 @@ Page {
         onActiveChanged: {
             if (page.view !== "run" || page.inGap || page.step < 0) return
             if (!Qt.application.active) {
-                if (stageLoader.source != "") {
+                if (stageLoader.source != "" || offscreen.running) {
                     page.interruptions++
+                    introTimer.stop()
+                    introClock.stop()
+                    page.intro = false
+                    offscreen.stop()
+                    offscreen.unload()
                     stageLoader.source = ""
                 }
             } else {
@@ -546,135 +496,84 @@ Page {
         }
     }
 
+    // a system stage's rows, or why it could not run
     function finishStage() {
         var item = stageLoader.item
-        // nothing loaded: already recorded (stop() after a last stage)
+        // nothing loaded: a graphics stage, or already recorded
         if (!item) return
-        // the GPU or driver cannot run it: a dash, and why, not the idle fps
         if (item.unsupported !== undefined && item.unsupported !== "") {
             record(stages[current].key, { name: stages[current].name, system: false,
                                           unsupported: item.unsupported })
             return
         }
-        if (item.system) {
-            var rows = item.results()   // [{ key, name, value, unit }]
-            for (var j = 0; j < rows.length; j++)
-                if (rows[j].unsupported)
-                    record(rows[j].key, { name: rows[j].name, system: false, unsupported: rows[j].unsupported })
-                else
-                    record(rows[j].key, { name: rows[j].name, system: true, value: rows[j].value,
-                                          unit: rows[j].unit, threads: rows[j].threads, detail: rows[j].detail })
-            return
+        if (!item.system) return
+        var rows = item.results()   // [{ key, name, value, unit }]
+        for (var j = 0; j < rows.length; j++)
+            if (rows[j].unsupported)
+                record(rows[j].key, { name: rows[j].name, system: false, unsupported: rows[j].unsupported })
+            else
+                record(rows[j].key, { name: rows[j].name, system: true, value: rows[j].value,
+                                      unit: rows[j].unit, threads: rows[j].threads, detail: rows[j].detail })
+    }
+
+    // A graphics stage's row: the work it drew over the time it took. Per
+    // pixel work counts in millions of rendered pixels.
+    function graphicsRow(st, item, frames, ms, halfFrames, halfMs, partial) {
+        var k = item.perPixel ? renderPixels / 1e6 : 1
+        var row = { name: st.name, system: false, load: item.load, unit: item.unit,
+                    frames: frames, ms: Math.round(ms), fps: Math.round(frames * 10000 / ms) / 10,
+                    score: frames * item.load * k * 1000 / ms, partial: partial }
+        // the two halves' scores apart, each from their mean: marked past 10 %
+        if (halfFrames > 0 && frames > halfFrames && ms > halfMs) {
+            var a = halfFrames / halfMs, b = (frames - halfFrames) / (ms - halfMs)
+            row.spreadPct = Math.round(Math.abs(a - b) / (a + b) * 1000) / 10
+            row.noisy = row.spreadPct > 10
         }
-        // the first load's window, and the second's if it was reached
-        // the window running at the stop counts too
-        bankWindow(item)
-        var a = pointA
-        var b = pointB
-        if (a === null) return
-        if (a.samples.length === 0 || a.ms <= 0 || a.frames <= 0) return
-        var fpsOf = function (w) { return w.frames * 1000 / w.ms }
-        var listOf = function (w) {
-            return w.samples.map(function (x) { return x.ms > 0 ? Math.round(x.frames * 10000 / x.ms) / 10 : 0 })
-        }
-        var avg = fpsOf(a)
-        var min = 1e9, worst = 0
-        for (var i = 0; i < a.samples.length; i++) {
-            min = Math.min(min, a.samples[i].ms > 0 ? a.samples[i].frames * 1000 / a.samples[i].ms : 0)
-            worst = Math.max(worst, a.samples[i].worst)
-        }
+        return row
+    }
+    function graphicsDone(frames, ms, halfFrames, halfMs) {
         var st = stages[current]
-        var row = { name: st.name, system: false, avg: Math.round(avg * 10) / 10,
-                    min: Math.round(min * 10) / 10, worst: Math.round(worst), seconds: a.samples.length,
-                    fps: listOf(a), partial: a.samples.length < pointSeconds * pointWindows / 2 }
-        if (item.ladder !== undefined) {
-            // per pixel work counts in millions of rendered pixels
-            var k = item.perPixel ? renderPixels / 1e6 : 1
-            row.load = a.load
-            row.step = item.ladder.indexOf(a.load)
-            row.steps = item.ladder.length
-            row.unit = item.unit
-            row.scoreSingle = avg * a.load * k
-            row.score = row.scoreSingle
-            row.ramp = rampLog
-            row.reramped = reramped
-            // The second load: the work it adds over the frame time it adds.
-            // Kept only when both loads are clear of the refresh and the
-            // frame time grew with the work; else the one-load score, marked.
-            var ta = a.ms / a.frames
-            // the seconds each window dropped before the rate held
-            row.settle = windows.map(function (w) { return w.settle })
-            if (b !== null && b.frames > 0 && b.samples.length >= 3) {
-                var tb = b.ms / b.frames
-                var fb = fpsOf(b)
-                row.load2 = b.load
-                row.fps2 = listOf(b)
-                row.msPerFrame = Math.round(ta * 100) / 100
-                row.msPerFrame2 = Math.round(tb * 100) / 100
-                var dl = b.load - a.load, dt = tb - ta
-                var clear = avg < 0.9 * refreshHz && fb < 0.9 * refreshHz
-                if (clear && dl !== 0 && dt / dl > 0) {
-                    row.score = dl * k / (dt / 1000)
-                    // what every frame costs besides the work: compositing,
-                    // the scaling to the panel, vsync
-                    row.overheadMs = Math.round((ta - a.load * dt / dl) * 10) / 10
-                    // Overhead below zero: the frame time grew faster than the
-                    // work (caches overflowing: the C2's Text scale at -32 ms,
-                    // a stage since dropped), so the
-                    // slope prices the load wrong; the one-load score, marked.
-                    // A little below zero is noise: past a tenth of the frame.
-                    if (row.overheadMs < -0.1 * ta) {
-                        row.score = row.scoreSingle
-                        row.superlinear = true
-                    }
-                    // The two A-B pairs give two scores of their own; how far
-                    // they lie apart is the score's own uncertainty, marked
-                    // past 10 % (night audit: CPU-bound stages on the XA2)
-                    var pair = function (w1, w2) {
-                        var d = w2.ms / w2.frames - w1.ms / w1.frames
-                        return w1.frames > 0 && w2.frames > 0 && d / (w2.load - w1.load) > 0
-                               ? (w2.load - w1.load) * k / (d / 1000) : NaN
-                    }
-                    if (windows.length >= 4) {
-                        var s1 = pair(windows[0], windows[1]), s2 = pair(windows[2], windows[3])
-                        row.spreadPct = isFinite(s1) && isFinite(s2)
-                                ? Math.round(Math.abs(s1 - s2) / (s1 + s2) * 1000) / 10 : undefined
-                        row.noisy = row.spreadPct === undefined || row.spreadPct > 10
-                    }
-                } else {
-                    row.slopeFailed = true
-                }
-                if (b.samples.length < pointSeconds * pointWindows / 2) row.partial = true
-            } else {
-                row.slopeFailed = row.steps > 1
-                row.partial = row.steps > 1 || row.partial
-            }
-            // the heaviest load and still fast: the score is a lower bound
-            row.topped = row.step === item.ladder.length - 1 && avg > rampFps
-            // near the panel's refresh the frame rate cannot rise: capped
-            row.capped = avg >= 0.9 * refreshHz
-            // Still too light after the run's own new ramp, or far too heavy
-            // (calibrated cold, now hot): the next run finds the step again.
-            // A short row (stopped) says too little to judge.
-            // Too heavy: under a third of the mark, out of the band a ramp
-            // lands in (12.5-25 fps). Not for a group: its slower members run
-            // under the mark by design.
-            var tooLight = avg > tooLightFps && row.step < item.ladder.length - 1
-            var tooHeavy = avg < rampFps / 3 && row.step > 0 && item.calibrationGroup === undefined
-            if (a.samples.length >= 3 && (tooLight || tooHeavy) && !(typeof selftestFixed !== "undefined" && selftestFixed)) {
-                saveStep(calibKey(item, st.key), -1)
-                if (tooLight) {
-                    var rn = recalibrateNext
-                    if (rn.indexOf(st.key) < 0) rn.push(st.key)
-                    recalibrateNext = rn
-                } else {
-                    var rh = recalibrateHeavy
-                    if (rh.indexOf(st.key) < 0) rh.push(st.key)
-                    recalibrateHeavy = rh
-                }
-            }
+        var item = offscreen.item
+        if (item && item.unsupported !== undefined && item.unsupported !== "")
+            record(st.key, { name: st.name, system: false, unsupported: item.unsupported })
+        else if (item && frames > 0 && ms > 0)
+            record(st.key, graphicsRow(st, item, frames, ms, halfFrames, halfMs, false))
+        next()
+    }
+    OffscreenRun {
+        id: offscreen
+        previewMs: 500
+        onFinished: page.graphicsDone(frames, ms, halfFrames, halfMs)
+        onPreview: page.previewSerial = serial
+        onQuitting: if (page.view === "run") page.stop()
+        onProgress: {
+            page.stageLeft = Math.max(0, Math.ceil((measuring ? page.measureSeconds
+                                       : page.warmupSeconds + page.measureSeconds) - ms / 1000))
+            page.lastFps = measuring && ms > 0 ? Math.round(frames * 1000 / ms) : 0
+            if (measuring && page.selftestSeconds > 0 && ms / 1000 >= page.selftestSeconds) page.stop()
         }
-        record(st.key, row)
+        onFailed: {
+            console.warn("Benchymark: " + why)
+            page.record(page.stages[page.current].key, { name: page.stages[page.current].name,
+                        system: false, unsupported: qsTrId("id-stage-load-error") })
+            page.next()
+        }
+    }
+    // a GPU that cannot run a table stage says so on its first frames
+    Connections {
+        target: offscreen.item && offscreen.item.unsupported !== undefined ? offscreen.item : null
+        ignoreUnknownSignals: true
+        // the reason comes in the middle of a frame: the stage goes after it
+        onUnsupportedChanged: if (offscreen.item.unsupported !== "" && offscreen.running) unsupportedTimer.start()
+    }
+    Timer {
+        id: unsupportedTimer
+        interval: 0
+        onTriggered: {
+            if (!offscreen.running) return
+            offscreen.stop()
+            page.graphicsDone(0, 0, -1, 0)
+        }
     }
 
     // atHour: the hour ran out mid-stage; a stage that has a full result
@@ -684,8 +583,22 @@ Page {
         hourTimer.stop()
         // a stage cut short keeps the full row of an earlier pass, if any
         var cut = current >= 0 && results[stages[current].key] !== undefined
-        if (!inGap && !cut) finishStage()
+        if (!inGap && current >= 0) {
+            if (offscreen.running) {
+                var at = offscreen.stop()
+                // a second measured at least, marked as cut short
+                if (!cut && offscreen.item && at.frames > 0 && at.ms >= 1000)
+                    record(stages[current].key, graphicsRow(stages[current], offscreen.item,
+                                                            at.frames, at.ms, -1, 0, true))
+            } else if (!cut) {
+                finishStage()
+            }
+        }
+        introTimer.stop()
+        introClock.stop()
+        intro = false
         if (brightnessSet) restoreDisplay()
+        offscreen.unload()
         stageLoader.source = ""
         step = -1
         inGap = false
@@ -700,6 +613,7 @@ Page {
     function next() {
         finishStage()
         stageLoader.source = ""
+        offscreen.unload()
         if (step + 1 < plan.length || loop) {
             if (step + 1 >= plan.length) loops++
             inGap = true
@@ -719,152 +633,29 @@ Page {
         onTriggered: { page.gapEnding = false; page.beginStep((page.step + 1) % page.plan.length) }
     }
 
-    // once a second: the frames presented, the exact time, the longest frame
+    // a system stage's seconds
     Timer {
         id: fpsTimer
         interval: 1000
         repeat: true
-        running: page.view === "run" && !page.inGap && Qt.application.active
+        running: page.view === "run" && !page.inGap && Qt.application.active && stageLoader.source != "" && !page.intro
         onTriggered: {
-            // The timer runs on the GUI thread, which a heavy stage delays, so
-            // a "second" can be longer: the counter measures the exact time
-            // that passed (the watch version's v0.6 fix, now monotonic).
-            var smp = FrameCounter.sample()
-            page.sampledAt = Date.now()
             // a stage that fails to load would stall the run
             if (stageLoader.status === Loader.Error) {
                 page.record(page.stages[page.current].key, { name: page.stages[page.current].name,
-                            //% "could not be loaded"
                             system: false, unsupported: qsTrId("id-stage-load-error") })
                 page.next()
                 return
             }
             if (stageLoader.status !== Loader.Ready) return
-            var fps = smp.ms > 0 ? smp.frames * 1000 / smp.ms : 0
-            if (!page.warm) { page.warm = true; page.settlePrev = fps; page.settleSeconds = 1; return }
-            page.lastFps = Math.round(fps)
-            var item = stageLoader.item
-            if (page.ramping) {
-                var rl = page.rampLog
-                rl.push([page.rampStep, Math.round(fps * 10) / 10])
-                page.rampLog = rl
-                var top = page.rampStep >= item.ladder.length - 1
-                var key = page.calibKey(item, page.stages[page.current].key)
-                if (fps < page.rampFps && !page.rampConfirm && !top) {
-                    // under the mark once: the same step is measured again
-                    page.rampConfirm = true
-                    return
-                } else if (fps < page.rampFps || top) {
-                    // under the mark twice, or the heaviest: keep it, then
-                    // measure. A group keeps the heaviest step any member
-                    // needed, so it suits its fastest member and none runs
-                    // too light (night audit: it was whichever ran first).
-                    page.ramping = false
-                    page.rampConfirm = false
-                    page.saveStep(key, item.calibrationGroup !== undefined
-                                  ? Math.max(page.savedStep(key), page.rampStep) : page.rampStep)
-                    var cn = page.calibratedNow
-                    if (cn.indexOf(page.stages[page.current].key) < 0) cn.push(page.stages[page.current].key)
-                    page.calibratedNow = cn
-                } else {
-                    page.rampConfirm = false
-                    page.rampStep++
-                    item.load = item.ladder[page.rampStep]
-                }
-                page.openWindow()   // the next second settles
-                return
-            }
-            if (item.ladder !== undefined && !page.settled) {
-                var holds = page.settlePrev > 0
-                        && Math.abs(fps - page.settlePrev) <= page.settleTolerance * page.settlePrev
-                if (!holds && page.settleSeconds < page.settleMax) {
-                    page.settleSeconds++
-                    page.settlePrev = fps
-                    return
-                }
-                page.settled = true
-            }
-            var s = page.samples
-            s.push({ frames: smp.frames, ms: smp.ms, worst: smp.worstMs })
-            page.samples = s
-            page.frameSum += smp.frames
-            page.msSum += smp.ms
+            if (!page.warm) { page.warm = true; return }
             page.elapsed++
-            page.stageMeasured++
-            // Three seconds over the mark (32 fps): the step is too light for
-            // this device now (calibrated hot, or a slow second kept it), and
-            // fixed cost and refresh bend the score. The step is found again
-            // right away from the next one up and the stage measured anew,
-            // once per stage (Michał's Pad 6, 2026-10-19; mark tightened from
-            // 50 fps in the night audit).
-            var fixed = typeof selftestFixed !== "undefined" && selftestFixed
-            if (item.ladder !== undefined && page.measurePhase === 0 && !page.reramped && !fixed && s.length >= 3) {
-                var at = item.ladder.indexOf(item.load)
-                if (page.frameSum * 1000 / page.msSum > page.tooLightFps && at >= 0 && at < item.ladder.length - 1) {
-                    page.reramped = true
-                    page.ramping = true
-                    page.rampConfirm = false
-                    page.rampStep = at + 1
-                    item.load = item.ladder[page.rampStep]
-                    page.samples = []
-                    page.frameSum = 0
-                    page.msSum = 0
-                    page.elapsed = 0
-                    page.openWindow()
-                    return
-                }
-            }
-            if (item.ladder !== undefined) {
-                if (page.elapsed >= page.pointSeconds) {
-                    if (page.measurePhase + 1 < page.pointWindows && page.nextWindow(item)) return
-                    page.next()
-                }
-            } else if (!(item && item.selfTimed) && page.elapsed >= page.stageSeconds) {
-                page.next()
-            }
+            page.stageLeft = Math.max(0, page.stageSeconds - page.elapsed)
+            if (page.selftestSeconds > 0 && page.elapsed >= page.selftestSeconds) { page.stop(); return }
+            var item = stageLoader.item
+            if (!(item && item.selfTimed) && page.elapsed >= page.stageSeconds) page.next()
         }
     }
-    // the window's seconds into the load they were measured at
-    function bankWindow(item) {
-        if (samples.length === 0) return
-        var odd = measurePhase % 2 === 1
-        var acc = odd ? pointB : pointA
-        if (acc === null) acc = { samples: [], frames: 0, ms: 0, load: item.load,
-                                  step: item.ladder !== undefined ? item.ladder.indexOf(item.load) : -1 }
-        acc.samples = acc.samples.concat(samples)
-        acc.frames += frameSum
-        acc.ms += msSum
-        if (odd) pointB = acc
-        else pointA = acc
-        var ws = windows
-        ws.push({ load: item.load, frames: frameSum, ms: msSum, settle: settleSeconds })
-        windows = ws
-        samples = []
-        frameSum = 0
-        msSum = 0
-    }
-    // the other load: the next step up, at the top the one below
-    function nextWindow(item) {
-        var at = item.ladder.indexOf(item.load)
-        if (at < 0) return false
-        var other
-        if (measurePhase % 2 === 0) {
-            other = at + 1 < item.ladder.length ? at + 1 : at - 1
-            if (other < 0) return false
-        } else {
-            other = pointA !== null ? pointA.step : at
-        }
-        bankWindow(item)
-        measurePhase++
-        elapsed = 0
-        item.load = item.ladder[other]
-        openWindow()
-        return true
-    }
-    // Always the next step, never further: a second load two steps up gave
-    // the CPU-bound stages (Benchy light, Cascade) 50-90 % higher scores,
-    // their cost per item still falling with the load, while one step
-    // repeated within 2-9 % (XA2, night audit)
 
     // a stage that times itself (storage) says when it is through
     Connections {
@@ -891,18 +682,9 @@ Page {
                 phases.push({ phase: order[i], name: r.name, value: r.value, unit: r.unit, threads: r.threads,
                               detail: r.detail })
             else
-                phases.push({ phase: order[i], name: r.name, avg: r.avg, min: r.min, worst_tick_ms: r.worst,
-                              samples: r.seconds, fps: r.fps, load: r.load, load_step: r.step, load_steps: r.steps,
-                              score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
-                              unit: r.unit, calibrated_now: r.score !== undefined
-                                      ? calibratedNow.indexOf(order[i]) >= 0 : undefined,
-                              reramped: r.reramped || undefined, ramp: r.ramp && r.ramp.length ? r.ramp : undefined,
-                              load2: r.load2, fps2: r.fps2, ms_per_frame: r.msPerFrame, ms_per_frame2: r.msPerFrame2,
-                              score_single: r.scoreSingle !== undefined ? Math.round(r.scoreSingle * 10) / 10 : undefined,
-                              overhead_ms: r.overheadMs, noisy: r.noisy || undefined, spread_pct: r.spreadPct,
-                              settle_s: r.settle,
-                              slope_failed: r.slopeFailed || undefined, superlinear: r.superlinear || undefined,
-                              topped: r.topped || undefined, capped: r.capped || undefined,
+                phases.push({ phase: order[i], name: r.name, load: r.load, frames: r.frames, ms: r.ms,
+                              fps: r.fps, score: r.score !== undefined ? Math.round(r.score * 10) / 10 : undefined,
+                              unit: r.unit, spread_pct: r.spreadPct, noisy: r.noisy || undefined,
                               partial: r.partial || undefined })
         }
         // no GPU clock all run: what the app finds where one may sit
@@ -919,8 +701,12 @@ Page {
             refresh_hz: Math.round(refreshHz * 10) / 10,
             build_arch: typeof buildArch !== "undefined" ? buildArch : undefined,
             cpu_arch: typeof cpuArch !== "undefined" ? cpuArch : undefined,
-            ramp_fps: rampFps,
-            too_light_fps: Math.round(tooLightFps * 10) / 10,
+            // graphics stages: drawn off screen, warm-up and measured seconds
+            method: "offscreen",
+            warmup_seconds: warmupSeconds,
+            measure_seconds: measureSeconds,
+            // the two seconds on screen before, not measured
+            intro_seconds: motion ? introSeconds : 0,
             stage_seconds: stageSeconds,
             interruptions: interruptions > 0 ? interruptions : undefined,
             device: deviceName,
@@ -938,8 +724,6 @@ Page {
             clocks: clocks,
             brightness_percent: brightnessAtStart >= 0 ? brightnessAtStart : undefined,
             brightness_set_by_run: brightnessSet,
-            recalibrate_next: recalibrateNext.length > 0 ? recalibrateNext : undefined,
-            recalibrate_heavy: recalibrateHeavy.length > 0 ? recalibrateHeavy : undefined,
             gpu_probe: gpuSeen ? undefined : log.gpuProbe(),
             passes: loops > 0 ? passes : undefined,
             phases: phases
@@ -966,7 +750,6 @@ Page {
         defaultValue: false
     }
     Component.onCompleted: {
-        updateNeedsCalibration()
         importLast()
         loadNewest()
     }
@@ -997,21 +780,6 @@ Page {
     // test hooks from main.cpp: SFOS_SELFTEST_RUN=<stage index> runs only that
     // stage (-2 all ticked ones); SFOS_SELFTEST_STOP=<s> ends it after s seconds
     readonly property int selftestSeconds: typeof selftestStop !== "undefined" ? selftestStop : 0
-    // the stage's measured seconds over all its windows (elapsed restarts
-    // with each window of the two loads)
-    property int stageMeasured: 0
-    // The seconds left in the stage, counting only down: the window running
-    // and those to come at one dropped second each; a second dropped beyond
-    // that holds the count instead of adding to it.
-    readonly property int stageLeft: {
-        var item = stageLoader.item
-        var cur = (warm ? 0 : 1)
-        if (item && item.ladder !== undefined)
-            return Math.max(0, cur + pointSeconds - elapsed
-                               + (pointWindows - 1 - measurePhase) * (pointSeconds + 1))
-        return Math.max(0, cur + stageSeconds - elapsed)
-    }
-    onStageMeasuredChanged: if (selftestSeconds > 0 && stageMeasured >= selftestSeconds) stop()
     Timer {
         interval: 1500
         running: typeof selftestRun !== "undefined" && selftestRun !== -1
@@ -1170,13 +938,8 @@ Page {
                 width: parent.width - 2 * x
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                // the hints can be switched off; why the first run is longer stays
-                readonly property bool calibrateNote: page.mode === "once" && page.needsCalibration
-                visible: showHints.value || calibrateNote
-                text: (showHints.value ? page.modeHints[page.mode] : "")
-                      + (showHints.value && calibrateNote ? " " : "")
-                      //% "The first run also finds each graphics stage's load, a few seconds per stage."
-                      + (calibrateNote ? qsTrId("id-hint-calibrate") : "")
+                visible: showHints.value === true || showHints.value === "true"
+                text: page.modeHints[page.mode]
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryHighlightColor
             }
@@ -1254,6 +1017,22 @@ Page {
         visible: page.view === "run" && !page.inGap
     }
 
+    // A graphics stage draws off screen; a copy of its frames shows here
+    // while it warms up, then holds still while it is measured, at the same
+    // place and size as a stage on screen.
+    Image {
+        width: page.renderWidth
+        height: page.renderHeight
+        x: stageLoader.x
+        y: stageLoader.y
+        transformOrigin: Item.TopLeft
+        scale: page.stageScale
+        smooth: true
+        cache: false
+        visible: page.view === "run" && !page.inGap && page.previewSerial > 0
+        source: page.previewSerial > 0 ? "image://offscreen/" + page.previewSerial : ""
+    }
+
     // Between stages: the next stage's name and a bar over the pause.
     Column {
         visible: page.view === "run" && page.inGap
@@ -1297,10 +1076,7 @@ Page {
             anchors.horizontalCenter: parent.horizontalCenter
             readonly property var item: stageLoader.item
             text: item && item.system ? (item.live !== "" ? item.live : "–")
-                  //% "calibrating"
-                  : page.ramping ? qsTrId("id-calibrating") + "  ·  " + page.lastFps + " fps"
-                  : !page.warm ? "–  ·  " + page.stageLeft + " s"
-                  : page.lastFps + " fps" + "  ·  " + page.stageLeft + " s"
+                  : (page.lastFps > 0 ? page.lastFps + " fps" : "–") + "  ·  " + page.stageLeft + " s"
             font.pixelSize: Theme.fontSizeMedium
             color: "white"
             opacity: 0.8

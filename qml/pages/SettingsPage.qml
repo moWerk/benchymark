@@ -44,6 +44,11 @@ Page {
         hiddenDetails.value = JSON.stringify(h)
     }
     ConfigurationValue {
+        id: showMotion
+        key: "/apps/harbour-benchymark/showMotion"
+        defaultValue: true
+    }
+    ConfigurationValue {
         id: showScoreAbout
         key: "/apps/harbour-benchymark/showScoreAbout"
         defaultValue: true
@@ -136,6 +141,20 @@ Page {
                 Column {
                     id: column
                     width: parent.width
+
+                    SectionHeader {
+                        //% "Running"
+                        text: qsTrId("id-setting-section-running")
+                    }
+                    TextSwitch {
+                        //% "Show stages moving"
+                        text: qsTrId("id-setting-motion")
+                        //% "Each graphics stage plays two seconds on screen before it is measured off screen, where only its first frames show. Off: measuring only, two seconds shorter per stage. The scores are the same either way."
+                        description: qsTrId("id-setting-motion-about")
+                        checked: showMotion.value === true || showMotion.value === "true"
+                        automaticCheck: false
+                        onClicked: showMotion.value = !checked
+                    }
 
                     SectionHeader {
                         //% "Display hints and descriptions"
