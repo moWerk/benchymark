@@ -75,8 +75,11 @@ telling anything. Since 2.0, and as audited for 2.2:
   stage whose frame time grew faster than its load (caches overflowing: the
   overhead comes out below zero) is scored at one load and marked
 
-Each graphics stage runs about 16 seconds (12 measured) on a black background (the ambience must
-not change the result), the system stages run their own course and count
+Each graphics stage runs 16 to 24 seconds (12 measured) on a black background (the ambience must
+not change the result): after every load change the frame rate can still
+climb while the clocks follow, so seconds are dropped until two in a row
+agree within 5 %, at most three. The countdown covers the whole stage and
+holds while a second is dropped; the system stages run their own course and count
 from their second second on. The results
 show the device, kernel, OS, GPU, screen and render size, the OpenGL ES and
 GLSL versions, the date and exact runtime, every stage's score with its unit

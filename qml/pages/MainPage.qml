@@ -37,6 +37,11 @@ Page {
     // and a slope came out 40 % high (XA2 Cascade, night audit).
     readonly property int pointSeconds: 3
     readonly property int pointWindows: 4
+    // After a load change the frame rate can climb for seconds while the
+    // clocks follow (C2 Overdraw: 9.2, 12.1, 12.5 fps): seconds are dropped
+    // until two in a row agree within 5 %, three at most, the first always.
+    readonly property int settleMax: 3
+    readonly property real settleTolerance: 0.05
     readonly property int gapSeconds: 2      // between stages
 
     // Every stage draws on the C2's 720 x 1600 and is scaled to fit the
@@ -302,6 +307,9 @@ Page {
     property bool inGap: false
     property int elapsed: 0       // measured seconds in this stage
     property bool warm: false     // the first second after a load is discarded
+    property bool settled: false  // and the next ones until the rate holds
+    property real settlePrev: 0   // the last dropped second's fps
+    property int settleSeconds: 0 // seconds dropped in this window
     property int lastFps: 0
     property int loops: 0
     property var samples: []      // this stage: { frames, ms, worst } per second
@@ -498,6 +506,9 @@ Page {
         FrameCounter.reset()
         sampledAt = Date.now()
         warm = false
+        settled = false
+        settlePrev = 0
+        settleSeconds = 0
         fpsTimer.restart()
     }
     // The app went to the background mid-stage (cover, a call, the lock
@@ -591,6 +602,8 @@ Page {
             // Kept only when both loads are clear of the refresh and the
             // frame time grew with the work; else the one-load score, marked.
             var ta = a.ms / a.frames
+            // the seconds each window dropped before the rate held
+            row.settle = windows.map(function (w) { return w.settle })
             if (b !== null && b.frames > 0 && b.samples.length >= 3) {
                 var tb = b.ms / b.frames
                 var fb = fpsOf(b)
@@ -727,8 +740,8 @@ Page {
                 return
             }
             if (stageLoader.status !== Loader.Ready) return
-            if (!page.warm) { page.warm = true; return }
             var fps = smp.ms > 0 ? smp.frames * 1000 / smp.ms : 0
+            if (!page.warm) { page.warm = true; page.settlePrev = fps; page.settleSeconds = 1; return }
             page.lastFps = Math.round(fps)
             var item = stageLoader.item
             if (page.ramping) {
@@ -760,6 +773,16 @@ Page {
                 }
                 page.openWindow()   // the next second settles
                 return
+            }
+            if (item.ladder !== undefined && !page.settled) {
+                var holds = page.settlePrev > 0
+                        && Math.abs(fps - page.settlePrev) <= page.settleTolerance * page.settlePrev
+                if (!holds && page.settleSeconds < page.settleMax) {
+                    page.settleSeconds++
+                    page.settlePrev = fps
+                    return
+                }
+                page.settled = true
             }
             var s = page.samples
             s.push({ frames: smp.frames, ms: smp.ms, worst: smp.worstMs })
@@ -814,7 +837,7 @@ Page {
         if (odd) pointB = acc
         else pointA = acc
         var ws = windows
-        ws.push({ load: item.load, frames: frameSum, ms: msSum })
+        ws.push({ load: item.load, frames: frameSum, ms: msSum, settle: settleSeconds })
         windows = ws
         samples = []
         frameSum = 0
@@ -877,6 +900,7 @@ Page {
                               load2: r.load2, fps2: r.fps2, ms_per_frame: r.msPerFrame, ms_per_frame2: r.msPerFrame2,
                               score_single: r.scoreSingle !== undefined ? Math.round(r.scoreSingle * 10) / 10 : undefined,
                               overhead_ms: r.overheadMs, noisy: r.noisy || undefined, spread_pct: r.spreadPct,
+                              settle_s: r.settle,
                               slope_failed: r.slopeFailed || undefined, superlinear: r.superlinear || undefined,
                               topped: r.topped || undefined, capped: r.capped || undefined,
                               partial: r.partial || undefined })
@@ -976,6 +1000,17 @@ Page {
     // the stage's measured seconds over all its windows (elapsed restarts
     // with each window of the two loads)
     property int stageMeasured: 0
+    // The seconds left in the stage, counting only down: the window running
+    // and those to come at one dropped second each; a second dropped beyond
+    // that holds the count instead of adding to it.
+    readonly property int stageLeft: {
+        var item = stageLoader.item
+        var cur = (warm ? 0 : 1)
+        if (item && item.ladder !== undefined)
+            return Math.max(0, cur + pointSeconds - elapsed
+                               + (pointWindows - 1 - measurePhase) * (pointSeconds + 1))
+        return Math.max(0, cur + stageSeconds - elapsed)
+    }
     onStageMeasuredChanged: if (selftestSeconds > 0 && stageMeasured >= selftestSeconds) stop()
     Timer {
         interval: 1500
@@ -1264,10 +1299,8 @@ Page {
             text: item && item.system ? (item.live !== "" ? item.live : "–")
                   //% "calibrating"
                   : page.ramping ? qsTrId("id-calibrating") + "  ·  " + page.lastFps + " fps"
-                  : !page.warm ? "–"
-                  : page.lastFps + " fps"
-                    + "  ·  " + Math.max(0, (item && item.ladder !== undefined ? page.pointSeconds : page.stageSeconds)
-                                            - page.elapsed) + " s"
+                  : !page.warm ? "–  ·  " + page.stageLeft + " s"
+                  : page.lastFps + " fps" + "  ·  " + page.stageLeft + " s"
             font.pixelSize: Theme.fontSizeMedium
             color: "white"
             opacity: 0.8
