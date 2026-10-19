@@ -92,16 +92,18 @@ whole run, one point a second:
 The pulley menus do the rest, as SailfishOS apps do. On the start page:
 **Settings**, **Select all** and **Deselect all**. On the results:
 **Settings**, **Back to stages**, **Share JSON** and **Share image**. Share
-image saves the whole results page as one tall picture to Pictures, with all
-system details whatever you switched off, and opens the share menu with it
-(the app asks once for the Pictures permission). Share JSON shares the full
+image saves the whole results page as one tall picture to
+Pictures/Screenshots, with all system details whatever you switched off, says
+where it went and opens the share menu with it (the app asks once for the
+Pictures permission). Share JSON shares the full
 run, all curves, loads and fps included; when no GPU clock was found it
 also lists where the app looked and what it could read. Every run is kept,
 one file each in `~/.local/share/net.mowerk/harbour-benchymark/runs/`, the
 last one also as `last-run.json` there. Settings has two tabs: **Settings**
 (the start page hints, the score descriptions, and which system details the
 results show) and **Results**, every saved run, newest first; a tap opens
-it, a long press deletes it.
+it, a long press deletes it or picks it for **Compare with…**: the next run
+tapped is shown beside it, stage by stage, with the ratio.
 
 <img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.0.0-c2-720x2740.png" width="180" alt="Share image of a full run on a Jolla C2, 2.0.0"> <img src="store/screenshot-results-2.0.0-xa2-1080x4605.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.0.0"> <img src="store/screenshot-results-2.0.0-jollaphone-685x2560.jpg" width="180" alt="Share image of a full run on the Jolla Phone, 2.0.0, by ahjolinna">
 
@@ -109,7 +111,7 @@ it, a long press deletes it.
 |---|---|---|
 | Benchy light | two 3DBenchy wireframes, each drawn many times: CPU projection, line drawing | boats/s |
 | Benchy heavy | six smaller boats, each drawn many times | boats/s |
-| Benchy glow | a Benchy with pulsing blur halos stacked over the whole picture | Mpx/s |
+| Benchy glow | a Benchy with blur halos stacked over the whole picture, pulsing by their spread | Mpx/s |
 | Shader light | a domain-warped noise field per pixel, several times over (the watch's CLOUDLIGHT) | Mpx/s |
 | Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) | Mpx/s |
 | Table from UBO | every pixel walks a 16 KB table, each index from the entry before, from a uniform buffer (UBO); OpenGL ES 3.0 | M reads/s |
@@ -118,12 +120,12 @@ it, a long press deletes it.
 | Overdraw | big translucent squares, stacked and turning: fill rate | layers/s |
 | Cascade | rounded squares in two transformed rings | squares/s |
 | Icon storm | SVG icons (flashes and Twemoji rockets) on spiral arms | icons/s |
-| Text scale | text resized by a scale transform, distance-field glyphs | texts/s |
-| Text reraster | the same picture by animating the font size: every glyph drawn again | texts/s |
-| CPU prime | sysbench's cpu event (primes up to 10000) on all cores, one per cell of an Ulam spiral | events/s |
+| Text scale | a ring and six numbers resized by a scale transform, distance-field glyphs, the whole picture stacked | texts/s |
+| Text reraster | the same picture by animating the font size, each stacked copy at its own size: every glyph rasterised again | texts/s |
+| CPU prime | sysbench's cpu event (primes up to 10000) on every core the SoC has, one per cell of an Ulam spiral; an armv7hl build uses the divide instruction where the core has one | events/s |
 | CPU single core | the same on one thread | events/s |
 | Memory throughput | memcpy between two 32 MB buffers | MB/s |
-| One million | JavaScript counting to one million, over and over, in a worker | M/s |
+| One million | JavaScript counting to one million, over and over, in a worker, timed by the worker itself | M/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
 Results with 2.0 (scene `sfos-2.0`), by the author; the Jolla Phone run is by

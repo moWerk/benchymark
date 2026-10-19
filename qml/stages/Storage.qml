@@ -91,12 +91,13 @@ Item {
         if (engine.phase === -1)
             return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"), unsupported: engine.error }]
         if (engine.phase !== 3)
-            //% "stopped before it finished"
-            return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"), unsupported: qsTrId("id-storage-stopped") }]
+            return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"), unsupported: stage._stopped }]
         return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"),
                   value: Math.round(engine.readMBs) + "/" + Math.round(engine.writeMBs),
                   unit: "MB/s" + tag }]
     }
     //% "Storage R/W"
     readonly property string _rw: qsTrId("id-stage-storage-rw")
+    //% "stopped before it finished"
+    readonly property string _stopped: qsTrId("id-storage-stopped")
 }

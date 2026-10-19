@@ -49,7 +49,8 @@ void Wireframe::setFill(qreal f)
 
 void Wireframe::setStack(int s)
 {
-    s = qBound(1, s, 1000);
+    // copies x stack bounded: 640 x 1000 boats would ask for gigabytes
+    s = qBound(1, s, qMax(1, 8000 / qMax(1, m_copies)));
     if (s == m_stack) return;
     m_stack = s;
     emit stackChanged();

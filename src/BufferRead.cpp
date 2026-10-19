@@ -78,6 +78,8 @@ public:
         if (m_mode.isEmpty()) m_mode = b->mode();   // fixed once it runs
         m_lookups = qBound(1, b->lookups(), 1024);
         m_t = float(b->t());
+        // a new render size needs a new framebuffer
+        if (b->renderSize() != m_renderSize && framebufferObject()) invalidateFramebufferObject();
         m_renderSize = b->renderSize();
         if (!m_report.isEmpty()) {
             QMetaObject::invokeMethod(b, "setFailure", Qt::QueuedConnection, Q_ARG(QString, m_report));
@@ -147,8 +149,10 @@ private:
         const int need = ssbo ? 31 : 30;
         if (version < need)
             return QStringLiteral("needs OpenGL ES %1.%2").arg(need / 10).arg(need % 10);
-        // the ES 3.0 calls are only resolved past the version check
+        // no ES 3.0 call is made before the version check
         QOpenGLExtraFunctions *f = ctx->extraFunctions();
+        // an error left by earlier drawing is not this stage's (night audit)
+        for (int n = 0; n < 16 && f->glGetError() != GL_NO_ERROR; ++n) { }
         if (ssbo) {
             // optional in fragment shaders: ES 3.1 only promises them in compute
             GLint blocks = 0;
@@ -231,7 +235,11 @@ private:
             if (!ssbo) {
                 // layout(binding) on a uniform block needs ES 3.1, so set it here
                 const GLuint block = f->glGetUniformBlockIndex(m_program, "Table");
-                if (block == GL_INVALID_INDEX) return QStringLiteral("the shader has no table block");
+                if (block == GL_INVALID_INDEX) {
+                    f->glDeleteProgram(m_program);
+                    m_program = 0;
+                    return QStringLiteral("the shader has no table block");
+                }
                 f->glUniformBlockBinding(m_program, block, 0);
             }
         }

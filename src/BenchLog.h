@@ -16,6 +16,7 @@
 #include <QVariantList>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QObject>
 #include <QStandardPaths>
 #include <QSysInfo>
@@ -44,12 +45,7 @@ public:
     {
         const QString target = path();
         QDir().mkpath(QFileInfo(target).absolutePath());
-        QFile f(target);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-            return false;
-        QTextStream out(&f);
-        out << json << "\n";
-        return true;
+        return writeWhole(target, json);
     }
 
     // Every run is kept as its own file, named by its start, newest first
@@ -62,12 +58,7 @@ public:
     Q_INVOKABLE bool saveRun(const QString &name, const QString &json) const
     {
         QDir().mkpath(runsPath());
-        QFile f(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-            return false;
-        QTextStream out(&f);
-        out << json << "\n";
-        return true;
+        return writeWhole(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName(), json);
     }
     // the folder exists from 2.1.0 on, even when every run was deleted
     Q_INVOKABLE bool hasRunsFolder() const { return QDir(runsPath()).exists(); }
@@ -388,6 +379,17 @@ private:
         for (int pos = 0; (pos = re.indexIn(t, pos)) >= 0; pos += re.matchedLength())
             max = qMax(max, re.cap(1).toDouble());
         return max >= 100000 && max <= 3000000 ? max : 0;
+    }
+
+    // all or nothing: a full disk or a kill mid-write keeps the old file
+    // rather than leaving an empty one (night audit)
+    static bool writeWhole(const QString &target, const QString &json)
+    {
+        QSaveFile f(target);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+        const QByteArray data = json.toUtf8() + '\n';
+        if (f.write(data) != data.size()) { f.cancelWriting(); return false; }
+        return f.commit();
     }
 
     static QString readText(const QString &file)
