@@ -111,7 +111,7 @@ results show) and **Results**, every saved run, newest first; a tap opens
 it, a long press deletes it or picks it for **Compare with…**: the next run
 tapped is shown beside it, stage by stage, with the ratio.
 
-<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.0.0-c2-720x2740.png" width="180" alt="Share image of a full run on a Jolla C2, 2.0.0"> <img src="store/screenshot-results-2.0.0-xa2-1080x4605.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.0.0"> <img src="store/screenshot-results-2.0.0-jollaphone-685x2560.jpg" width="180" alt="Share image of a full run on the Jolla Phone, 2.0.0, by ahjolinna">
+<img src="screenshots/benchymark-start.png" width="180" alt="Start page"> <img src="screenshots/benchymark-about.png" width="180" alt="A stage described"> <img src="screenshots/benchymark-benchy-heavy.png" width="180" alt="Benchy heavy"> <img src="screenshots/benchymark-cpu-prime.png" width="180" alt="CPU prime, the Ulam spiral"> <img src="store/screenshot-results-2.2.0-c2-720x2602.png" width="180" alt="Share image of a full run on a Jolla C2, 2.2.0"> <img src="store/screenshot-results-2.2.0-xa2-1080x4486.png" width="180" alt="Share image of a full run on a Sony Xperia XA2, 2.2.0"> <img src="store/screenshot-results-2.0.0-jollaphone-685x2560.jpg" width="180" alt="Share image of a full run on the Jolla Phone, 2.0.0, by ahjolinna">
 
 | stage | what it leans on | score |
 |---|---|---|
@@ -163,6 +163,10 @@ texture best and the Adreno all three ways alike; the tablet has no
 SSBO. One million compares script engines: the x86 and aarch64 JITs count
 five times faster than the XA2's armv7. The tablet's graphics driver
 hands back a blank picture, so its Share image is empty (Share JSON works).
+
+The JSON of one run per device is in [`results/mosen/`](results/mosen/):
+the XA2 and the C2 from 2.2.0 as released, the tablet from the release
+candidate with the same measuring.
 
 <details>
 <summary>Results with 2.0 (scene `sfos-2.0`, one load per stage: not comparable with 2.2)</summary>
