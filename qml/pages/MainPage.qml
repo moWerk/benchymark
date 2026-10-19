@@ -114,17 +114,17 @@ Page {
     // sfos-2.0: a graphics stage draws as much as this device needs to fall
     // under 25 fps, found on its first run, and scores the work per second.
     readonly property var stages: [
-        //% "Benchy light"
+        //% "Benchy large"
         { name: qsTrId("id-stage-benchy-light"), key: "BENCHY-LIGHT", file: "BenchyLow",
-          //% "Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second."
+          //% "Two large 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. A large boat has twice the lines' length of a small one to draw, so fewer of them fit in a second. Scores boats per second."
           about: qsTrId("id-about-benchy-light"),
           //% "Boats drawn per second, two large ones on screen"
           score: qsTrId("id-score-benchy-light") },
-        //% "Benchy heavy"
+        //% "Benchy small"
         { name: qsTrId("id-stage-benchy-heavy"), key: "BENCHY-HEAVY", file: "BenchyHigh",
-          //% "Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second."
+          //% "Six small boats, each drawn many times: the same work per boat on the CPU, half the lines' length for the GPU. Scores boats per second."
           about: qsTrId("id-about-benchy-heavy"),
-          //% "Boats drawn per second, six smaller ones on screen"
+          //% "Boats drawn per second, six small ones on screen"
           score: qsTrId("id-score-benchy-heavy") },
         //% "Benchy glow"
         { name: qsTrId("id-stage-glow"), key: "BENCHY-GLOW", file: "Glow",
@@ -609,6 +609,14 @@ Page {
                     // what every frame costs besides the work: compositing,
                     // the scaling to the panel, vsync
                     row.overheadMs = Math.round((ta - a.load * dt / dl) * 10) / 10
+                    // Overhead below zero: the frame time grew faster than the
+                    // work (caches overflowing, C2 Text scale at -32 ms), so the
+                    // slope prices the load wrong; the one-load score, marked.
+                    // A little below zero is noise: past a tenth of the frame.
+                    if (row.overheadMs < -0.1 * ta) {
+                        row.score = row.scoreSingle
+                        row.superlinear = true
+                    }
                     // The two A-B pairs give two scores of their own; how far
                     // they lie apart is the score's own uncertainty, marked
                     // past 10 % (night audit: CPU-bound stages on the XA2)
@@ -872,7 +880,7 @@ Page {
                               load2: r.load2, fps2: r.fps2, ms_per_frame: r.msPerFrame, ms_per_frame2: r.msPerFrame2,
                               score_single: r.scoreSingle !== undefined ? Math.round(r.scoreSingle * 10) / 10 : undefined,
                               overhead_ms: r.overheadMs, noisy: r.noisy || undefined, spread_pct: r.spreadPct,
-                              slope_failed: r.slopeFailed || undefined,
+                              slope_failed: r.slopeFailed || undefined, superlinear: r.superlinear || undefined,
                               topped: r.topped || undefined, capped: r.capped || undefined,
                               partial: r.partial || undefined })
         }

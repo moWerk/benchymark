@@ -5,13 +5,14 @@
     <name></name>
     <message id="id-stage-benchy-light">
         <location filename="../qml/pages/MainPage.qml" line="118"/>
-        <source>Benchy light</source>
+        <source>Benchy large</source>
+        <oldsource>Benchy light</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-benchy-light">
         <location filename="../qml/pages/MainPage.qml" line="120"/>
-        <source>Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second.</source>
-        <oldsource>Two 3DBenchy wireframes turning, each drawn ten times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU.</oldsource>
+        <source>Two large 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. A large boat has twice the lines&apos; length of a small one to draw, so fewer of them fit in a second. Scores boats per second.</source>
+        <oldsource>Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-benchy-light">
@@ -21,18 +22,20 @@
     </message>
     <message id="id-stage-benchy-heavy">
         <location filename="../qml/pages/MainPage.qml" line="124"/>
-        <source>Benchy heavy</source>
+        <source>Benchy small</source>
+        <oldsource>Benchy heavy</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-benchy-heavy">
         <location filename="../qml/pages/MainPage.qml" line="126"/>
-        <source>Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second.</source>
-        <oldsource>Six boats, each drawn twenty times: 120 wireframes every frame, much more geometry than the picture shows.</oldsource>
+        <source>Six small boats, each drawn many times: the same work per boat on the CPU, half the lines&apos; length for the GPU. Scores boats per second.</source>
+        <oldsource>Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-benchy-heavy">
         <location filename="../qml/pages/MainPage.qml" line="128"/>
-        <source>Boats drawn per second, six smaller ones on screen</source>
+        <source>Boats drawn per second, six small ones on screen</source>
+        <oldsource>Boats drawn per second, six smaller ones on screen</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-glow">
@@ -288,90 +291,90 @@
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-load-error">
-        <location filename="../qml/pages/MainPage.qml" line="720"/>
+        <location filename="../qml/pages/MainPage.qml" line="728"/>
         <source>could not be loaded</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-settings">
-        <location filename="../qml/pages/MainPage.qml" line="1023"/>
+        <location filename="../qml/pages/MainPage.qml" line="1031"/>
         <location filename="../qml/pages/ResultsPane.qml" line="35"/>
         <location filename="../qml/pages/SettingsPage.qml" line="112"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-select-all">
-        <location filename="../qml/pages/MainPage.qml" line="1028"/>
+        <location filename="../qml/pages/MainPage.qml" line="1036"/>
         <source>Select all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-deselect-all">
-        <location filename="../qml/pages/MainPage.qml" line="1033"/>
+        <location filename="../qml/pages/MainPage.qml" line="1041"/>
         <source>Deselect all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-calibrate">
-        <location filename="../qml/pages/MainPage.qml" line="1138"/>
+        <location filename="../qml/pages/MainPage.qml" line="1146"/>
         <source>The first run also finds each graphics stage&apos;s load, a few seconds per stage.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-calibrating">
-        <location filename="../qml/pages/MainPage.qml" line="1260"/>
+        <location filename="../qml/pages/MainPage.qml" line="1268"/>
         <source>calibrating</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1328"/>
-        <location filename="../qml/pages/ResultsView.qml" line="111"/>
+        <location filename="../qml/pages/MainPage.qml" line="1336"/>
+        <location filename="../qml/pages/ResultsView.qml" line="114"/>
         <location filename="../qml/pages/SettingsPage.qml" line="56"/>
         <source>Run one hour</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1330"/>
-        <location filename="../qml/pages/ResultsView.qml" line="113"/>
+        <location filename="../qml/pages/MainPage.qml" line="1338"/>
+        <location filename="../qml/pages/ResultsView.qml" line="116"/>
         <location filename="../qml/pages/SettingsPage.qml" line="58"/>
         <source>Run in loop</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-once">
-        <location filename="../qml/pages/MainPage.qml" line="1334"/>
+        <location filename="../qml/pages/MainPage.qml" line="1342"/>
         <source>For comparable results</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1336"/>
+        <location filename="../qml/pages/MainPage.qml" line="1344"/>
         <source>A defined battery and temperature test, ends at 1:00:00. The display runs at 50 % brightness with automatic brightness off, and is set back afterwards.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1338"/>
+        <location filename="../qml/pages/MainPage.qml" line="1346"/>
         <source>Until you tap: overheating and throttling diagnosis</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-once">
-        <location filename="../qml/pages/MainPage.qml" line="1326"/>
-        <location filename="../qml/pages/ResultsView.qml" line="115"/>
+        <location filename="../qml/pages/MainPage.qml" line="1334"/>
+        <location filename="../qml/pages/ResultsView.qml" line="118"/>
         <location filename="../qml/pages/SettingsPage.qml" line="54"/>
         <source>Run once</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-start">
-        <location filename="../qml/pages/MainPage.qml" line="1150"/>
+        <location filename="../qml/pages/MainPage.qml" line="1158"/>
         <source>Start</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-next">
-        <location filename="../qml/pages/MainPage.qml" line="1226"/>
+        <location filename="../qml/pages/MainPage.qml" line="1234"/>
         <source>Next: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-tap-to-stop">
-        <location filename="../qml/pages/MainPage.qml" line="1278"/>
+        <location filename="../qml/pages/MainPage.qml" line="1286"/>
         <source>Tap to stop</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-loop-short">
-        <location filename="../qml/pages/ResultsView.qml" line="134"/>
+        <location filename="../qml/pages/ResultsView.qml" line="137"/>
         <source>loop</source>
         <translation type="unfinished"></translation>
     </message>
@@ -397,178 +400,183 @@
     </message>
     <message id="id-col-stage">
         <location filename="../qml/pages/ComparePage.qml" line="98"/>
-        <location filename="../qml/pages/ResultsView.qml" line="289"/>
+        <location filename="../qml/pages/ResultsView.qml" line="292"/>
         <source>Stage</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-col-avg">
-        <location filename="../qml/pages/ResultsView.qml" line="651"/>
+        <location filename="../qml/pages/ResultsView.qml" line="656"/>
         <source>avg</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-kernel">
-        <location filename="../qml/pages/ResultsView.qml" line="91"/>
+        <location filename="../qml/pages/ResultsView.qml" line="94"/>
         <source>Kernel</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-device">
-        <location filename="../qml/pages/ResultsView.qml" line="93"/>
+        <location filename="../qml/pages/ResultsView.qml" line="96"/>
         <source>Device</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-time">
-        <location filename="../qml/pages/ResultsView.qml" line="95"/>
+        <location filename="../qml/pages/ResultsView.qml" line="98"/>
         <source>Date and runtime</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-os">
-        <location filename="../qml/pages/ResultsView.qml" line="97"/>
+        <location filename="../qml/pages/ResultsView.qml" line="100"/>
         <source>SailfishOS version</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-gpu">
-        <location filename="../qml/pages/ResultsView.qml" line="99"/>
+        <location filename="../qml/pages/ResultsView.qml" line="102"/>
         <source>GPU</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-resolution">
-        <location filename="../qml/pages/ResultsView.qml" line="101"/>
+        <location filename="../qml/pages/ResultsView.qml" line="104"/>
         <source>Screen resolution</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-render">
-        <location filename="../qml/pages/ResultsView.qml" line="103"/>
+        <location filename="../qml/pages/ResultsView.qml" line="106"/>
         <source>Render size</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-gl">
-        <location filename="../qml/pages/ResultsView.qml" line="105"/>
+        <location filename="../qml/pages/ResultsView.qml" line="108"/>
         <source>OpenGL version</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-mode">
-        <location filename="../qml/pages/ResultsView.qml" line="107"/>
+        <location filename="../qml/pages/ResultsView.qml" line="110"/>
         <source>Run mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-render-size">
-        <location filename="../qml/pages/ResultsView.qml" line="129"/>
+        <location filename="../qml/pages/ResultsView.qml" line="132"/>
         <source>drawn at %1 × %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-last-run">
-        <location filename="../qml/pages/ResultsView.qml" line="144"/>
+        <location filename="../qml/pages/ResultsView.qml" line="147"/>
         <source>of the last run</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-detail-mode-once">
-        <location filename="../qml/pages/ResultsView.qml" line="146"/>
+        <location filename="../qml/pages/ResultsView.qml" line="149"/>
         <source>only when not Run once</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-col-score">
-        <location filename="../qml/pages/ResultsView.qml" line="318"/>
+        <location filename="../qml/pages/ResultsView.qml" line="321"/>
         <source>score</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-no-direct">
-        <location filename="../qml/pages/ResultsView.qml" line="345"/>
+        <location filename="../qml/pages/ResultsView.qml" line="348"/>
         <source>* without O_DIRECT: the read may come from the cache</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-calibrated-now">
-        <location filename="../qml/pages/ResultsView.qml" line="362"/>
+        <location filename="../qml/pages/ResultsView.qml" line="365"/>
         <source>Load found in this run: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-recalibrate-next">
-        <location filename="../qml/pages/ResultsView.qml" line="364"/>
+        <location filename="../qml/pages/ResultsView.qml" line="367"/>
         <source>Ran too light, found again next run: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-recalibrate-heavy">
-        <location filename="../qml/pages/ResultsView.qml" line="366"/>
+        <location filename="../qml/pages/ResultsView.qml" line="369"/>
         <source>Ran too heavy, found again next run: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-capped">
-        <location filename="../qml/pages/ResultsView.qml" line="368"/>
+        <location filename="../qml/pages/ResultsView.qml" line="371"/>
         <source>Near the display&apos;s refresh rate, the score may be capped: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-topped">
-        <location filename="../qml/pages/ResultsView.qml" line="370"/>
+        <location filename="../qml/pages/ResultsView.qml" line="373"/>
         <source>At the heaviest load and still fast, the score is a lower bound: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-partial">
-        <location filename="../qml/pages/ResultsView.qml" line="372"/>
+        <location filename="../qml/pages/ResultsView.qml" line="375"/>
         <source>Stopped early, fewer seconds measured: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-single">
-        <location filename="../qml/pages/ResultsView.qml" line="374"/>
+        <location filename="../qml/pages/ResultsView.qml" line="377"/>
         <source>Measured at one load only, the frame&apos;s own cost is in the score: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-spread">
-        <location filename="../qml/pages/ResultsView.qml" line="376"/>
+        <location filename="../qml/pages/ResultsView.qml" line="379"/>
         <source>Uncertain by more than ±10 % (its two measurements differ): %1</source>
         <oldsource>Its two measurements lay more than 10 % apart: %1</oldsource>
         <translation type="unfinished"></translation>
     </message>
+    <message id="id-flag-superlinear">
+        <location filename="../qml/pages/ResultsView.qml" line="381"/>
+        <source>Frame time grew faster than the load, scored at one load: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message id="id-overhead">
-        <location filename="../qml/pages/ResultsView.qml" line="378"/>
+        <location filename="../qml/pages/ResultsView.qml" line="383"/>
         <source>Every frame costs %1 ms besides the work (compositing, scaling to the screen); the scores leave it out</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-flag-scene">
-        <location filename="../qml/pages/ResultsView.qml" line="381"/>
+        <location filename="../qml/pages/ResultsView.qml" line="386"/>
         <source>Scene %1: these scores do not compare with %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-unsupported">
-        <location filename="../qml/pages/ResultsView.qml" line="400"/>
+        <location filename="../qml/pages/ResultsView.qml" line="405"/>
         <source>– cannot run on this GPU or driver</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-temperature">
-        <location filename="../qml/pages/ResultsView.qml" line="418"/>
+        <location filename="../qml/pages/ResultsView.qml" line="423"/>
         <source>Temperature</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-battery">
-        <location filename="../qml/pages/ResultsView.qml" line="484"/>
+        <location filename="../qml/pages/ResultsView.qml" line="489"/>
         <source>Battery</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-clocks">
-        <location filename="../qml/pages/ResultsView.qml" line="569"/>
+        <location filename="../qml/pages/ResultsView.qml" line="574"/>
         <source>Clocks</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-brightness">
-        <location filename="../qml/pages/ResultsView.qml" line="657"/>
+        <location filename="../qml/pages/ResultsView.qml" line="662"/>
         <source>brightness</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-set-by-run">
-        <location filename="../qml/pages/ResultsView.qml" line="659"/>
+        <location filename="../qml/pages/ResultsView.qml" line="664"/>
         <source>set by the run</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-charging">
-        <location filename="../qml/pages/ResultsView.qml" line="661"/>
+        <location filename="../qml/pages/ResultsView.qml" line="666"/>
         <source>charging</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-not-throttled">
-        <location filename="../qml/pages/ResultsView.qml" line="672"/>
+        <location filename="../qml/pages/ResultsView.qml" line="677"/>
         <source>not throttled</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-throttled">
-        <location filename="../qml/pages/ResultsView.qml" line="674"/>
+        <location filename="../qml/pages/ResultsView.qml" line="679"/>
         <source>throttled %1 % of the run, first at %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -608,7 +616,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message id="id-peak">
-        <location filename="../qml/pages/ResultsView.qml" line="683"/>
+        <location filename="../qml/pages/ResultsView.qml" line="688"/>
         <source>peak</source>
         <translation type="unfinished"></translation>
     </message>

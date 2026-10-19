@@ -56,7 +56,9 @@ Item {
                            score: oldFps ? p.avg : p.score, unsupported: p.unsupported,
                            topped: p.topped === true, capped: p.capped === true,
                            partial: p.partial === true, slopeFailed: p.slope_failed === true,
-                           noisy: p.noisy === true, overhead: p.overhead_ms }
+                           noisy: p.noisy === true, superlinear: p.superlinear === true,
+                           // a negative overhead is the row's own fault, not the frame's
+                           overhead: p.superlinear === true ? undefined : p.overhead_ms }
         }
         return r
     }
@@ -73,6 +75,7 @@ Item {
     readonly property var partialKeys: flagged("partial")
     readonly property var singleKeys: flagged("slopeFailed")
     readonly property var noisyKeys: flagged("noisy")
+    readonly property var superlinearKeys: flagged("superlinear")
     // the median of the stages' frame overhead, ms
     readonly property real overheadMs: {
         var v = order.map(function (k) { return results[k] ? results[k].overhead : undefined })
@@ -374,6 +377,8 @@ Item {
                 if (view.singleKeys.length) l.push(qsTrId("id-flag-single").arg(names(view.singleKeys)))
                 //% "Uncertain by more than ±10 % (its two measurements differ): %1"
                 if (view.noisyKeys.length) l.push(qsTrId("id-flag-spread").arg(names(view.noisyKeys)))
+                //% "Frame time grew faster than the load, scored at one load: %1"
+                if (view.superlinearKeys.length) l.push(qsTrId("id-flag-superlinear").arg(names(view.superlinearKeys)))
                 //% "Every frame costs %1 ms besides the work (compositing, scaling to the screen); the scores leave it out"
                 if (isFinite(view.overheadMs)) l.push(qsTrId("id-overhead").arg(view.overheadMs.toFixed(1)))
                 //% "Scene %1: these scores do not compare with %2"

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Timo Könnecke <github.com/moWerk>
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// BENCHY LIGHT: two 3DBenchy wireframes one above the other, turning
+// BENCHY LARGE (key BENCHY-LIGHT): two 3DBenchy wireframes one above the other, turning
 // opposite ways, each drawn 10 times on the same spot.
 // SailfishOS: projected in C++ (Wireframe), drawn as line geometry.
 import QtQuick 2.6

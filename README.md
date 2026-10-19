@@ -70,8 +70,10 @@ telling anything. Since 2.0, and as audited for 2.2:
   that overhead, and the one-load score stays in the JSON
 - **Marks**: the results say when a score may be capped by the refresh rate,
   is a lower bound (heaviest load and still fast), was measured at one load
-  only, is mostly frame overhead, or was cut short, and when a saved run is
-  from an older scene
+  only, is mostly frame overhead, was cut short, or had its two measurements
+  differ by more than ±10 %, and when a saved run is from an older scene. A
+  stage whose frame time grew faster than its load (caches overflowing: the
+  overhead comes out below zero) is scored at one load and marked
 
 Each graphics stage runs about 16 seconds (12 measured) on a black background (the ambience must
 not change the result), the system stages run their own course and count
@@ -110,8 +112,8 @@ tapped is shown beside it, stage by stage, with the ratio.
 
 | stage | what it leans on | score |
 |---|---|---|
-| Benchy light | two 3DBenchy wireframes, each drawn many times: CPU projection, line drawing | boats/s |
-| Benchy heavy | six smaller boats, each drawn many times | boats/s |
+| Benchy large | two large 3DBenchy wireframes, each drawn many times: CPU projection, line drawing; a large boat has twice the lines' length of a small one | boats/s |
+| Benchy small | six small boats, each drawn many times: the same CPU work per boat, half the lines' length | boats/s |
 | Benchy glow | a Benchy with blur halos stacked over the whole picture, pulsing by their spread | Mpx/s |
 | Shader light | a domain-warped noise field per pixel, several times over (the watch's CLOUDLIGHT) | Mpx/s |
 | Shader heavy | the doubly warped fBm field (the watch's CLOUDHEAVY) | Mpx/s |
@@ -135,8 +137,8 @@ besides the work, which the scores leave out:
 
 | stage | Xperia XA2 (4.4, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) |
 |---|---|---|
-| Benchy light | 3613 boats/s (±23 %) | 2502 boats/s |
-| Benchy heavy | 5487 boats/s | 5682 boats/s |
+| Benchy large | 3613 boats/s (±23 %) | 2502 boats/s |
+| Benchy small | 5487 boats/s | 5682 boats/s |
 | Benchy glow | 44.5 Mpx/s | 19.4 Mpx/s |
 | Shader light | 58.8 Mpx/s | 32.6 Mpx/s |
 | Shader heavy | 16.6 Mpx/s | 7.7 Mpx/s |
@@ -155,7 +157,7 @@ besides the work, which the scores leave out:
 | frame overhead | 12.4 ms | ~25 ms |
 
 GPU-bound stages repeat within about 5 % between runs; the scene graph's
-CPU-bound ones (Benchy light, Cascade, the text stages) vary 10-20 % on the
+CPU-bound ones (Benchy large, Cascade, the text stages) vary 10-20 % on the
 XA2, and the results mark a row uncertain by more than ±10 % (its two
 measurements differ). One million compares script engines: the tablet's x86 JIT counts
 five times faster than the XA2's armv7. The tablet's graphics driver hands
