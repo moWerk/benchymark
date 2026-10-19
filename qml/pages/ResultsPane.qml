@@ -79,18 +79,33 @@ Item {
     }
     // the picture takes a moment: the page dims to half black and says so
     // (mo, 2026-10-18)
+    // Then it says where the picture went, or that it could not be saved,
+    // before the share menu opens: the save was silent (Michał, 2026-10-19).
+    property string shareNote: ""
+    property bool shareSaved: false
     Rectangle {
         anchors.fill: parent
-        visible: shareLoader.active
+        visible: shareLoader.active || pane.shareNote !== ""
         color: Qt.rgba(0, 0, 0, 0.5)
         z: 50
         MouseArea { anchors.fill: parent }   // no taps through while it works
         Label {
             anchors.centerIn: parent
+            width: parent.width - 2 * Theme.horizontalPageMargin
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
             //% "Assembling screenshot…"
-            text: qsTrId("id-share-assembling")
+            text: pane.shareNote !== "" ? pane.shareNote : qsTrId("id-share-assembling")
             color: Theme.highlightColor
             font.pixelSize: Theme.fontSizeLarge
+        }
+    }
+    Timer {
+        id: shareNoteTimer
+        interval: 1500
+        onTriggered: {
+            pane.shareNote = ""
+            if (pane.shareSaved && !pane.shareTest) shareAction.trigger()
         }
     }
     // the graphs are Canvases: give them a moment to draw before the grab
@@ -123,6 +138,12 @@ Item {
                      : StandardPaths.pictures + "/benchymark-" + pane.stamp + ".png"
             var saved = result.saveToFile(file)
             shareLoader.active = false
+            pane.shareSaved = saved
+            //% "Saved to Pictures as %1"
+            pane.shareNote = saved ? qsTrId("id-share-saved").arg(file.split("/").pop())
+                           //% "Could not save the picture"
+                           : qsTrId("id-share-not-saved")
+            shareNoteTimer.restart()
             if (!saved) {
                 console.warn("Benchymark: could not save " + file)
                 return
@@ -130,7 +151,6 @@ Item {
             if (pane.shareTest) { console.log("Benchymark: share picture " + file); return }
             shareAction.resources = [file]
             shareAction.mimeType = "image/png"
-            shareAction.trigger()
         })
     }
 

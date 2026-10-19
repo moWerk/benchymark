@@ -18,7 +18,9 @@ Page {
     // than the watch's scene 0.6, so the numbers are not comparable.
     // sfos-2.0: a fixed render size and calibrated loads with a score
     // (resolution point by Mister Magister, 2026-10-18), not comparable to 1.x
-    readonly property string sceneVersion: "sfos-2.0"
+    // sfos-2.2: the stage laid out at the render size too, so blurs and
+    // glyphs inside it do the same work everywhere (Michał, 2026-10-19)
+    readonly property string sceneVersion: "sfos-2.2"
     readonly property int stageSeconds: 10    // a timed stage, measured
     readonly property int gapSeconds: 2      // between stages
 
@@ -403,7 +405,7 @@ Page {
         samples = []
         lastFps = 0
         stageLoader.setSource(Qt.resolvedUrl("../stages/" + stages[current].file + ".qml"),
-                              { areaTop: areaTop, areaBottom: areaBottom,
+                              { areaTop: areaTop / stageScale, areaBottom: areaBottom / stageScale,
                                 renderWidth: renderWidth, renderHeight: renderHeight })
         var item = stageLoader.item
         ramping = false
@@ -908,10 +910,19 @@ Page {
         onTriggered: page.gapEnding = true
     }
 
+    // The stage is laid out at the render size itself, drawn into a texture
+    // of that size and scaled up to the panel as a whole. Only drawing it
+    // smaller let blurs and glyphs inside still work at the screen's size: a
+    // Pad 6 blurred 5.2 million pixels per glow and drew its reraster glyphs
+    // 2.5 times larger (Michał, 2026-10-19). The C2's screen is the render
+    // size, so it draws as before.
+    readonly property real stageScale: width / renderWidth
     Loader {
         id: stageLoader
-        anchors.fill: parent
-        // drawn at the fixed render size, then scaled to the panel
+        width: page.renderWidth
+        height: page.renderHeight
+        transformOrigin: Item.TopLeft
+        scale: page.stageScale
         layer.enabled: page.view === "run"
         layer.textureSize: Qt.size(page.renderWidth, page.renderHeight)
         layer.smooth: true

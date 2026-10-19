@@ -1,6 +1,6 @@
 Name:       harbour-benchymark
 Summary:    Benchymark, a rendering benchmark
-Version:    2.1.0
+Version:    2.2.0
 Release:    1
 License:    GPLv3+
 URL:        https://github.com/moWerk/benchymark
