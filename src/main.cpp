@@ -112,7 +112,8 @@ int main(int argc, char *argv[])
     // of the off-screen stages (QQuickRenderControl) and the window's render
     // loop each tidy up at exit in Qt 5.6, and whichever goes second crashes
     // (C2, gdb: QSGRenderLoop::cleanup in qt_call_post_routines, 2026-10-19).
-    // Pending events (settings on their way to dconf) are handed over first.
+    // Pending events are handed over first: settings on their way to dconf,
+    // the display set back after Run one hour (tested on the XA2).
     app->processEvents();
     app->processEvents();
     std::fflush(nullptr);
