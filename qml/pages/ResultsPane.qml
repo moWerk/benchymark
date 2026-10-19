@@ -72,10 +72,11 @@ Item {
         x: pane.width * 2
         width: pane.width
         sourceComponent: ResultsView {
-            run: pane.run
             stageInfo: pane.stageInfo
             shareMode: true
         }
+        // the run set after creation, as on the page (the binding loop)
+        onLoaded: item.run = pane.run
     }
     // the picture takes a moment: the page dims to half black and says so
     // (mo, 2026-10-18)
@@ -135,12 +136,12 @@ Item {
         item.grabToImage(function (result) {
             // the test hook keeps it in the app's data directory instead
             var file = pane.shareTest ? log.path().replace("last-run.json", "share-test.png")
-                     : StandardPaths.pictures + "/benchymark-" + pane.stamp + ".png"
+                     : log.screenshotsDir() + "/benchymark-" + pane.stamp + ".png"
             var saved = result.saveToFile(file)
             shareLoader.active = false
             pane.shareSaved = saved
-            //% "Saved to Pictures as %1"
-            pane.shareNote = saved ? qsTrId("id-share-saved").arg(file.split("/").pop())
+            //% "Saved to %1"
+            pane.shareNote = saved ? qsTrId("id-share-saved-in").arg(file.replace(/^.*\/(Pictures\/)/, "$1"))
                            //% "Could not save the picture"
                            : qsTrId("id-share-not-saved")
             shareNoteTimer.restart()

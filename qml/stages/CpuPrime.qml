@@ -50,12 +50,20 @@ Item {
             stage.live = Math.round(e - last) + " events/s · " + engine.threads
                          + (engine.threads === 1 ? " thread" : " threads")
             last = e
+            // counted from the first second on: thread start and the clock
+            // ramp stay out (night audit)
+            if (stage.e0 === 0) { stage.e0 = Math.max(1, e); stage.t1 = Date.now() }
         }
     }
+    property double t1: 0
 
     function results() {
-        var s = (Date.now() - t0) / 1000
+        var now = Date.now()
+        var e = engine.events()
+        // stopped within the first second: from the start
+        var rate = stage.t1 > 0 && now - stage.t1 > 500 ? (e - stage.e0) * 1000 / (now - stage.t1)
+                                                         : e * 1000 / Math.max(1, now - stage.t0)
         return [{ key: stage.resultKey, name: stage.resultName,
-                  value: Math.round(engine.events() / s), unit: "events/s" }]
+                  value: Math.round(rate), unit: "events/s", threads: engine.threads }]
     }
 }

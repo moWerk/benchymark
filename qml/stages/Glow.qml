@@ -37,13 +37,17 @@ Item {
         height: boat.height
         source: boat
         color: "#f0c30e"
+        // A fixed radius, the halo pulses through its spread instead: an
+        // animated radius rebuilt the blur shader (its weights are baked in)
+        // and resized two textures per glow every frame, a cost that did not
+        // grow with the load and differed per driver (night audit, 2026-10-19).
+        // Radius 22 with 45 samples is the blur's own fast path.
+        radius: 22
         samples: 45
-        spread: 0.3
-        // a wide halo, easy to see; 12-32 cost the C2 3 fps, so a bit narrower (mo)
-        SequentialAnimation on radius {
+        SequentialAnimation on spread {
             loops: Animation.Infinite
-            NumberAnimation { from: 9; to: 22; duration: 500; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 22; to: 9; duration: 500; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.1; to: 0.45; duration: 500; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.45; to: 0.1; duration: 500; easing.type: Easing.InOutSine }
         }
     }
     }

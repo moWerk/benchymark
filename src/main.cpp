@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QQuickView>
 #include <QStandardPaths>
+#include <QSysInfo>
 #include <QScopedPointer>
 #include <QtQml>
 
@@ -41,19 +42,26 @@ int main(int argc, char *argv[])
                      frames, &FrameCounter::frameSwapped, Qt::DirectConnection);
     QObject::connect(view.data(), &QQuickWindow::sceneGraphInitialized,
                      frames, &FrameCounter::readGpu, Qt::DirectConnection);
+    frames->watch(view.data());
     view->rootContext()->setContextProperty(QStringLiteral("FrameCounter"), frames);
+    // the build's and the device's CPU architecture, for comparing CPU scores
+    // (an armv7hl build on an ARMv8 core is a different program)
+    view->rootContext()->setContextProperty(QStringLiteral("buildArch"), QSysInfo::buildCpuArchitecture());
+    view->rootContext()->setContextProperty(QStringLiteral("cpuArch"), QSysInfo::currentCpuArchitecture());
     view->rootContext()->setContextProperty(QStringLiteral("appVersion"), QStringLiteral(APP_VERSION));
     // Test hook: SFOS_SELFTEST_RUN=<mode> starts that run at once (0 full
     // sequence, 1 loop all, 2+ one stage); the result lands in last-run.json.
-    view->rootContext()->setContextProperty(QStringLiteral("selftestRun"),
-            qEnvironmentVariableIsSet("SFOS_SELFTEST_RUN") ? qgetenv("SFOS_SELFTEST_RUN").toInt() : -1);
+    // a value that is not a number counts as unset
+    bool ok = false;
+    const int run = qEnvironmentVariableIntValue("SFOS_SELFTEST_RUN", &ok);
+    view->rootContext()->setContextProperty(QStringLiteral("selftestRun"), ok ? run : -1);
     // with SFOS_SELFTEST_STOP=<s> a single stage ends after that many seconds
-    view->rootContext()->setContextProperty(QStringLiteral("selftestStop"),
-            qEnvironmentVariableIsSet("SFOS_SELFTEST_STOP") ? qgetenv("SFOS_SELFTEST_STOP").toInt() : 0);
+    const int stopAfter = qEnvironmentVariableIntValue("SFOS_SELFTEST_STOP", &ok);
+    view->rootContext()->setContextProperty(QStringLiteral("selftestStop"), ok ? stopAfter : 0);
     // with SFOS_SELFTEST_SHARE=1 the run's end makes the share picture into
     // the app's data directory (share-test.png), no share menu
     view->rootContext()->setContextProperty(QStringLiteral("selftestShare"),
-            qEnvironmentVariableIsSet("SFOS_SELFTEST_SHARE"));
+            qEnvironmentVariableIntValue("SFOS_SELFTEST_SHARE") == 1);
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
     return app->exec();

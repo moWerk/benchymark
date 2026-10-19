@@ -17,6 +17,8 @@ Item {
     // key -> { name, score }: the stage names and what each score counts
     property var stageInfo: ({})
     property string openResult: ""   // the row whose score line is open
+    // this version's scene, to mark older runs (as MainPage's sceneVersion)
+    property string currentScene: "sfos-2.2"
 
     width: parent ? parent.width : Screen.width
     height: resultColumn.height + Theme.paddingLarge
@@ -46,9 +48,14 @@ Item {
         for (var i = 0; i < phases.length; i++) {
             var p = phases[i]
             var info = stageInfo[p.phase]
+            // runs of 1.x have fps, no score: shown as fps
+            var oldFps = p.score === undefined && p.value === undefined && p.avg !== undefined && !p.unsupported
             r[p.phase] = { name: p.name || (info ? info.name : p.phase),
-                           system: p.value !== undefined, value: p.value, unit: p.unit,
-                           score: p.score, unsupported: p.unsupported }
+                           system: p.value !== undefined, value: p.value,
+                           unit: oldFps ? "fps" : p.unit,
+                           score: oldFps ? p.avg : p.score, unsupported: p.unsupported,
+                           topped: p.topped === true, capped: p.capped === true,
+                           partial: p.partial === true }
         }
         return r
     }
@@ -58,6 +65,11 @@ Item {
     readonly property var calibratedNow: phases.filter(function (p) { return p.calibrated_now === true })
                                                .map(function (p) { return p.phase })
     readonly property var recalibrateNext: run && run.recalibrate_next ? run.recalibrate_next : []
+    readonly property var recalibrateHeavy: run && run.recalibrate_heavy ? run.recalibrate_heavy : []
+    function flagged(f) { return order.filter(function (k) { return results[k] && results[k][f] }) }
+    readonly property var cappedKeys: flagged("capped")
+    readonly property var toppedKeys: flagged("topped")
+    readonly property var partialKeys: flagged("partial")
     readonly property double runStarted: run && run.started ? Date.parse(run.started) : 0
     readonly property double runEnded: run && run.finished ? Date.parse(run.finished) : 0
     readonly property int brightnessAtStart: run && run.brightness_percent !== undefined ? run.brightness_percent : -1
@@ -84,14 +96,14 @@ Item {
         //% "Run mode"
         mode: qsTrId("id-detail-mode")
     })
-    readonly property var modeNames: ({
-        //% "Run once"
-        once: qsTrId("id-run-once"),
+    function modeName(m) {
         //% "Run one hour"
-        hour: qsTrId("id-run-hour"),
-        //% "Run in loop"
-        loop: qsTrId("id-run-loop")
-    })
+        return m === "hour" ? qsTrId("id-run-hour")
+                //% "Run in loop"
+                : m === "loop" ? qsTrId("id-run-loop")
+                //% "Run once"
+                : qsTrId("id-run-once")
+    }
     function detailText(key) {
         if (!run) return ""
         switch (key) {
@@ -106,9 +118,9 @@ Item {
         //% "drawn at %1 × %2"
         case "render": return run.render_size ? qsTrId("id-render-size").arg(String(run.render_size).split("x")[0])
                                                                        .arg(String(run.render_size).split("x")[1]) : ""
-        case "gl": return glText
+        case "gl": return glText()
         //% "loop"
-        case "mode": return !run.mode || run.mode === "once" ? "" : modeNames[run.mode]
+        case "mode": return !run.mode || run.mode === "once" ? "" : modeName(run.mode)
                             + (run.loops > 0 ? "  ·  " + qsTrId("id-loop-short") + " × " + run.loops : "")
         }
         return ""
@@ -116,16 +128,19 @@ Item {
     // for the settings page: each detail with what it shows now
     function detailList() {
         return detailKeys.map(function (k) {
-            //% "of the last run"
             var v = detailText(k)
             return { key: k, title: detailTitles[k],
+                     //% "of the last run"
                      value: v !== "" ? v : k === "time" ? qsTrId("id-detail-last-run")
                             //% "only when not Run once"
                             : k === "mode" ? qsTrId("id-detail-mode-once") : "" }
         })
     }
-    // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string
-    readonly property string glText: {
+    // "OpenGL ES 3.2  ·  GLSL ES 3.20" without the driver's build string.
+    // Functions, not bindings: the share copy, made with its run already
+    // set, read these bindings while they were still pending and warned of
+    // a binding loop (night audit).
+    function glText() {
         if (!run || !run.gl_version) return ""
         var gl = String(run.gl_version).match(/OpenGL ES \d+\.\d+/)
         var sl = String(run.glsl_version || "").match(/GLSL ES \d+\.\d+/)
@@ -148,6 +163,16 @@ Item {
     }
     function scoreAboutOf(key) { return stageInfo[key] ? stageInfo[key].score : "" }
 
+    // The shared picture always has a dark ground, so on a light ambience
+    // it takes fixed light colours; on the page the theme's colours, and the
+    // graphs' frames and labels follow them (night audit: white on light).
+    readonly property bool fixedColours: shareMode && Theme.colorScheme !== Theme.LightOnDark
+    readonly property color cPrimary: fixedColours ? "#ffffff" : Theme.primaryColor
+    readonly property color cSecondary: fixedColours ? "#b3ffffff" : Theme.secondaryColor
+    readonly property color cHighlight: fixedColours ? "#ffd27a" : Theme.highlightColor
+    readonly property color cSecHighlight: fixedColours ? "#c8ffd27a" : Theme.secondaryHighlightColor
+    function lineColor(alpha) { return Qt.rgba(cPrimary.r, cPrimary.g, cPrimary.b, alpha) }
+
     Rectangle {
         anchors.fill: parent
         color: "#0d1426"
@@ -162,6 +187,7 @@ Item {
         PageHeader {
             id: resultHeader
             title: "Benchymark"
+            titleColor: view.cHighlight
             description: view.run && view.run.version ? "v" + view.run.version : ""
 
             // the free space left of the title: the kernel, always short,
@@ -185,7 +211,7 @@ Item {
                         width: parent.width
                         visible: (view.shareMode || view.showDetail(modelData)) && text !== ""
                         text: view.detailText(modelData)
-                        color: Theme.secondaryColor
+                        color: view.cSecondary
                         // a long device name or the runtime shrinks to fit
                         // before it fades (the XA2's larger font)
                         font.pixelSize: Theme.fontSizeSmall
@@ -206,7 +232,7 @@ Item {
             // GPU and screen resolution share a line when both are shown
             visible: view.infoText !== ""
             text: view.infoText
-            color: Theme.secondaryColor
+            color: view.cSecondary
             font.pixelSize: Theme.fontSizeSmall
         }
 
@@ -235,6 +261,7 @@ Item {
                 readonly property bool canOpen: r !== null && about !== ""
                         && (showScoreAbout.value === true || showScoreAbout.value === "true")
                 Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+                clip: true
                 MouseArea {
                     id: rowArea
                     anchors.fill: parent
@@ -253,9 +280,9 @@ Item {
                         // a long name shrinks a little before it fades (the XA2)
                         fontSizeMode: Text.HorizontalFit
                         minimumPixelSize: Theme.fontSizeSmall
-                        color: !tableRow.r ? Theme.secondaryHighlightColor
+                        color: !tableRow.r ? view.cSecHighlight
                                : (rowArea.pressed && rowArea.containsMouse) || tableRow.open
-                               ? Theme.highlightColor : Theme.primaryColor
+                               ? view.cHighlight : view.cPrimary
                         truncationMode: TruncationMode.Fade
                     }
                     Label {
@@ -263,7 +290,7 @@ Item {
                         visible: tableRow.open && tableRow.canOpen
                         text: tableRow.about
                         wrapMode: Text.Wrap
-                        color: Theme.secondaryColor
+                        color: view.cSecondary
                         font.pixelSize: Theme.fontSizeExtraSmall
                     }
                 }
@@ -274,13 +301,16 @@ Item {
                     y: nameLabel.baselineOffset - baselineOffset
                     width: tableRow.col * 1.4
                     horizontalAlignment: Text.AlignRight
+                    // seven digits or "1234/567" shrink rather than run left
+                    fontSizeMode: Text.HorizontalFit
+                    minimumPixelSize: Theme.fontSizeExtraSmall
                     //% "score"
                     text: tableRow.head ? qsTrId("id-col-score")
                           : !tableRow.r ? ""
                           : tableRow.r.system ? tableRow.r.value
                           : tableRow.r.score === undefined ? "–"
                           : view.scoreText(tableRow.r.score)
-                    color: tableRow.head ? Theme.secondaryHighlightColor : Theme.highlightColor
+                    color: tableRow.head ? view.cSecHighlight : view.cHighlight
                     font.pixelSize: tableRow.head ? Theme.fontSizeSmall : Theme.fontSizeMedium
                 }
                 Label {
@@ -289,7 +319,7 @@ Item {
                     y: nameLabel.baselineOffset - baselineOffset
                     width: tableRow.col * 1.8 - Theme.paddingSmall
                     text: tableRow.r && tableRow.r.unit ? tableRow.r.unit : ""
-                    color: Theme.secondaryColor
+                    color: view.cSecondary
                     font.pixelSize: Theme.fontSizeExtraSmall
                     truncationMode: TruncationMode.Fade
                 }
@@ -303,7 +333,7 @@ Item {
             wrapMode: Text.Wrap
             //% "* without O_DIRECT: the read may come from the cache"
             text: qsTrId("id-no-direct")
-            color: Theme.secondaryColor
+            color: view.cSecondary
             font.pixelSize: Theme.fontSizeExtraSmall
         }
 
@@ -314,14 +344,31 @@ Item {
             function names(keys) {
                 return keys.map(function (k) { return view.results[k] ? view.results[k].name : k }).join(", ")
             }
-            visible: view.calibratedNow.length > 0 || view.recalibrateNext.length > 0
+            // what each mark says, one line each; the marks make a score
+            // checkable before it is compared (night audit)
+            readonly property var lines: {
+                var l = []
+                //% "Load found in this run: %1"
+                if (view.calibratedNow.length) l.push(qsTrId("id-calibrated-now").arg(names(view.calibratedNow)))
+                //% "Ran too light, found again next run: %1"
+                if (view.recalibrateNext.length) l.push(qsTrId("id-recalibrate-next").arg(names(view.recalibrateNext)))
+                //% "Ran too heavy, found again next run: %1"
+                if (view.recalibrateHeavy.length) l.push(qsTrId("id-recalibrate-heavy").arg(names(view.recalibrateHeavy)))
+                //% "Near the display's refresh rate, the score may be capped: %1"
+                if (view.cappedKeys.length) l.push(qsTrId("id-flag-capped").arg(names(view.cappedKeys)))
+                //% "At the heaviest load and still fast, the score is a lower bound: %1"
+                if (view.toppedKeys.length) l.push(qsTrId("id-flag-topped").arg(names(view.toppedKeys)))
+                //% "Stopped early, fewer seconds measured: %1"
+                if (view.partialKeys.length) l.push(qsTrId("id-flag-partial").arg(names(view.partialKeys)))
+                //% "Scene %1: these scores do not compare with %2"
+                if (view.run && view.run.scene && view.run.scene !== view.currentScene)
+                    l.push(qsTrId("id-flag-scene").arg(view.run.scene).arg(view.currentScene))
+                return l
+            }
+            visible: lines.length > 0
             wrapMode: Text.Wrap
-            //% "Load found in this run: %1"
-            text: (view.calibratedNow.length > 0 ? qsTrId("id-calibrated-now").arg(names(view.calibratedNow)) : "")
-                  + (view.calibratedNow.length > 0 && view.recalibrateNext.length > 0 ? "\n" : "")
-                  //% "Ran too light, found again next run: %1"
-                  + (view.recalibrateNext.length > 0 ? qsTrId("id-recalibrate-next").arg(names(view.recalibrateNext)) : "")
-            color: Theme.secondaryColor
+            text: lines.join("\n")
+            color: view.cSecondary
             font.pixelSize: Theme.fontSizeExtraSmall
         }
 
@@ -335,7 +382,7 @@ Item {
             wrapMode: Text.Wrap
             //% "– cannot run on this GPU or driver"
             text: qsTrId("id-unsupported") + "\n" + why.join("\n")
-            color: Theme.secondaryColor
+            color: view.cSecondary
             font.pixelSize: Theme.fontSizeExtraSmall
         }
 
@@ -358,7 +405,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.Wrap
                     text: view.tempSummary
-                    color: Theme.secondaryHighlightColor
+                    color: view.cSecHighlight
                     font.pixelSize: Theme.fontSizeSmall
                 }
             }
@@ -382,7 +429,7 @@ Item {
                     var span = t[t.length - 1][0] - t[0][0] || 1
                     var X = function (s) { return (s - t[0][0]) / span * width }
                     var Y = function (c) { return height - (c - lo) / (hi - lo) * height }
-                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                    ctx.strokeStyle = view.lineColor(0.15)
                     ctx.lineWidth = 1
                     ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
                     // each segment coloured by its temperature, blue when cool,
@@ -397,7 +444,7 @@ Item {
                         ctx.lineTo(X(t[j][0]), Y(t[j][1]))
                         ctx.stroke()
                     }
-                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                    ctx.fillStyle = view.lineColor(0.6)
                     ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
                     ctx.fillText(hi + " °C", 6, Theme.fontSizeExtraSmall + 2)
                     ctx.fillText(lo + " °C", 6, height - 6)
@@ -424,7 +471,7 @@ Item {
                     width: parent.width
                     wrapMode: Text.Wrap
                     text: view.battSummary
-                    color: Theme.secondaryHighlightColor
+                    color: view.cSecHighlight
                     font.pixelSize: Theme.fontSizeSmall
                 }
             }
@@ -451,7 +498,7 @@ Item {
                     wMax = Math.ceil(wMax) || 1
                     var span = b[b.length - 1][0] - b[0][0] || 1
                     var X = function (s) { return (s - b[0][0]) / span * width }
-                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                    ctx.strokeStyle = view.lineColor(0.15)
                     ctx.lineWidth = 1
                     ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
                     // the power, thin and amber, scaled to its own maximum
@@ -479,7 +526,7 @@ Item {
                     }
                     ctx.stroke()
                     ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
-                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                    ctx.fillStyle = view.lineColor(0.6)
                     ctx.fillText(hi + " %", 6, Theme.fontSizeExtraSmall + 2)
                     ctx.fillText(lo + " %", 6, height - 6)
                     ctx.fillStyle = Qt.rgba(1.0, 0.7, 0.25, 0.8)
@@ -515,7 +562,7 @@ Item {
                           + (view.clocks.some(function (r) { return r[2] !== null })
                              ? "  ·  <font color=\"#bf8cff\">GPU</font>" : "")
                           + "  ·  " + view.clockSummary
-                    color: Theme.secondaryHighlightColor
+                    color: view.cSecHighlight
                     font.pixelSize: Theme.fontSizeSmall
                 }
             }
@@ -540,7 +587,7 @@ Item {
                     ctx.fillStyle = Qt.rgba(0.9, 0.2, 0.2, 0.3)
                     for (var i = 1; i < c.length; i++)
                         if (c[i][3]) ctx.fillRect(X(c[i - 1][0]), 0, Math.max(1, X(c[i][0]) - X(c[i - 1][0])), height)
-                    ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.15)
+                    ctx.strokeStyle = view.lineColor(0.15)
                     ctx.lineWidth = 1
                     ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
                     var line = function (col, color, w) {
@@ -558,7 +605,7 @@ Item {
                     line(2, Qt.rgba(0.75, 0.55, 1.0, 0.7), 1.5)   // GPU, thin violet
                     line(1, Qt.rgba(0.4, 0.75, 1.0, 1), Math.max(3, Theme.paddingSmall * 0.6))   // CPU
                     ctx.font = Math.round(Theme.fontSizeExtraSmall) + "px sans-serif"
-                    ctx.fillStyle = Qt.rgba(1, 1, 1, 0.6)
+                    ctx.fillStyle = view.lineColor(0.6)
                     ctx.fillText("100 %", 6, Theme.fontSizeExtraSmall + 2)
                     ctx.fillText("0 %", 6, height - 6)
                 }

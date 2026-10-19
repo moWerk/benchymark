@@ -30,7 +30,7 @@ public:
 
     qreal dotSize() const { return m_size; }
     void setDotSize(qreal s);
-    int capacity() const { return m_capacity; }
+    int capacity() const { return m_capacity.load(); }
     void setCapacity(int c);
     int count() const;
 
@@ -55,10 +55,21 @@ private:
     void scheduleUpdate();
     void doUpdate();
 
+    // Workers only append to m_pending under the lock, which the render
+    // thread swaps out at once: the CPU stages' threads no longer wait while
+    // a frame's vertices are written, and a full field no longer moves its
+    // dots in memory on every add (night audit, 2026-10-19). The render
+    // thread keeps the shown dots in a ring and rewrites only changed nodes.
     mutable QMutex m_lock;
-    QVector<Dot> m_dots;
+    QVector<Dot> m_pending;
+    bool m_clearPending = false;
+    QAtomicInt m_added;          // dots added since the last clear
     qreal m_size = 3.0;
-    int m_capacity = 120000;
+    QAtomicInt m_capacity { 120000 };
+    // render thread only
+    QVector<Dot> m_ring;
+    qint64 m_written = 0;
+    float m_shownSize = -1;
     QAtomicInt m_updateQueued;
 };
 

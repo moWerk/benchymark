@@ -3,17 +3,22 @@
 //
 // RERASTER: the same picture as SCALE, resized by animating
 // font.pixelSize with native text rendering, so every size is rasterised
-// again. SCALE against RERASTER is what animating text size costs.
+// again. SCALE against RERASTER is what animating text size costs. The
+// glyph cache rasterises each size once per frame for all copies; every
+// copy then lays out and rebuilds its glyph nodes anew.
 import QtQuick 2.6
 
 Item {
     id: stage
     anchors.fill: parent
 
-    // sfos-2.0: the texts drawn are the load (220 in 1.x: a ring of 100 and 6 spots of
-    // 20), the score texts per second
-    readonly property var ladder: [130, 160, 220, 340, 580, 1060, 2020, 3940]
-    property int load: 220
+    // sfos-2.0: the texts drawn are the load, the score texts per second.
+    // sfos-2.2: the whole picture, the ring of 100 and the six big numbers,
+    // is stacked, so every step draws the same mix: a fixed ring made the
+    // work per counted text 0.37 at the lightest step and 0.98 at the
+    // heaviest (night audit, 2026-10-19). 106 texts per picture.
+    readonly property var ladder: [106, 212, 424, 848, 1696, 3392, 6784]
+    property int load: 212
     readonly property bool perPixel: false
     //% "texts/s"
     readonly property string unit: qsTrId("id-unit-texts")
@@ -25,12 +30,16 @@ Item {
     readonly property real peak: 1.8
     property real k: 1
     readonly property real cell: Math.min(width / 2, height / 3)
-    property string mm: Qt.formatDateTime(new Date(), "mm")
+    // fixed digits: the clock's minute changed the glyphs, and with them the
+    // work, from run to run (night audit; it was the watch's minute)
+    readonly property string mm: "42"
 
+    // `stack` copies of the picture, each drawn on the same spots
+    readonly property int stack: Math.max(1, Math.round(load / 106))
     Repeater {
-        model: 100
+        model: 100 * stage.stack
         Text {
-            readonly property real a: index / 100 * 2 * Math.PI
+            readonly property real a: (index % 100) / 100 * 2 * Math.PI
             text: stage.mm
             color: "white"
             opacity: 0.5
@@ -45,7 +54,6 @@ Item {
 
     // six big numbers in a 2 x 3 grid, each drawn `stack` times on the same
     // spot (mo, 2026-10-17: more text to resize than the picture shows)
-    property int stack: Math.max(1, (load - 100) / 6)
     Repeater {
         model: 6 * stage.stack
         Text {

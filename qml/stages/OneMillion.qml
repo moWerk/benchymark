@@ -21,6 +21,8 @@ Item {
     property int count: 0
     property int laps: 0
     property double t0: 0
+    property double counted: 0    // steps counted, all millions
+    property double countMs: 0    // the worker's own time for them
 
     readonly property real margin: Math.min(width, height) * 0.05
     readonly property real fieldTop: counterText.y + counterText.height + margin
@@ -51,6 +53,8 @@ Item {
         onMessage: {
             stage.count = messageObject.count
             stage.laps = messageObject.lap
+            stage.counted += 20000
+            stage.countMs += messageObject.ms
             var xy = messageObject.xy
             var fw = stage.width - 2 * stage.margin
             var fh = stage.areaBottom - stage.fieldTop
@@ -78,10 +82,11 @@ Item {
         }
     }
 
+    // steps per second of the worker's own counting time; a run of 20000
+    // can read 0 ms on a fast phone, so the sum over all runs counts
     function results() {
-        var s = (Date.now() - t0) / 1000
-        var total = stage.laps * 1000000 + stage.count
+        var v = stage.countMs > 0 ? stage.counted / 1000 / stage.countMs : 0
         return [{ key: "ONE-MILLION", name: qsTrId("id-stage-million"),
-                  value: (total / 1000000 / s).toFixed(2), unit: "M/s" }]
+                  value: Math.round(v * 100) / 100, unit: "M/s" }]
     }
 }

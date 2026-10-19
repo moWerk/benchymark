@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 // ── primes ───────────────────────────────────────────────────────────────────
@@ -35,17 +36,43 @@ static bool isPrime(qint64 n)
 }
 
 // sysbench's cpu event: count the primes up to max by trial division
-static int sysbenchEvent(int max)
+template <typename Mod>
+static int primeCount(int max, Mod mod)
 {
     int n = 0;
     for (int c = 3; c < max; ++c) {
         const int t = int(std::sqrt(double(c)));
         int l = 2;
         for (; l <= t; ++l)
-            if (c % l == 0) break;
+            if (mod(c, l) == 0) break;
         if (l > t) ++n;
     }
     return n;
+}
+
+#if defined(__arm__) && !defined(__aarch64__)
+// The armv7hl build targets plain ARMv7, which may lack a divide
+// instruction, so `%` became a library call: an ARMv8 phone running the
+// armv7hl image (Xperia XA2, Xperia 10) scored a fraction of the same chip
+// on aarch64 (night audit, 2026-10-19). A core that has the instruction
+// (every ARMv8 core, Cortex-A7/A15, Krait) uses it.
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+static inline int hwMod(int a, int b)
+{
+    int q;
+    asm(".arch_extension idiv\n\tsdiv %0, %1, %2" : "=r"(q) : "r"(a), "r"(b));
+    return a - q * b;
+}
+static const bool kHwDivide = (getauxval(AT_HWCAP) & HWCAP_IDIVT) != 0;
+#endif
+
+static int sysbenchEvent(int max)
+{
+#if defined(__arm__) && !defined(__aarch64__)
+    if (kHwDivide) return primeCount(max, hwMod);
+#endif
+    return primeCount(max, [](int a, int b) { return a % b; });
 }
 
 // Ulam spiral: 1 in the centre, then outward anticlockwise
@@ -69,7 +96,12 @@ PrimeEngine::~PrimeEngine() { stop(); }
 
 int PrimeEngine::threads() const
 {
-    return m_threadCount > 0 ? m_threadCount : qMax(1, QThread::idealThreadCount());
+    // Every core the SoC has, not the ones online now: an idle XA2 had 2 of
+    // 8 online and "all cores" ran 4 threads (night audit). The kernel brings
+    // parked cores online under the load.
+    if (m_threadCount > 0) return m_threadCount;
+    const long conf = sysconf(_SC_NPROCESSORS_CONF);
+    return conf > 0 ? int(conf) : qMax(1, QThread::idealThreadCount());
 }
 
 void PrimeEngine::start(qreal cx, qreal cy, qreal cell, int side)
@@ -189,6 +221,15 @@ void StorageEngine::work(int blocks)
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
     const QByteArray path = QFile::encodeName(dir + QStringLiteral("/storage-test.bin"));
+    // Room for the file and a tenth more: a full /home breaks every app's
+    // saving while the test runs (night audit)
+    struct statvfs fs;
+    if (::statvfs(QFile::encodeName(dir).constData(), &fs) == 0
+            && double(fs.f_bavail) * fs.f_frsize < double(blocks) * bs * 1.1) {
+        m_error = QStringLiteral("not enough free space");
+        setPhase(-1);
+        return;
+    }
     void *buf = nullptr;
     if (posix_memalign(&buf, 4096, bs) != 0) { m_error = QStringLiteral("no memory"); setPhase(-1); return; }
     std::memset(buf, 0x5a, bs);
@@ -207,14 +248,29 @@ void StorageEngine::work(int blocks)
     QElapsedTimer t;
     t.start();
     int i = 0;
+    bool writeFailed = false;
     for (; i < blocks && !m_stop.load(); ++i) {
-        if (::write(fd, buf, bs) != ssize_t(bs)) break;
+        if (::write(fd, buf, bs) != ssize_t(bs)) { writeFailed = true; break; }
         m_done.store(i + 1);
     }
-    ::fdatasync(fd);
+    // stopped: the data need not reach the flash, no long flush on the GUI
+    if (!m_stop.load()) ::fdatasync(fd);
     ::close(fd);
     const qint64 wms = qMax<qint64>(1, t.elapsed());
     m_writeMBs = double(i) * bs / (1024.0 * 1024.0) / (wms / 1000.0);
+    if (writeFailed) {
+        m_error = QString::fromLocal8Bit(strerror(errno ? errno : EIO));
+        ::unlink(path.constData());
+        std::free(buf);
+        setPhase(-1);
+        return;
+    }
+    // without O_DIRECT the clean pages can still be dropped, so the read
+    // comes from the flash rather than RAM
+    if (!m_direct) {
+        int dfd = ::open(path.constData(), O_RDONLY);
+        if (dfd >= 0) { ::posix_fadvise(dfd, 0, 0, POSIX_FADV_DONTNEED); ::close(dfd); }
+    }
 
     // read; without O_DIRECT drop nothing from the cache we cannot drop, so
     // the read may come from RAM: the result says so (direct = false)

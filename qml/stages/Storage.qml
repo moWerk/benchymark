@@ -84,8 +84,15 @@ Item {
     readonly property string _r: qsTrId("id-reading")
 
     // one row, read / write (mo, 2026-10-17)
+    // An error or a stop before the read finished is no result: a dash and
+    // why, not "0/0 MB/s" (night audit)
     function results() {
         var tag = engine.direct ? "" : " *"
+        if (engine.phase === -1)
+            return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"), unsupported: engine.error }]
+        if (engine.phase !== 3)
+            //% "stopped before it finished"
+            return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"), unsupported: qsTrId("id-storage-stopped") }]
         return [{ key: "STORAGE", name: qsTrId("id-stage-storage-rw"),
                   value: Math.round(engine.readMBs) + "/" + Math.round(engine.writeMBs),
                   unit: "MB/s" + tag }]

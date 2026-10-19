@@ -29,15 +29,15 @@ void Dots::setDotSize(qreal s)
 
 void Dots::setCapacity(int c)
 {
-    if (c == m_capacity) return;
-    m_capacity = qMax(1, c);
+    c = qMax(1, c);
+    if (c == m_capacity.load()) return;
+    m_capacity.store(c);
     emit capacityChanged();
 }
 
 int Dots::count() const
 {
-    QMutexLocker lock(&m_lock);
-    return m_dots.size();
+    return qMin(m_added.load(), m_capacity.load());
 }
 
 void Dots::scheduleUpdate()
@@ -58,10 +58,9 @@ void Dots::add(float x, float y, const QColor &c)
 {
     {
         QMutexLocker lock(&m_lock);
-        m_dots.append({ x, y, quint8(c.red()), quint8(c.green()), quint8(c.blue()) });
-        if (m_dots.size() > m_capacity)
-            m_dots.remove(0, m_dots.size() - m_capacity);
+        m_pending.append({ x, y, quint8(c.red()), quint8(c.green()), quint8(c.blue()) });
     }
+    m_added.ref();
     scheduleUpdate();
 }
 
@@ -70,10 +69,9 @@ void Dots::addMany(const QVector<Dot> &dots)
     if (dots.isEmpty()) return;
     {
         QMutexLocker lock(&m_lock);
-        m_dots += dots;
-        if (m_dots.size() > m_capacity)
-            m_dots.remove(0, m_dots.size() - m_capacity);
+        m_pending += dots;
     }
+    m_added.fetchAndAddOrdered(dots.size());
     scheduleUpdate();
 }
 
@@ -91,17 +89,45 @@ void Dots::clear()
 {
     {
         QMutexLocker lock(&m_lock);
-        m_dots.clear();
+        m_pending.clear();
+        m_clearPending = true;
     }
+    m_added.store(0);
     scheduleUpdate();
 }
 
 QSGNode *Dots::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
 {
     QSGNode *root = old ? old : new QSGNode;
-    QMutexLocker lock(&m_lock);
-    const int total = m_dots.size();
-    const int nodes = (total + kDotsPerNode - 1) / kDotsPerNode;
+    QVector<Dot> fresh;
+    bool cleared = false;
+    {
+        QMutexLocker lock(&m_lock);
+        fresh.swap(m_pending);
+        cleared = m_clearPending;
+        m_clearPending = false;
+    }
+    const int cap = m_capacity.load();
+    const float s = float(m_size);
+    // a cleared field, a new dot size or a new capacity draws everything anew
+    const bool all = cleared || s != m_shownSize || (m_ring.size() > cap);
+    if (cleared || m_ring.size() > cap) { m_ring.clear(); m_written = 0; }
+    m_shownSize = s;
+
+    // new dots take the oldest slots once the ring is full
+    QVector<char> dirty;
+    const int nodesBefore = root->childCount();
+    for (const Dot &d : fresh) {
+        const int slot = int(m_written % cap);
+        if (slot < m_ring.size()) m_ring[slot] = d;
+        else m_ring.append(d);
+        ++m_written;
+        const int node = slot / kDotsPerNode;
+        if (node >= dirty.size()) dirty.resize(node + 1);
+        dirty[node] = 1;
+    }
+    const int used = m_ring.size();
+    const int nodes = (used + kDotsPerNode - 1) / kDotsPerNode;
     while (root->childCount() > nodes) {
         QSGNode *n = root->lastChild();
         root->removeChildNode(n);
@@ -117,17 +143,19 @@ QSGNode *Dots::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
         node->setFlag(QSGNode::OwnsMaterial);
         root->appendChildNode(node);
     }
-    const float s = float(m_size);
-    int i = 0;
-    for (QSGNode *child = root->firstChild(); child; child = child->nextSibling()) {
+    int j = 0;
+    for (QSGNode *child = root->firstChild(); child; child = child->nextSibling(), ++j) {
+        const bool touched = all || j >= nodesBefore || (j < dirty.size() && dirty[j]);
+        if (!touched) continue;
         QSGGeometryNode *node = static_cast<QSGGeometryNode *>(child);
-        const int n = qMin(kDotsPerNode, total - i);
+        const int first = j * kDotsPerNode;
+        const int n = qMin(kDotsPerNode, used - first);
         QSGGeometry *g = node->geometry();
         if (g->vertexCount() != n * 6)
             g->allocate(n * 6);
         QSGGeometry::ColoredPoint2D *v = g->vertexDataAsColoredPoint2D();
-        for (int k = 0; k < n; ++k, ++i) {
-            const Dot &d = m_dots.at(i);
+        for (int k = 0; k < n; ++k) {
+            const Dot &d = m_ring.at(first + k);
             const float x0 = d.x - s / 2, y0 = d.y - s / 2, x1 = x0 + s, y1 = y0 + s;
             v[0].set(x0, y0, d.r, d.g, d.b, 255);
             v[1].set(x1, y0, d.r, d.g, d.b, 255);

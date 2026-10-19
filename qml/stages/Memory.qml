@@ -44,9 +44,13 @@ Item {
         onTriggered: {
             stage.copied = engine.copied() / 1048576
             var now = Date.now()
-            if (stage.axisMax === 0 && now - stage.t0 > 1000)
+            if (stage.axisMax === 0 && now - stage.t0 > 1000) {
                 // ten seconds at the first second's pace, and some room
                 stage.axisMax = stage.nice(stage.copied / ((now - stage.t0) / 1000) * 11)
+                // counted from here: the buffers' first touch stays out
+                stage.b1 = engine.copied()
+                stage.t1 = now
+            }
             if (now - lastT >= 1000) {
                 stage.live = Math.round((stage.copied - lastMb) / ((now - lastT) / 1000)) + " MB/s"
                 lastMb = stage.copied
@@ -107,9 +111,13 @@ Item {
         font.pixelSize: stage.width * 0.045
     }
 
+    property double b1: 0
+    property double t1: 0
     function results() {
-        var s = (Date.now() - t0) / 1000
+        var now = Date.now()
+        var rate = t1 > 0 && now - t1 > 500 ? (engine.copied() - b1) / 1048576 / ((now - t1) / 1000)
+                                            : engine.copied() / 1048576 / Math.max(0.001, (now - t0) / 1000)
         return [{ key: "MEMORY", name: qsTrId("id-stage-memory"),
-                  value: Math.round(engine.copied() / 1048576 / s), unit: "MB/s" }]
+                  value: Math.round(rate), unit: "MB/s" }]
     }
 }

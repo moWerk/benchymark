@@ -9,6 +9,7 @@
 #define BENCHLOG_H
 
 #include <QDir>
+#include <QHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QObject>
@@ -81,6 +82,16 @@ public:
     {
         return QFile::remove(runsPath() + QLatin1Char('/') + QFileInfo(name).fileName());
     }
+    // Share pictures go where the stock screenshot feature puts its own,
+    // Pictures/Screenshots (mo, 2026-10-19); saveToFile makes no folders.
+    // Pictures itself if the folder cannot be made.
+    Q_INVOKABLE QString screenshotsDir() const
+    {
+        const QString pics = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        const QString dir = pics + QStringLiteral("/Screenshots");
+        return QDir().mkpath(dir) ? dir : pics;
+    }
+
     // the single last run of 2.0 and before, to carry it into the list
     Q_INVOKABLE QString readLast() const { return readText(path()); }
 
@@ -146,10 +157,23 @@ public:
             // (3.4, Moto G 2nd gen) or tenths (Qualcomm tsens on 4.4, Xperia
             // XA2: 398 is 39.8) instead of millidegrees, mixed on one phone
             if (!ok || raw == 0) continue;
-            const double c = qAbs(raw) < 200 ? raw : qAbs(raw) < 1500 ? raw / 10.0 : raw / 1000.0;
-            if (c < -40 || c > 150) continue;
             QString type;
             if (ty.open(QIODevice::ReadOnly)) type = QString::fromLatin1(ty.readAll()).trimmed().toLower();
+            // battery state-of-charge zones read 0-100 but are no temperature
+            if (type.startsWith(QLatin1String("socd")) || type.contains(QLatin1String("bcl"))
+                    || type.contains(QLatin1String("vbat")) || type.contains(QLatin1String("ibat")))
+                continue;
+            // The unit per zone from its first trip point when it has one
+            // (millidegrees >= 10000, tenths >= 300, else degrees): by value
+            // alone a tenths sensor under 15.0 C read as 100-149 C (night
+            // audit, 2026-10-19).
+            double div = qAbs(raw) < 200 ? 1 : qAbs(raw) < 1500 ? 10 : 1000;
+            bool okTrip = false;
+            const double trip = sysValue(dir.filePath(z + QStringLiteral("/trip_point_0_temp"))).toDouble(&okTrip);
+            if (okTrip && trip > 0)
+                div = trip >= 10000 ? 1000 : trip >= 300 ? 10 : 1;
+            const double c = raw / div;
+            if (c < -40 || c > 150) continue;
             anyHottest = qMax(anyHottest, c);
             if (type.contains(QLatin1String("cpu")) || type.contains(QLatin1String("soc"))
                     || type.contains(QLatin1String("gpu")) || type.contains(QLatin1String("tsens")))
@@ -185,10 +209,14 @@ public:
             const double p = sysValue(base + QStringLiteral("power_now")).toDouble(&okP);
             const double i = sysValue(base + QStringLiteral("current_now")).toDouble(&okI);
             const double v = sysValue(base + QStringLiteral("voltage_now")).toDouble(&okV);
+            double w = -1;
             if (okP && p != 0)
-                m.insert(QStringLiteral("watts"), qAbs(p) / 1e6);
+                w = qAbs(p) / 1e6;
             else if (okI && okV)
-                m.insert(QStringLiteral("watts"), qAbs(i) * qAbs(v) / 1e12);
+                w = qAbs(i) * qAbs(v) / 1e12;
+            // old kernels give mA instead of uA: a phone draws 0.01-30 W
+            if (w > 0 && w < 0.005) w *= 1000;
+            if (w > 0 && w <= 30) m.insert(QStringLiteral("watts"), w);
             return m;
         }
         return QVariantMap();
@@ -226,7 +254,14 @@ public:
             if (max <= 0) continue;
             clusterMax << int(max);
             cpuPct = qMax(cpuPct, cur / max * 100);
-            if (allowed > 0 && allowed < max) capped = true;
+            // Capped only when the allowed maximum fell during the run: many
+            // kernels hold it under the hardware maximum from boot (boost
+            // steps, vendor limits), which flagged every second as throttled
+            // (night audit). The baseline is the first reading of a run.
+            if (allowed > 0) {
+                if (!m_allowedStart.contains(base)) m_allowedStart.insert(base, allowed);
+                if (allowed < m_allowedStart.value(base)) capped = true;
+            }
         }
         if (cpuPct >= 0) {
             m.insert(QStringLiteral("cpu"), qRound(cpuPct));
@@ -237,6 +272,9 @@ public:
             if (!d.contains(QLatin1String("gpu"), Qt::CaseInsensitive)
                     && !d.contains(QLatin1String("mali"), Qt::CaseInsensitive)
                     && !d.contains(QLatin1String("kgsl"), Qt::CaseInsensitive)) continue;
+            // Qualcomm's gpubw and kgsl-busmon are bus bandwidth, not the GPU
+            if (d.contains(QLatin1String("bw"), Qt::CaseInsensitive)
+                    || d.contains(QLatin1String("busmon"), Qt::CaseInsensitive)) continue;
             const QString base = dev.filePath(d) + QLatin1Char('/');
             const double cur = sysValue(base + QStringLiteral("cur_freq")).toDouble();
             const double max = sysValue(base + QStringLiteral("max_freq")).toDouble();
@@ -251,10 +289,13 @@ public:
             bool ok = false;
             const double cur = ged.size() >= 2 ? ged.at(1).toDouble(&ok) : 0;
             if (ok && cur > 0) {
-                if (m_gpuTableMax < 0) m_gpuTableMax = mtkTableMax();
-                m_gpuSeenMax = qMax(m_gpuSeenMax, cur);
-                const double max = qMax(m_gpuTableMax, m_gpuSeenMax);
-                m.insert(QStringLiteral("gpu"), qRound(cur / max * 100));
+                // the step table can be unreadable at first: asked again
+                if (m_gpuTableMax <= 0 && m_gpuTableTries < 5) { m_gpuTableMax = mtkTableMax(); m_gpuTableTries++; }
+                // Without the table the fastest clock seen read as 100 % from
+                // the first second and hid any throttling (night audit): only
+                // a known maximum gives a percentage.
+                if (m_gpuTableMax > 0)
+                    m.insert(QStringLiteral("gpu"), qRound(cur / m_gpuTableMax * 100));
             }
         }
         const QDir cool(QStringLiteral("/sys/class/thermal"));
@@ -284,6 +325,9 @@ public:
         return m;
     }
 
+    // a new run: the throttle baseline is read again
+    Q_INVOKABLE void resetRun() const { m_allowedStart.clear(); }
+
     // a line from /etc/*-release, for the result header
     Q_INVOKABLE QString releaseValue(const QString &file, const QString &key) const
     {
@@ -305,7 +349,9 @@ public:
 
 private:
     mutable double m_gpuTableMax = -1;
-    mutable double m_gpuSeenMax = 0;
+    mutable int m_gpuTableTries = 0;
+    // each cpufreq policy's allowed maximum at the run's first reading
+    mutable QHash<QString, double> m_allowedStart;
 
     // the fastest step in MediaTek's GPU step table, 0 if it is unreadable or
     // not between 100 MHz and 3 GHz in kHz

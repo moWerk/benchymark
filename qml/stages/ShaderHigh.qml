@@ -18,6 +18,10 @@ Item {
     //% "Mpx/s"
     readonly property string unit: qsTrId("id-unit-mpx")
 
+    // A driver that cannot compile a heavy step draws nothing and reads as
+    // a fast GPU: it climbs to the heaviest step, and the results mark it as
+    // a lower bound. ShaderEffect.status cannot tell: Qt 5.6 reports Error
+    // with an empty log for shaders that compile and draw (XA2, night audit).
     ShaderEffect {
         id: fx
         anchors.fill: parent
