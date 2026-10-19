@@ -128,12 +128,43 @@ tapped is shown beside it, stage by stage, with the ratio.
 | One million | JavaScript counting to one million, over and over, in a worker, timed by the worker itself | M/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted. Off by default (flash wear) | MB/s |
 
-Results with 2.0 (scene `sfos-2.0`), by the author; the Jolla Phone run is by
-forum user ahjolinna ([thread](https://forum.sailfishos.org/t/35153)). Since
-2.2.0 (scene `sfos-2.2`) Benchy glow and Text reraster score higher on every
-screen larger than 720 × 1600: before, they blurred and rasterized at the
-screen's own size (on the XA2 glow 6.7 → 10.0 Mpx/s, reraster 1976 → 3003
-texts/s). The Jolla C2's numbers stay as they are.
+Results with 2.2 (scene `sfos-2.2`), by the author, from the audit build of
+2026-10-19; the Jolla C2 follows. "Overhead" is the time every frame costs
+besides the work, which the scores leave out:
+
+| stage | Xperia XA2 (4.4, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) |
+|---|---|---|
+| Benchy light | 3613 boats/s (±23 %) | 2502 boats/s |
+| Benchy heavy | 5487 boats/s | 5682 boats/s |
+| Benchy glow | 44.5 Mpx/s | 19.4 Mpx/s |
+| Shader light | 58.8 Mpx/s | 32.6 Mpx/s |
+| Shader heavy | 16.6 Mpx/s | 7.7 Mpx/s |
+| Table from UBO | 660 M reads/s | 311 M reads/s |
+| Table from SSBO | 630 M reads/s | – (needs OpenGL ES 3.1) |
+| Table from texture | 628 M reads/s | 152 M reads/s |
+| Overdraw | 1890 layers/s | 747 layers/s |
+| Cascade | 26240 squares/s | 96255 squares/s |
+| Icon storm | 18787 icons/s | 18058 icons/s |
+| Text scale | 18060 texts/s | 33980 texts/s (±11 %) |
+| Text reraster | 5878 texts/s (±34 %) | 5768 texts/s |
+| CPU prime | 9500 events/s (8 threads) | 1231 events/s (4) |
+| CPU single core | 1355 events/s | 361 events/s |
+| Memory throughput | 1509 MB/s | 937 MB/s |
+| One million | 54.7 M/s | 292 M/s |
+| frame overhead | 12.4 ms | ~25 ms |
+
+GPU-bound stages repeat within about 5 % between runs; the scene graph's
+CPU-bound ones (Benchy light, Cascade, the text stages) vary 10-20 % on the
+XA2, and the results mark a row whose two measurements lay more than 10 %
+apart. One million compares script engines: the tablet's x86 JIT counts
+five times faster than the XA2's armv7. The tablet's graphics driver hands
+back a blank picture, so its Share image is empty (Share JSON works).
+
+<details>
+<summary>Results with 2.0 (scene `sfos-2.0`, one load per stage: not comparable with 2.2)</summary>
+
+By the author; the Jolla Phone run is by forum user ahjolinna
+([thread](https://forum.sailfishos.org/t/35153)).
 
 | stage | Jolla Phone (5.2, Mali-G610 MC2) | Jolla C2 (5.1, Mali-G57) | Xperia XA2 (4.4, Adreno 508) | Jolla Tablet (4.6, Intel HD BayTrail) |
 |---|---|---|---|---|
@@ -164,6 +195,8 @@ SSBO. The XA2 runs the armv7hl build, which divides in software, so its CPU
 prime is low for its chip. The tablet's i486 build saves an empty Share
 image: its graphics driver hands back a blank picture (a known issue; Share
 JSON works).
+
+</details>
 
 <details>
 <summary>Results with 1.x (fps at each screen's own resolution, not comparable with 2.0)</summary>
