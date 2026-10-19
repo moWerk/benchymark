@@ -39,7 +39,9 @@ Page {
     property bool intro: false   // a graphics stage on screen before it is measured
     readonly property int warmupSeconds: 2
     readonly property int measureSeconds: 6
-    readonly property int gapSeconds: 2      // between stages
+    // between stages: the clocks settle within a second, a longer pause
+    // only cooled the device between stages (mo, 2026-10-19)
+    readonly property int gapSeconds: 1
 
     // Every stage draws on the C2's 720 x 1600: a phone with more pixels or
     // another shape gets exactly the same work (mo, 2026-10-18; the shape
@@ -793,8 +795,9 @@ Page {
         visible: page.view === "select"
         contentHeight: selectColumn.height + Theme.paddingLarge * 3
 
-        // the nearest to the finger last: Deselect all, the quickest way to
-        // run only one or a few stages (mo, 2026-10-18)
+        // the nearest to the finger last: Start run, one flick from the top;
+        // the button at the bottom saves the way back up (mo, 2026-10-19).
+        // Four entries at most (mo).
         PullDownMenu {
             MenuItem {
                 //% "Settings"
@@ -810,6 +813,11 @@ Page {
                 //% "Deselect all"
                 text: qsTrId("id-deselect-all")
                 onClicked: skippedConfig.value = JSON.stringify(page.stages.map(function (st) { return st.key }))
+            }
+            MenuItem {
+                text: qsTrId("id-start")
+                enabled: startButton.enabled
+                onClicked: introFade.start()
             }
         }
 
@@ -919,7 +927,7 @@ Page {
                 id: startButton
                 anchors.horizontalCenter: parent.horizontalCenter
                 enabled: page.stages.some(function (s) { return page.isOn(s.key) })
-                //% "Start"
+                //% "Start run"
                 text: qsTrId("id-start")
                 onClicked: introFade.start()
             }

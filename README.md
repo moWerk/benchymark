@@ -94,7 +94,9 @@ whole run, one point a second:
   from sysfs
 
 The pulley menus do the rest, as SailfishOS apps do. On the start page:
-**Settings**, **Select all** and **Deselect all**. On the results:
+**Settings**, **Select all**, **Deselect all** and **Start run**, the last
+one flick from the top; the same **Start run** button sits below the
+stages. On the results:
 **Settings**, **Back to stages**, **Share JSON** and **Share image**. Share
 image saves the whole results page as one tall picture to
 Pictures/Screenshots, with all system details whatever you switched off, says
