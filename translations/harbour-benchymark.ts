@@ -4,372 +4,340 @@
 <context>
     <name></name>
     <message id="id-stage-benchy-light">
-        <location filename="../qml/pages/MainPage.qml" line="118"/>
+        <location filename="../qml/pages/MainPage.qml" line="126"/>
         <source>Benchy large</source>
         <oldsource>Benchy light</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-benchy-light">
-        <location filename="../qml/pages/MainPage.qml" line="120"/>
+        <location filename="../qml/pages/MainPage.qml" line="128"/>
         <source>Two large 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. A large boat has twice the lines&apos; length of a small one to draw, so fewer of them fit in a second. Scores boats per second.</source>
         <oldsource>Two 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. Scores boats per second.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-benchy-light">
-        <location filename="../qml/pages/MainPage.qml" line="122"/>
+        <location filename="../qml/pages/MainPage.qml" line="130"/>
         <source>Boats drawn per second, two large ones on screen</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-benchy-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="124"/>
+        <location filename="../qml/pages/MainPage.qml" line="132"/>
         <source>Benchy small</source>
         <oldsource>Benchy heavy</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-benchy-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="126"/>
+        <location filename="../qml/pages/MainPage.qml" line="134"/>
         <source>Six small boats, each drawn many times: the same work per boat on the CPU, half the lines&apos; length for the GPU. Scores boats per second.</source>
         <oldsource>Six boats, each drawn many times: much more geometry than the picture shows. Scores boats per second.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-benchy-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="128"/>
+        <location filename="../qml/pages/MainPage.qml" line="136"/>
         <source>Boats drawn per second, six small ones on screen</source>
         <oldsource>Boats drawn per second, six smaller ones on screen</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-glow">
-        <location filename="../qml/pages/MainPage.qml" line="130"/>
+        <location filename="../qml/pages/MainPage.qml" line="138"/>
         <source>Benchy glow</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-glow">
-        <location filename="../qml/pages/MainPage.qml" line="132"/>
+        <location filename="../qml/pages/MainPage.qml" line="140"/>
         <source>A Benchy with a pulsing golden halo, the glow stacked several times: a blur over the whole picture each, the cost of soft effects. Scores megapixels per second.</source>
         <oldsource>A Benchy with a pulsing golden halo: a blur over the whole screen every frame, the cost of soft effects.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-glow">
-        <location filename="../qml/pages/MainPage.qml" line="134"/>
+        <location filename="../qml/pages/MainPage.qml" line="142"/>
         <source>Megapixels blurred per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-shader-light">
-        <location filename="../qml/pages/MainPage.qml" line="136"/>
+        <location filename="../qml/pages/MainPage.qml" line="144"/>
         <source>Shader light</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-shader-light">
-        <location filename="../qml/pages/MainPage.qml" line="138"/>
+        <location filename="../qml/pages/MainPage.qml" line="146"/>
         <source>A drifting noise field computed for every pixel, several times over: GPU arithmetic. Scores megapixels per second.</source>
         <oldsource>A drifting noise field computed for every pixel: GPU arithmetic that grows with the screen size.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-shader-light">
-        <location filename="../qml/pages/MainPage.qml" line="140"/>
+        <location filename="../qml/pages/MainPage.qml" line="148"/>
         <source>Megapixels of noise field per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-shader-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="142"/>
+        <location filename="../qml/pages/MainPage.qml" line="150"/>
         <source>Shader heavy</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-shader-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="144"/>
+        <location filename="../qml/pages/MainPage.qml" line="152"/>
         <source>The same idea warped twice over, about thirty noise lookups per pixel and field: the heaviest GPU arithmetic here. Scores megapixels per second.</source>
         <oldsource>The same idea warped twice over, about thirty noise lookups per pixel: the heaviest GPU load here.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-shader-heavy">
-        <location filename="../qml/pages/MainPage.qml" line="146"/>
+        <location filename="../qml/pages/MainPage.qml" line="154"/>
         <source>Megapixels of warped field per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-buffer-ubo">
-        <location filename="../qml/pages/MainPage.qml" line="149"/>
+        <location filename="../qml/pages/MainPage.qml" line="157"/>
         <source>Table from UBO</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-buffer-ubo">
-        <location filename="../qml/pages/MainPage.qml" line="151"/>
+        <location filename="../qml/pages/MainPage.qml" line="159"/>
         <source>Every pixel walks a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Scores million table reads per second. Needs OpenGL ES 3.0.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-buffer-ubo">
-        <location filename="../qml/pages/MainPage.qml" line="153"/>
+        <location filename="../qml/pages/MainPage.qml" line="161"/>
         <source>Million table reads per second from a uniform buffer</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-buffer-ssbo">
-        <location filename="../qml/pages/MainPage.qml" line="155"/>
+        <location filename="../qml/pages/MainPage.qml" line="163"/>
         <source>Table from SSBO</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-buffer-ssbo">
-        <location filename="../qml/pages/MainPage.qml" line="157"/>
+        <location filename="../qml/pages/MainPage.qml" line="165"/>
         <source>The same table walk from a shader storage buffer (SSBO). Needs OpenGL ES 3.1 and a driver that allows them in fragment shaders.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-buffer-ssbo">
-        <location filename="../qml/pages/MainPage.qml" line="159"/>
+        <location filename="../qml/pages/MainPage.qml" line="167"/>
         <source>Million table reads per second from a storage buffer</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-buffer-texture">
-        <location filename="../qml/pages/MainPage.qml" line="161"/>
+        <location filename="../qml/pages/MainPage.qml" line="169"/>
         <source>Table from texture</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-buffer-texture">
-        <location filename="../qml/pages/MainPage.qml" line="163"/>
+        <location filename="../qml/pages/MainPage.qml" line="171"/>
         <source>The same table walk from a float texture, the classic way and the baseline for the two buffers. Needs OpenGL ES 3.0.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-buffer-texture">
-        <location filename="../qml/pages/MainPage.qml" line="165"/>
+        <location filename="../qml/pages/MainPage.qml" line="173"/>
         <source>Million table reads per second from a texture</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-overdraw">
-        <location filename="../qml/pages/MainPage.qml" line="167"/>
+        <location filename="../qml/pages/MainPage.qml" line="175"/>
         <source>Overdraw</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-overdraw">
-        <location filename="../qml/pages/MainPage.qml" line="169"/>
+        <location filename="../qml/pages/MainPage.qml" line="177"/>
         <source>Large translucent squares stacked and turning: every pixel is blended many times, raw fill rate. Scores layers per second.</source>
         <oldsource>72 large translucent squares stacked and turning: every pixel is blended many times, raw fill rate.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-overdraw">
-        <location filename="../qml/pages/MainPage.qml" line="171"/>
+        <location filename="../qml/pages/MainPage.qml" line="179"/>
         <source>Translucent layers blended per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-cascade">
-        <location filename="../qml/pages/MainPage.qml" line="173"/>
+        <location filename="../qml/pages/MainPage.qml" line="181"/>
         <source>Cascade</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-cascade">
-        <location filename="../qml/pages/MainPage.qml" line="175"/>
+        <location filename="../qml/pages/MainPage.qml" line="183"/>
         <source>Thousands of rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents. Scores squares per second.</source>
         <oldsource>A thousand rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-cascade">
-        <location filename="../qml/pages/MainPage.qml" line="177"/>
+        <location filename="../qml/pages/MainPage.qml" line="185"/>
         <source>Squares moved per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-icons">
-        <location filename="../qml/pages/MainPage.qml" line="179"/>
+        <location filename="../qml/pages/MainPage.qml" line="187"/>
         <source>Icon storm</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-icons">
-        <location filename="../qml/pages/MainPage.qml" line="181"/>
+        <location filename="../qml/pages/MainPage.qml" line="189"/>
         <source>Rockets and flashes on spiral arms, stacked: many small images moving every frame. Scores icons per second.</source>
         <oldsource>Rockets and flashes on spiral arms, each icon drawn three times: many small images moving every frame.</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-icons">
-        <location filename="../qml/pages/MainPage.qml" line="183"/>
+        <location filename="../qml/pages/MainPage.qml" line="191"/>
         <source>Icons drawn per second</source>
         <translation type="unfinished"></translation>
     </message>
-    <message id="id-stage-scale">
-        <location filename="../qml/pages/MainPage.qml" line="185"/>
-        <source>Text scale</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-about-scale">
-        <location filename="../qml/pages/MainPage.qml" line="187"/>
-        <source>Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way. Scores texts per second.</source>
-        <oldsource>Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way.</oldsource>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-score-scale">
-        <location filename="../qml/pages/MainPage.qml" line="189"/>
-        <source>Texts scaled per second</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-stage-reraster">
-        <location filename="../qml/pages/MainPage.qml" line="191"/>
-        <source>Text reraster</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-about-reraster">
-        <location filename="../qml/pages/MainPage.qml" line="193"/>
-        <source>The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs. Scores texts per second.</source>
-        <oldsource>The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs.</oldsource>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-score-reraster">
-        <location filename="../qml/pages/MainPage.qml" line="195"/>
-        <source>Texts redrawn per second</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message id="id-stage-cpu">
-        <location filename="../qml/pages/MainPage.qml" line="197"/>
+        <location filename="../qml/pages/MainPage.qml" line="193"/>
         <location filename="../qml/stages/CpuPrime.qml" line="22"/>
         <source>CPU prime</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-cpu">
-        <location filename="../qml/pages/MainPage.qml" line="199"/>
+        <location filename="../qml/pages/MainPage.qml" line="195"/>
         <source>All cores count primes as sysbench does; every finished count lights a cell of an Ulam spiral if its number is prime.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-cpu">
-        <location filename="../qml/pages/MainPage.qml" line="201"/>
+        <location filename="../qml/pages/MainPage.qml" line="197"/>
         <source>Prime counts per second on all cores</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-cpu-single">
-        <location filename="../qml/pages/MainPage.qml" line="203"/>
+        <location filename="../qml/pages/MainPage.qml" line="199"/>
         <location filename="../qml/stages/CpuPrimeSingle.qml" line="11"/>
         <source>CPU single core</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-cpu-single">
-        <location filename="../qml/pages/MainPage.qml" line="205"/>
+        <location filename="../qml/pages/MainPage.qml" line="201"/>
         <source>The same prime counting on one core only: next to the all core figure it shows what a single core does.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-cpu-single">
-        <location filename="../qml/pages/MainPage.qml" line="207"/>
+        <location filename="../qml/pages/MainPage.qml" line="203"/>
         <source>Prime counts per second on one core</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-memory">
-        <location filename="../qml/pages/MainPage.qml" line="209"/>
+        <location filename="../qml/pages/MainPage.qml" line="205"/>
         <location filename="../qml/stages/Memory.qml" line="120"/>
         <source>Memory throughput</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-memory">
-        <location filename="../qml/pages/MainPage.qml" line="211"/>
+        <location filename="../qml/pages/MainPage.qml" line="207"/>
         <source>Copies memory between two 32 MB buffers as fast as it can: how quickly the phone moves data in RAM.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-memory">
-        <location filename="../qml/pages/MainPage.qml" line="213"/>
+        <location filename="../qml/pages/MainPage.qml" line="209"/>
         <source>Megabytes copied per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-million">
-        <location filename="../qml/pages/MainPage.qml" line="215"/>
+        <location filename="../qml/pages/MainPage.qml" line="211"/>
         <location filename="../qml/stages/OneMillion.qml" line="91"/>
         <source>One million</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-million">
-        <location filename="../qml/pages/MainPage.qml" line="217"/>
+        <location filename="../qml/pages/MainPage.qml" line="213"/>
         <source>JavaScript counts to one million, over and over: how fast the app&apos;s script engine runs a plain loop.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-million">
-        <location filename="../qml/pages/MainPage.qml" line="219"/>
+        <location filename="../qml/pages/MainPage.qml" line="215"/>
         <source>Million loop steps per second in JavaScript</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-storage">
-        <location filename="../qml/pages/MainPage.qml" line="222"/>
+        <location filename="../qml/pages/MainPage.qml" line="218"/>
         <source>Storage performance</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-about-storage">
-        <location filename="../qml/pages/MainPage.qml" line="224"/>
+        <location filename="../qml/pages/MainPage.qml" line="220"/>
         <source>Writes 256 MB in small blocks past the cache and reads it back. Off by default: it wears the flash a little every run.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-score-storage">
-        <location filename="../qml/pages/MainPage.qml" line="226"/>
+        <location filename="../qml/pages/MainPage.qml" line="222"/>
         <source>Megabytes read and written per second</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-stage-load-error">
-        <location filename="../qml/pages/MainPage.qml" line="728"/>
+        <location filename="../qml/pages/MainPage.qml" line="725"/>
         <source>could not be loaded</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-settings">
-        <location filename="../qml/pages/MainPage.qml" line="1031"/>
+        <location filename="../qml/pages/MainPage.qml" line="1029"/>
         <location filename="../qml/pages/ResultsPane.qml" line="35"/>
         <location filename="../qml/pages/SettingsPage.qml" line="112"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-select-all">
-        <location filename="../qml/pages/MainPage.qml" line="1036"/>
+        <location filename="../qml/pages/MainPage.qml" line="1034"/>
         <source>Select all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-deselect-all">
-        <location filename="../qml/pages/MainPage.qml" line="1041"/>
+        <location filename="../qml/pages/MainPage.qml" line="1039"/>
         <source>Deselect all</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-calibrate">
-        <location filename="../qml/pages/MainPage.qml" line="1146"/>
+        <location filename="../qml/pages/MainPage.qml" line="1144"/>
         <source>The first run also finds each graphics stage&apos;s load, a few seconds per stage.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-calibrating">
-        <location filename="../qml/pages/MainPage.qml" line="1268"/>
+        <location filename="../qml/pages/MainPage.qml" line="1266"/>
         <source>calibrating</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1336"/>
+        <location filename="../qml/pages/MainPage.qml" line="1334"/>
         <location filename="../qml/pages/ResultsView.qml" line="114"/>
         <location filename="../qml/pages/SettingsPage.qml" line="56"/>
         <source>Run one hour</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1338"/>
+        <location filename="../qml/pages/MainPage.qml" line="1336"/>
         <location filename="../qml/pages/ResultsView.qml" line="116"/>
         <location filename="../qml/pages/SettingsPage.qml" line="58"/>
         <source>Run in loop</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-once">
-        <location filename="../qml/pages/MainPage.qml" line="1342"/>
+        <location filename="../qml/pages/MainPage.qml" line="1340"/>
         <source>For comparable results</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-hour">
-        <location filename="../qml/pages/MainPage.qml" line="1344"/>
+        <location filename="../qml/pages/MainPage.qml" line="1342"/>
         <source>A defined battery and temperature test, ends at 1:00:00. The display runs at 50 % brightness with automatic brightness off, and is set back afterwards.</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-hint-loop">
-        <location filename="../qml/pages/MainPage.qml" line="1346"/>
+        <location filename="../qml/pages/MainPage.qml" line="1344"/>
         <source>Until you tap: overheating and throttling diagnosis</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-run-once">
-        <location filename="../qml/pages/MainPage.qml" line="1334"/>
+        <location filename="../qml/pages/MainPage.qml" line="1332"/>
         <location filename="../qml/pages/ResultsView.qml" line="118"/>
         <location filename="../qml/pages/SettingsPage.qml" line="54"/>
         <source>Run once</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-start">
-        <location filename="../qml/pages/MainPage.qml" line="1158"/>
+        <location filename="../qml/pages/MainPage.qml" line="1156"/>
         <source>Start</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-next">
-        <location filename="../qml/pages/MainPage.qml" line="1234"/>
+        <location filename="../qml/pages/MainPage.qml" line="1232"/>
         <source>Next: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-tap-to-stop">
-        <location filename="../qml/pages/MainPage.qml" line="1286"/>
+        <location filename="../qml/pages/MainPage.qml" line="1284"/>
         <source>Tap to stop</source>
         <translation type="unfinished"></translation>
     </message>
@@ -757,12 +725,6 @@
     <message id="id-unit-layers">
         <location filename="../qml/stages/Overdraw.qml" line="18"/>
         <source>layers/s</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message id="id-unit-texts">
-        <location filename="../qml/stages/Reraster.qml" line="23"/>
-        <location filename="../qml/stages/Scale.qml" line="21"/>
-        <source>texts/s</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

@@ -90,13 +90,21 @@ Page {
     // the stages with a ladder, for the start page's hint
     readonly property var calibratingKeys: ["BENCHY-LIGHT", "BENCHY-HEAVY", "BENCHY-GLOW",
         "SHADER-LIGHT", "SHADER-HEAVY", "BUFFER-UBO", "BUFFER-SSBO", "BUFFER-TEXTURE",
-        "OVERDRAW", "CASCADE", "ICONS", "SCALE", "RERASTER"]
-    readonly property bool needsCalibration: {
+        "OVERDRAW", "CASCADE", "ICONS"]
+    // Set, not bound: as a binding it was evaluated again and again while
+    // the page stack built the page, 18 binding loop warnings per start.
+    property bool needsCalibration: false
+    function updateNeedsCalibration() {
         var c = calibration()
-        return stages.some(function (st) {
+        needsCalibration = stages.some(function (st) {
             return isOn(st.key) && calibratingKeys.indexOf(st.key) >= 0
                    && c[groupOf[st.key] || st.key] === undefined })
     }
+    Connections {
+        target: calibConfig
+        onValueChanged: page.updateNeedsCalibration()
+    }
+    onSkippedChanged: updateNeedsCalibration()
     property var recalibrateNext: []   // keys whose step ran too light in this run
     property var recalibrateHeavy: []  // and too heavy
     property bool ramping: false
@@ -181,18 +189,6 @@ Page {
           about: qsTrId("id-about-icons"),
           //% "Icons drawn per second"
           score: qsTrId("id-score-icons") },
-        //% "Text scale"
-        { name: qsTrId("id-stage-scale"), key: "SCALE", file: "Scale",
-          //% "Numbers growing and shrinking by a scale transform: text drawn once and only resized, the cheap way. Scores texts per second."
-          about: qsTrId("id-about-scale"),
-          //% "Texts scaled per second"
-          score: qsTrId("id-score-scale") },
-        //% "Text reraster"
-        { name: qsTrId("id-stage-reraster"), key: "RERASTER", file: "Reraster",
-          //% "The same picture made by changing the font size, so every glyph is drawn anew each frame: what animated text size costs. Scores texts per second."
-          about: qsTrId("id-about-reraster"),
-          //% "Texts redrawn per second"
-          score: qsTrId("id-score-reraster") },
         //% "CPU prime"
         { name: qsTrId("id-stage-cpu"), key: "CPU-PRIME", file: "CpuPrime",
           //% "All cores count primes as sysbench does; every finished count lights a cell of an Ulam spiral if its number is prime."
@@ -610,7 +606,8 @@ Page {
                     // the scaling to the panel, vsync
                     row.overheadMs = Math.round((ta - a.load * dt / dl) * 10) / 10
                     // Overhead below zero: the frame time grew faster than the
-                    // work (caches overflowing, C2 Text scale at -32 ms), so the
+                    // work (caches overflowing: the C2's Text scale at -32 ms,
+                    // a stage since dropped), so the
                     // slope prices the load wrong; the one-load score, marked.
                     // A little below zero is noise: past a tenth of the frame.
                     if (row.overheadMs < -0.1 * ta) {
@@ -945,6 +942,7 @@ Page {
         defaultValue: false
     }
     Component.onCompleted: {
+        updateNeedsCalibration()
         importLast()
         loadNewest()
     }

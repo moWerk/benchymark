@@ -62,7 +62,7 @@ telling anything. Since 2.0, and as audited for 2.2:
   at two loads, its step and the next, in turns of three seconds (A B A B),
   so a clock that is still rising hits both alike. The score is the
   extra work over the extra frame time, in the stage's own unit (boats/s,
-  Mpx/s, M reads/s, layers/s, squares/s, icons/s, texts/s). Every frame also
+  Mpx/s, M reads/s, layers/s, squares/s, icons/s). Every frame also
   costs a fixed time for compositing and scaling to the screen, 10-15 ms on
   an Xperia XA2 and 20-30 ms on the Jolla Tablet; measured at one load, as up
   to 2.1, that cost made a score rise 40-170 % from one load step to the next,
@@ -123,8 +123,6 @@ tapped is shown beside it, stage by stage, with the ratio.
 | Overdraw | big translucent squares, stacked and turning: fill rate | layers/s |
 | Cascade | rounded squares in two transformed rings | squares/s |
 | Icon storm | SVG icons (flashes and Twemoji rockets) on spiral arms | icons/s |
-| Text scale | a ring and six numbers resized by a scale transform, distance-field glyphs, the whole picture stacked | texts/s |
-| Text reraster | the same picture by animating the font size, each stacked copy at its own size: every glyph rasterised again | texts/s |
 | CPU prime | sysbench's cpu event (primes up to 10000) on every core the SoC has, one per cell of an Ulam spiral; an armv7hl build uses the divide instruction where the core has one | events/s |
 | CPU single core | the same on one thread | events/s |
 | Memory throughput | memcpy between two 32 MB buffers | MB/s |
@@ -148,8 +146,6 @@ besides the work, which the scores leave out:
 | Overdraw | 1890 layers/s | 747 layers/s |
 | Cascade | 26240 squares/s | 96255 squares/s |
 | Icon storm | 18787 icons/s | 18058 icons/s |
-| Text scale | 18060 texts/s | 33980 texts/s (±11 %) |
-| Text reraster | 5878 texts/s (±34 %) | 5768 texts/s |
 | CPU prime | 9500 events/s (8 threads) | 1231 events/s (4) |
 | CPU single core | 1355 events/s | 361 events/s |
 | Memory throughput | 1509 MB/s | 937 MB/s |
@@ -157,7 +153,7 @@ besides the work, which the scores leave out:
 | frame overhead | 12.4 ms | ~25 ms |
 
 GPU-bound stages repeat within about 5 % between runs; the scene graph's
-CPU-bound ones (Benchy large, Cascade, the text stages) vary 10-20 % on the
+CPU-bound ones (Benchy large, Cascade) vary 10-20 % on the
 XA2, and the results mark a row uncertain by more than ±10 % (its two
 measurements differ). One million compares script engines: the tablet's x86 JIT counts
 five times faster than the XA2's armv7. The tablet's graphics driver hands

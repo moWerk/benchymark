@@ -20,7 +20,7 @@ BuildRequires:  qt5-qttools-linguist
 
 %description
 Benchymark runs rendering stages, a rotating 3DBenchy wireframe, shader
-fields, GPU table reads, text and fill rate tests, plus CPU, memory and
+fields, GPU table reads, fill rate and icon tests, plus CPU, memory and
 storage tests. Every device draws the same 720 x 1600 canvas and each
 stage calibrates its load, so the scores (work per second) compare
 between devices. Results are saved and can be shared as a picture or
