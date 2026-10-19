@@ -55,107 +55,76 @@ Page {
 
     // In the order that reads best: the bright graphics first, text last,
     // then the system stages, storage at the very end (mo, 2026-10-17).
-    // `about` is the one-sentence manual shown under the name on a tap.
+    // `score` says what a stage counts and what that shows: under its name
+    // on the start page, and under its row in the results.
     // A graphics stage scores its work per second (2.2: a fixed load, off
     // screen); a system stage its own figure.
     readonly property var stages: [
         //% "Benchy large"
         { name: qsTrId("id-stage-benchy-light"), key: "BENCHY-LIGHT", file: "BenchyLow",
-          //% "Two large 3DBenchy wireframes turning, each drawn many times on its spot: the lines are rotated and projected on the CPU, then stroked by the GPU. A large boat has twice the lines' length of a small one to draw, so fewer of them fit in a second. Scores boats per second."
-          about: qsTrId("id-about-benchy-light"),
-          //% "Boats drawn per second, two large ones on screen"
+          //% "Boats drawn per second: two large 3DBenchy wireframes, each drawn many times. Shows how fast the phone turns 3D lines into a picture, the CPU projecting every line and the GPU drawing it."
           score: qsTrId("id-score-benchy-light") },
         //% "Benchy small"
         { name: qsTrId("id-stage-benchy-heavy"), key: "BENCHY-HEAVY", file: "BenchyHigh",
-          //% "Six small boats, each drawn many times: the same work per boat on the CPU, half the lines' length for the GPU. Scores boats per second."
-          about: qsTrId("id-about-benchy-heavy"),
-          //% "Boats drawn per second, six small ones on screen"
+          //% "Boats drawn per second: six small wireframes, half the lines' length each. Next to Benchy large it tells what holds the phone back: alike, the CPU; far ahead here, drawing the lines."
           score: qsTrId("id-score-benchy-heavy") },
         //% "Benchy glow"
         { name: qsTrId("id-stage-glow"), key: "BENCHY-GLOW", file: "Glow",
-          //% "A Benchy with a pulsing golden halo, the glow stacked several times: a blur over the whole picture each, the cost of soft effects. Scores megapixels per second."
-          about: qsTrId("id-about-glow"),
-          //% "Megapixels blurred per second"
+          //% "Megapixels blurred per second: two golden halos over the whole picture. Shows how well the GPU handles soft effects, like the blurs and glows of the interface."
           score: qsTrId("id-score-glow") },
         //% "Shader light"
         { name: qsTrId("id-stage-shader-light"), key: "SHADER-LIGHT", file: "ShaderLow",
-          //% "A drifting noise field computed for every pixel, several times over: GPU arithmetic. Scores megapixels per second."
-          about: qsTrId("id-about-shader-light"),
-          //% "Megapixels of noise field per second"
+          //% "Megapixels of noise field per second: a moving cloud computed for every pixel. Shows the GPU's raw arithmetic, as animated backgrounds and wallpapers use it."
           score: qsTrId("id-score-shader-light") },
         //% "Shader heavy"
         { name: qsTrId("id-stage-shader-heavy"), key: "SHADER-HEAVY", file: "ShaderHigh",
-          //% "The same idea warped twice over, about thirty noise lookups per pixel and field: the heaviest GPU arithmetic here. Scores megapixels per second."
-          about: qsTrId("id-about-shader-heavy"),
-          //% "Megapixels of warped field per second"
+          //% "Megapixels of warped field per second: the cloud warped twice, many times the math per pixel. Shows how the GPU copes with really heavy shaders, as games use them."
           score: qsTrId("id-score-shader-heavy") },
         // the same table walk from three kinds of GPU memory (kan_ibal, forum)
         //% "Table from UBO"
         { name: qsTrId("id-stage-buffer-ubo"), key: "BUFFER-UBO", file: "BufferUbo",
-          //% "Every pixel walks a 16 KB table, each index taken from the entry before, here from a uniform buffer (UBO). Scores million table reads per second. Needs OpenGL ES 3.0."
-          about: qsTrId("id-about-buffer-ubo"),
-          //% "Million table reads per second from a uniform buffer"
+          //% "Million table reads per second, the table in a uniform buffer. Shows how fast the GPU looks up data while it draws; next to the other two table stages, which way suits this GPU. Needs OpenGL ES 3.0."
           score: qsTrId("id-score-buffer-ubo") },
         //% "Table from SSBO"
         { name: qsTrId("id-stage-buffer-ssbo"), key: "BUFFER-SSBO", file: "BufferSsbo",
-          //% "The same table walk from a shader storage buffer (SSBO). Needs OpenGL ES 3.1 and a driver that allows them in fragment shaders."
-          about: qsTrId("id-about-buffer-ssbo"),
-          //% "Million table reads per second from a storage buffer"
+          //% "Million table reads per second, the table in a storage buffer. The way newer graphics code hands large data to the GPU; compare with the other two table stages. Needs OpenGL ES 3.1 and a driver that allows it in fragment shaders."
           score: qsTrId("id-score-buffer-ssbo") },
         //% "Table from texture"
         { name: qsTrId("id-stage-buffer-texture"), key: "BUFFER-TEXTURE", file: "BufferTexture",
-          //% "The same table walk from a float texture, the classic way and the baseline for the two buffers. Needs OpenGL ES 3.0."
-          about: qsTrId("id-about-buffer-texture"),
-          //% "Million table reads per second from a texture"
+          //% "Million table reads per second, the table in a texture. The classic way to hand data to the GPU, and the baseline for the two buffers. Needs OpenGL ES 3.0."
           score: qsTrId("id-score-buffer-texture") },
         //% "Overdraw"
         { name: qsTrId("id-stage-overdraw"), key: "OVERDRAW", file: "Overdraw",
-          //% "Large translucent squares stacked and turning: every pixel is blended many times, raw fill rate. Scores layers per second."
-          about: qsTrId("id-about-overdraw"),
-          //% "Translucent layers blended per second"
+          //% "Translucent layers blended per second, each covering much of the screen. Shows the fill rate: how often per second the GPU can paint over the screen, what stacked windows and transparent effects cost."
           score: qsTrId("id-score-overdraw") },
         //% "Cascade"
         { name: qsTrId("id-stage-cascade"), key: "CASCADE", file: "Cascade",
-          //% "Thousands of rounded squares in two breathing, counter-rotating rings: many moving items under transformed parents. Scores squares per second."
-          about: qsTrId("id-about-cascade"),
-          //% "Squares moved per second"
+          //% "Squares moved per second, rounded and smoothed, in two rings that scale and turn. Shows how many moving elements the interface engine (Qt Quick) handles, CPU and GPU together."
           score: qsTrId("id-score-cascade") },
         //% "Icon storm"
         { name: qsTrId("id-stage-icons"), key: "ICONS", file: "Icons",
-          //% "Rockets and flashes on spiral arms, stacked: many small images moving every frame. Scores icons per second."
-          about: qsTrId("id-about-icons"),
-          //% "Icons drawn per second"
+          //% "Icons drawn per second, each placed anew every frame on spiral arms. Shows how a busy interface with many small moving images runs; this leans on the CPU."
           score: qsTrId("id-score-icons") },
         //% "CPU prime"
         { name: qsTrId("id-stage-cpu"), key: "CPU-PRIME", file: "CpuPrime",
-          //% "All cores count primes as sysbench does; every finished count lights a cell of an Ulam spiral if its number is prime."
-          about: qsTrId("id-about-cpu"),
-          //% "Prime counts per second on all cores"
+          //% "Prime counts per second on all cores, sysbench's classic test; every count lights a cell of the spiral if its number is prime. Shows the processor's total power, what installs, compression and many apps at once lean on."
           score: qsTrId("id-score-cpu") },
         //% "CPU single core"
         { name: qsTrId("id-stage-cpu-single"), key: "CPU-SINGLE", file: "CpuPrimeSingle",
-          //% "The same prime counting on one core only: next to the all core figure it shows what a single core does."
-          about: qsTrId("id-about-cpu-single"),
-          //% "Prime counts per second on one core"
+          //% "Prime counts per second on one core. Shows how fast a single task runs, what most apps and the interface depend on; next to the all-core score, how much the other cores add."
           score: qsTrId("id-score-cpu-single") },
         //% "Memory throughput"
         { name: qsTrId("id-stage-memory"), key: "MEMORY", file: "Memory",
-          //% "Copies memory between two 32 MB buffers as fast as it can: how quickly the phone moves data in RAM."
-          about: qsTrId("id-about-memory"),
-          //% "Megabytes copied per second"
+          //% "Megabytes copied per second between two large buffers. Shows how fast the phone moves data in its memory, what large images, video and app starts depend on."
           score: qsTrId("id-score-memory") },
         //% "One million"
         { name: qsTrId("id-stage-million"), key: "ONE-MILLION", file: "OneMillion",
-          //% "JavaScript counts to one million, over and over: how fast the app's script engine runs a plain loop."
-          about: qsTrId("id-about-million"),
-          //% "Million loop steps per second in JavaScript"
+          //% "Million steps per second of a JavaScript counting loop. Shows how fast the app's script engine runs plain code; the logic of SailfishOS apps runs in this engine."
           score: qsTrId("id-score-million") },
         // last: off at first, an unticked switch among ticked ones looked odd
         //% "Storage performance"
         { name: qsTrId("id-stage-storage"), key: "STORAGE", file: "Storage",
-          //% "Writes 256 MB in small blocks past the cache and reads it back. Off by default: it wears the flash a little every run."
-          about: qsTrId("id-about-storage"),
-          //% "Megabytes read and written per second"
+          //% "Megabytes per second written and read in small blocks past the cache. Shows how fast the flash itself stores and loads, what installs, updates and app starts depend on. Off by default: it wears the flash a little every run."
           score: qsTrId("id-score-storage") }
     ]
 
@@ -903,7 +872,7 @@ Page {
                         anchors.top: nameArea.bottom
                         anchors.left: nameArea.left
                         width: nameLabel.width
-                        text: modelData.about
+                        text: modelData.score
                         wrapMode: Text.Wrap
                         font.pixelSize: Theme.fontSizeSmall
                         // the strongest text colour: it floats over the dimmed Benchy

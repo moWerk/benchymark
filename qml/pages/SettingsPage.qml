@@ -174,7 +174,7 @@ Page {
                     TextSwitch {
                         //% "Score descriptions in the results"
                         text: qsTrId("id-setting-score-about")
-                        //% "A tap on a stage in the results opens a line on what its score counts."
+                        //% "A tap on a stage in the results says what its score counts and what that shows, as on the start page."
                         description: qsTrId("id-setting-score-about-about")
                         checked: showScoreAbout.value === true || showScoreAbout.value === "true"
                         automaticCheck: false
