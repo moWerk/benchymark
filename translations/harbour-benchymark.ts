@@ -440,17 +440,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message id="id-share-assembling">
-        <location filename="../qml/pages/ResultsPane.qml" line="99"/>
+        <location filename="../qml/pages/ResultsPane.qml" line="107"/>
         <source>Assembling screenshot…</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-share-saved-in">
-        <location filename="../qml/pages/ResultsPane.qml" line="144"/>
+        <location filename="../qml/pages/ResultsPane.qml" line="191"/>
         <source>Saved to %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message id="id-share-not-saved">
-        <location filename="../qml/pages/ResultsPane.qml" line="146"/>
+        <location filename="../qml/pages/ResultsPane.qml" line="193"/>
         <source>Could not save the picture</source>
         <translation type="unfinished"></translation>
     </message>
@@ -460,7 +460,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message id="id-share-results">
-        <location filename="../qml/pages/ResultsPane.qml" line="123"/>
+        <location filename="../qml/pages/ResultsPane.qml" line="163"/>
         <source>Share results</source>
         <translation type="unfinished"></translation>
     </message>

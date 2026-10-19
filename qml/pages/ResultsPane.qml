@@ -82,32 +82,72 @@ Item {
     // (mo, 2026-10-18)
     // Then it says where the picture went, or that it could not be saved,
     // before the share menu opens: the save was silent (Michał, 2026-10-19).
+    // The note on the dimmed page fades in, pulses twice and fades out,
+    // 1.5 s at least however quick the picture is, so it can be read; then
+    // where the picture went fades in (mo, 2026-10-19: the texts cut in).
     property string shareNote: ""
     property bool shareSaved: false
+    property bool shareBusy: false       // from Share image to the share menu
+    property bool assemblingShown: false // the note's 1.5 s are through
+    property bool shareDone: false       // the picture is saved, or failed
     Rectangle {
         anchors.fill: parent
-        visible: shareLoader.active || pane.shareNote !== ""
+        visible: opacity > 0
+        opacity: pane.shareBusy ? 1 : 0
+        Behavior on opacity { FadeAnimation { duration: 250 } }
         color: Qt.rgba(0, 0, 0, 0.5)
         z: 50
         MouseArea { anchors.fill: parent }   // no taps through while it works
         Label {
+            id: assemblingLabel
+            anchors.centerIn: parent
+            width: parent.width - 2 * Theme.horizontalPageMargin
+            horizontalAlignment: Text.AlignHCenter
+            //% "Assembling screenshot…"
+            text: qsTrId("id-share-assembling").split(" ").join("\n")
+            color: Theme.highlightColor
+            font.pixelSize: Theme.fontSizeLarge * 1.5
+            opacity: 0
+        }
+        Label {
+            id: savedLabel
             anchors.centerIn: parent
             width: parent.width - 2 * Theme.horizontalPageMargin
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            //% "Assembling screenshot…"
-            text: pane.shareNote !== "" ? pane.shareNote : qsTrId("id-share-assembling")
+            text: pane.shareNote
             color: Theme.highlightColor
             font.pixelSize: Theme.fontSizeLarge
+            opacity: 0
         }
     }
-    Timer {
-        id: shareNoteTimer
-        interval: 1500
-        onTriggered: {
-            pane.shareNote = ""
-            if (pane.shareSaved && !pane.shareTest) shareAction.trigger()
+    SequentialAnimation {
+        id: assemblingAnim
+        NumberAnimation { target: assemblingLabel; property: "opacity"; from: 0; to: 1; duration: 250 }
+        SequentialAnimation {
+            loops: 2
+            NumberAnimation { target: assemblingLabel; property: "opacity"; from: 1; to: 0.75; duration: 250 }
+            NumberAnimation { target: assemblingLabel; property: "opacity"; from: 0.75; to: 1; duration: 250 }
         }
+        NumberAnimation { target: assemblingLabel; property: "opacity"; from: 1; to: 0; duration: 250 }
+        ScriptAction { script: { pane.assemblingShown = true; pane.showSaved() } }
+    }
+    SequentialAnimation {
+        id: savedAnim
+        NumberAnimation { target: savedLabel; property: "opacity"; from: 0; to: 1; duration: 250 }
+        PauseAnimation { duration: 1500 }
+        NumberAnimation { target: savedLabel; property: "opacity"; from: 1; to: 0; duration: 250 }
+        ScriptAction {
+            script: {
+                pane.shareBusy = false
+                pane.shareNote = ""
+                if (pane.shareSaved && !pane.shareTest) shareAction.trigger()
+            }
+        }
+    }
+    // once both the note's time and the picture are through
+    function showSaved() {
+        if (assemblingShown && shareDone && !savedAnim.running) savedAnim.start()
     }
     // the graphs are Canvases: give them a moment to draw before the grab
     Timer {
@@ -126,13 +166,20 @@ Item {
     readonly property string stamp: run && run.started
             ? Qt.formatDateTime(new Date(Date.parse(run.started)), "yyyyMMdd-hhmmss") : "run"
     function shareImage(test) {
+        if (shareBusy) return
         shareTest = test === true
+        shareBusy = true
+        assemblingShown = false
+        shareDone = false
+        assemblingLabel.opacity = 0
+        savedLabel.opacity = 0
+        assemblingAnim.restart()
         shareLoader.active = true
         shareGrabTimer.restart()
     }
     function grabShare() {
         var item = shareLoader.item
-        if (!item) return
+        if (!item) { shareDone = true; showSaved(); return }
         item.grabToImage(function (result) {
             // the test hook keeps it in the app's data directory instead
             var file = pane.shareTest ? log.path().replace("last-run.json", "share-test.png")
@@ -144,7 +191,8 @@ Item {
             pane.shareNote = saved ? qsTrId("id-share-saved-in").arg(file.replace(/^.*\/(Pictures\/)/, "$1"))
                            //% "Could not save the picture"
                            : qsTrId("id-share-not-saved")
-            shareNoteTimer.restart()
+            pane.shareDone = true
+            pane.showSaved()
             if (!saved) {
                 console.warn("Benchymark: could not save " + file)
                 return
