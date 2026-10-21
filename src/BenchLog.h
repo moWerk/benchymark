@@ -176,7 +176,9 @@ public:
             QString type;
             if (ty.open(QIODevice::ReadOnly)) type = QString::fromLatin1(ty.readAll()).trimmed().toLower();
             // battery state-of-charge zones read 0-100 but are no temperature
-            if (type.startsWith(QLatin1String("socd")) || type.contains(QLatin1String("bcl"))
+            // (Pro1-X: a zone named just "soc" read 87, the charge in percent)
+            if (type == QLatin1String("soc") || type.startsWith(QLatin1String("socd"))
+                    || type.contains(QLatin1String("bcl"))
                     || type.contains(QLatin1String("vbat")) || type.contains(QLatin1String("ibat")))
                 continue;
             // The unit per zone from its first trip point when it has one
