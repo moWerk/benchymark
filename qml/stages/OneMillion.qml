@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // ONE MILLION: JavaScript counts to one million, over and over, in a worker
-// thread, one million per request (the author's 2016 bash counting loop). The counter races, and
+// thread that never waits (the author's 2016 bash counting loop). The counter races, and
 // below it random dots fill the area, their colour moving on with every
 // million, so new dots show over the old ones. Score: millions per second.
 import QtQuick 2.6
@@ -51,25 +51,25 @@ Item {
         id: worker
         source: "counter.js"
         onMessage: {
-            stage.count = messageObject.count
-            stage.laps = messageObject.lap
-            stage.counted += 20000
+            stage.counted += messageObject.steps
             stage.countMs += messageObject.ms
+            stage.laps = Math.floor(stage.counted / 1000000)
+            stage.count = stage.counted % 1000000
             var xy = messageObject.xy
             var fw = stage.width - 2 * stage.margin
             var fh = stage.areaBottom - stage.fieldTop
             var pts = []
             for (var i = 0; i + 1 < xy.length; i += 2)
                 pts.push(stage.margin + xy[i] * fw, stage.fieldTop + xy[i + 1] * fh)
-            dots.addPoints(pts, stage.palette[messageObject.lap % stage.palette.length])
-            // the next million, as long as the stage is on
+            dots.addPoints(pts, stage.palette[stage.laps % stage.palette.length])
+            // the next quarter second, as long as the stage is on
             if (messageObject.done && stage.running)
-                worker.sendMessage({ lap: messageObject.lap + 1 })
+                worker.sendMessage({})
         }
     }
 
     property bool running: true
-    Component.onCompleted: { t0 = Date.now(); worker.sendMessage({ lap: 0 }) }
+    Component.onCompleted: { t0 = Date.now(); worker.sendMessage({}) }
     Component.onDestruction: running = false
 
     Timer {
@@ -82,8 +82,7 @@ Item {
         }
     }
 
-    // steps per second of the worker's own counting time; a run of 20000
-    // can read 0 ms on a fast phone, so the sum over all runs counts
+    // steps per second of the worker's own counting time
     function results() {
         var v = stage.countMs > 0 ? stage.counted / 1000 / stage.countMs : 0
         // the stage's wall time too, to check the worker's ms timing
