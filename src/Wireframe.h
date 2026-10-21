@@ -8,9 +8,9 @@
 #include <QQuickItem>
 
 // SailfishOS: the 3DBenchy wireframe. On the watch QML projects the mesh
-// and QtQuick.Shapes strokes it; Qt 5.6 has no Shapes, so this item does
-// the same rotate -> project in C++ and hands the scene graph one line
-// geometry per frame. `copies` boats in a grid, each turned a little
+// and QtQuick.Shapes strokes it; Qt 5.6 has no Shapes, so this item hands
+// the scene graph the mesh as lines once and a vertex shader does the same
+// rotate -> project. `copies` boats in a grid, each turned a little
 // further than the one before, so the load is the line count.
 class Wireframe : public QQuickItem
 {
