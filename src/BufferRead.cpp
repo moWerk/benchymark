@@ -15,13 +15,16 @@
 
 static const int kEntries = 1024;   // 1024 vec4 = 16 KB, the smallest UBO a GPU must allow
 
-// One triangle over the whole target, from gl_VertexID: no vertex buffer.
+// One triangle over the whole target, its corners from a small vertex
+// buffer. Until 2.2 it came from gl_VertexID with no attribute array on:
+// the Nexus 5's Adreno 330 drew nothing then and the stage timed bare
+// clears (478 frames/s for UBO and texture alike, mo saw a black stage).
 static const char *kVertex =
+    "in vec2 pos;\n"
     "out vec2 uv;\n"
     "void main() {\n"
-    "    vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));\n"
-    "    uv = p;\n"
-    "    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+    "    uv = pos;\n"
+    "    gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);\n"
     "}\n";
 
 // The first read follows a slow spiral, so the picture has a shape; every
@@ -63,6 +66,7 @@ public:
         if (m_program) f->glDeleteProgram(m_program);
         if (m_buffer) f->glDeleteBuffers(1, &m_buffer);
         if (m_texture) f->glDeleteTextures(1, &m_texture);
+        if (m_corners) f->glDeleteBuffers(1, &m_corners);
     }
 
     // synchronize runs first, so the fixed size is known here
@@ -122,9 +126,13 @@ public:
                 f->glBindTexture(GL_TEXTURE_2D, m_texture);
             }
             // the scene graph's attribute arrays would point into its memory
-            for (GLuint a = 0; a < 8; a++) f->glDisableVertexAttribArray(a);
-            f->glBindBuffer(GL_ARRAY_BUFFER, 0);
+            for (GLuint a = 1; a < 8; a++) f->glDisableVertexAttribArray(a);
+            f->glBindBuffer(GL_ARRAY_BUFFER, m_corners);
+            f->glEnableVertexAttribArray(0);
+            f->glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
             f->glDrawArrays(GL_TRIANGLES, 0, 3);
+            f->glDisableVertexAttribArray(0);
+            f->glBindBuffer(GL_ARRAY_BUFFER, 0);
             if (m_mode == QLatin1String("ubo")) f->glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
             else if (m_mode == QLatin1String("ssbo")) f->glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
             else f->glBindTexture(GL_TEXTURE_2D, 0);
@@ -149,6 +157,12 @@ private:
         const int need = ssbo ? 31 : 30;
         if (version < need)
             return QStringLiteral("needs OpenGL ES %1.%2").arg(need / 10).arg(need % 10);
+        // The Adreno 300 series hangs on the table loop: the Nexus 5's
+        // Adreno 330 hit a GPU timeout and fault with UBO and texture
+        // alike (kgsl, 2026-10-22), so it is not run there.
+        const GLubyte *r = g->glGetString(GL_RENDERER);
+        if (r && QString::fromLatin1(reinterpret_cast<const char *>(r)).contains(QRegExp(QStringLiteral("Adreno \\(TM\\) 3\\d\\d"))))
+            return QStringLiteral("hangs this GPU (Adreno 300 series)");
         // no ES 3.0 call is made before the version check
         QOpenGLExtraFunctions *f = ctx->extraFunctions();
         // an error left by earlier drawing is not this stage's (night audit)
@@ -183,6 +197,7 @@ private:
         m_program = f->glCreateProgram();
         f->glAttachShader(m_program, vs);
         f->glAttachShader(m_program, fs);
+        f->glBindAttribLocation(m_program, 0, "pos");
         f->glLinkProgram(m_program);
         f->glDeleteShader(vs);
         f->glDeleteShader(fs);
@@ -196,6 +211,12 @@ private:
             m_program = 0;
             return QStringLiteral("the shader does not link");
         }
+        // the corners in uv: (0,0), (2,0), (0,2) cover the unit square
+        static const GLfloat corners[] = { 0, 0, 2, 0, 0, 2 };
+        f->glGenBuffers(1, &m_corners);
+        f->glBindBuffer(GL_ARRAY_BUFFER, m_corners);
+        f->glBufferData(GL_ARRAY_BUFFER, sizeof(corners), corners, GL_STATIC_DRAW);
+        f->glBindBuffer(GL_ARRAY_BUFFER, 0);
         m_locT = f->glGetUniformLocation(m_program, "t");
         m_locAspect = f->glGetUniformLocation(m_program, "aspect");
         m_locLookups = f->glGetUniformLocation(m_program, "lookups");
@@ -280,6 +301,7 @@ private:
     GLuint m_program = 0;
     GLuint m_buffer = 0;
     GLuint m_texture = 0;
+    GLuint m_corners = 0;
     GLint m_locT = -1, m_locAspect = -1, m_locLookups = -1;
 };
 
