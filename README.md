@@ -78,6 +78,33 @@ Tap a stage name on the start page for one sentence on what it tests.
 | Memory throughput | memcpy between two 32 MB buffers; MB/s |
 | One million | JavaScript counting to one million, over and over, in a worker; millions/s |
 | Storage performance | 256 MB in 16 KB blocks with O_DIRECT, written and read, then deleted; MB/s. Off by default (flash wear) |
+| Vulkan shader | the Shader heavy field through Vulkan, offscreen, timed by the GPU itself |
+| GLES 3 shader | the same field through a plain ES 3 context, offscreen |
+| GLES 2 shader | the same with an ES 2 context and GLSL ES 1.00, the version Qt 5.6 uses |
+
+### Vulkan, GLES 3 and GLES 2
+
+Three stages compute **Shader heavy's field on three other roads**. Each
+draws without a window, into an image in memory the size of the stage area,
+and each **counts its own frames**: a stage may offer a `frameSource`, which
+the page samples once a second instead of the window's frame counter, so
+these stages end up with **avg, min and worst** like every drawn stage.
+Nothing is presented, so there is no vsync — the figures may exceed the 60
+the other stages are capped at.
+
+The Vulkan shader is carried over from `ShaderHigh.qml` character for
+character (`src/vulkan-cloud.frag`, compiled into `src/vulkan-spv.h`); the
+GLES stages use that same ES source with only the header swapped and the
+precision qualifier kept, otherwise one would compare fp16 against fp32
+instead of the roads.
+
+`libvulkan` is opened at **run time**, never linked: where it is missing the
+app starts as always and the stage says *no Vulkan here* with the reason.
+
+On a Jolla Phone 2026 (Mali-G610 MC2), eight seconds per road: at 540x900
+Vulkan reaches 58, ES 3 47 and ES 2 44 fps; at 1080x1700 all three land
+within the spread between two passes, where Shader heavy itself reaches
+16 fps on screen.
 
 First results (average fps, then the system values). The Jolla Phone and
 Xperia 10 II runs are by forum user ahjolinna

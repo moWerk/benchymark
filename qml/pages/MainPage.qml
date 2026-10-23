@@ -45,6 +45,18 @@ Page {
         { name: qsTrId("id-stage-shader-heavy"), key: "SHADER-HEAVY", file: "ShaderHigh",
           //% "The same idea warped twice over, about thirty noise lookups per pixel: the heaviest GPU load here."
           about: qsTrId("id-about-shader-heavy") },
+        //% "Vulkan shader"
+        { name: qsTrId("id-stage-vulkan"), key: "VULKAN", file: "Vulkan",
+          //% "The same shader through Vulkan, drawn without a window into memory and timed by the GPU itself: what the other road costs for the same picture."
+          about: qsTrId("id-about-vulkan") },
+        //% "GLES 3 shader"
+        { name: qsTrId("id-stage-gles3"), key: "GLES-3", file: "Gles3",
+          //% "The same again through plain OpenGL ES 3 in its own context: the road QtQuick takes, without the scene graph on top."
+          about: qsTrId("id-about-gles3") },
+        //% "GLES 2 shader"
+        { name: qsTrId("id-stage-gles2"), key: "GLES-2", file: "Gles2",
+          //% "The same once more with an ES 2 context and GLSL ES 1.00, the version Qt 5.6 itself uses."
+          about: qsTrId("id-about-gles2") },
         //% "Overdraw"
         { name: qsTrId("id-stage-overdraw"), key: "OVERDRAW", file: "Overdraw",
           //% "72 large translucent squares stacked and turning: every pixel is blended many times, raw fill rate."
@@ -266,9 +278,18 @@ Page {
         lastFps = 0
         stageLoader.setSource(Qt.resolvedUrl("../stages/" + stages[current].file + ".qml"),
                               { areaTop: areaTop, areaBottom: areaBottom })
-        FrameCounter.take()
-        FrameCounter.takeWorstMs()
+        var source = frameSource()
+        source.take()
+        source.takeWorstMs()
         sampledAt = Date.now()
+    }
+
+    // Who counts the frames: a stage that draws on its own (VULKAN, GLES)
+    // brings its own counter, because the window sees nothing of its work.
+    // Everything else is counted by the window's FrameCounter.
+    function frameSource() {
+        var item = stageLoader.item
+        return (item && item.frameSource) ? item.frameSource : FrameCounter
     }
 
     function record(key, row) {
@@ -355,10 +376,11 @@ Page {
             // a "second" can be longer: divide by the time that passed, not by
             // the second asked for (the watch version's v0.6 fix).
             var now = Date.now()
-            var frames = FrameCounter.take()
+            var source = page.frameSource()
+            var frames = source.take()
             var fps = Math.round(frames * 1000 / Math.max(1, now - page.sampledAt))
             page.sampledAt = now
-            var worst = FrameCounter.takeWorstMs()
+            var worst = source.takeWorstMs()
             if (stageLoader.status !== Loader.Ready) return
             if (!page.warm) { page.warm = true; return }
             page.lastFps = fps

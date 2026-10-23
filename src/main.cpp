@@ -15,6 +15,8 @@
 #include "Wireframe.h"
 #include "Dots.h"
 #include "SystemBench.h"
+#include "VulkanBench.h"
+#include "GlesBench.h"
 
 int main(int argc, char *argv[])
 {
@@ -31,6 +33,9 @@ int main(int argc, char *argv[])
     qmlRegisterType<PrimeEngine>("Benchymark", 1, 0, "PrimeEngine");
     qmlRegisterType<MemoryEngine>("Benchymark", 1, 0, "MemoryEngine");
     qmlRegisterType<StorageEngine>("Benchymark", 1, 0, "StorageEngine");
+    qmlRegisterType<OffscreenView>("Benchymark", 1, 0, "OffscreenView");
+    qmlRegisterType<VulkanEngine>("Benchymark", 1, 0, "VulkanEngine");
+    qmlRegisterType<GlesEngine>("Benchymark", 1, 0, "GlesEngine");
 
     QScopedPointer<QQuickView> view(SailfishApp::createView());
     // frames as presented, counted on the render thread
