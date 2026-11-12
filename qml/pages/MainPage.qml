@@ -22,7 +22,9 @@ Page {
     // device can draw (rework of 2026-10-19). On screen the frame rate
     // carried the refresh cap and a fixed 12-25 ms per frame for compositing
     // and scaling, and the scores bent around both (night audit).
-    readonly property string sceneVersion: "sfos-2.2"
+    // sfos-2.3: the Benchy boats projected on the GPU, One million counted
+    // by a worker that never waits; both scores change on every device.
+    readonly property string sceneVersion: "sfos-2.3"
     readonly property int stageSeconds: 10    // a system stage, measured
     // A graphics stage: two seconds not measured while clocks and caches
     // settle, then six measured; how far its two halves' scores lie apart

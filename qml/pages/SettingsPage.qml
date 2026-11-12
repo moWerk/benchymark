@@ -84,7 +84,7 @@ Page {
                 about: [modeNames[r.mode] || "", qsTrId("id-stages-count").arg(r.stages),
                         r.version ? "v" + r.version : "",
                         // an older scene's scores do not compare with this one's
-                        r.scene && r.scene !== "sfos-2.2" ? r.scene : ""]
+                        r.scene && r.scene !== "sfos-2.3" ? r.scene : ""]
                        .filter(function (x) { return x !== "" }).join("  ·  ")
             })
         }

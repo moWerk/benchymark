@@ -18,7 +18,7 @@ Item {
     property var stageInfo: ({})
     property string openResult: ""   // the row whose score line is open
     // this version's scene, to mark older runs (as MainPage's sceneVersion)
-    property string currentScene: "sfos-2.2"
+    property string currentScene: "sfos-2.3"
 
     width: parent ? parent.width : Screen.width
     height: resultColumn.height + Theme.paddingLarge
