@@ -142,11 +142,12 @@ in 2.2, 275 M/s in 2.3). Also: a thermal zone named just "soc" is left out
 (on the Pro¹-X it reads the battery's charge), and the table stages are
 reported as not run on Adreno 300 series GPUs, where they hang the GPU.
 Results with 2.3 (scene `sfos-2.3`), by the author, one full run per device
-(the Pro¹-X: the second of two, and two more on a second Pro¹-X agree within
-±3 %)
-on the evening of the release (2026-11-19), every stage within a few percent
+(the Pro¹-X with Rustrx closed, whose background sync had scattered Benchy
+large in two earlier runs; two runs on a second Pro¹-X agree within ±3 %) on
+the evening of the release (2026-11-19), every stage within a few percent
 between the two halves of its measurement. The new boats draw on every GPU
-here, the Mesa driver of the Pro¹-X mainline port included; the XA2 gained most (Benchy small 2.5 times, One million 1.7 times).
+here, the Mesa driver of the Pro¹-X mainline port included; the XA2 gained
+most (Benchy small 2.5 times, One million 1.7 times).
 
 | stage | Jolla Phone 2026 (5.2, Mali-G610) | Jolla C2 (5.2, Mali-G57) | Xperia XA2 (5.1, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) | Xperia X (4.6, Adreno 510, armv7hl) | Nexus 5 (5.1, Adreno 330, armv7hl) | F(x)tec Pro¹-X (5.2, mainline port, Adreno 610 Mesa) |
 |---|---|---|---|---|---|---|---|
