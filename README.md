@@ -142,28 +142,30 @@ in 2.2, 275 M/s in 2.3). Also: a thermal zone named just "soc" is left out
 (on the Pro¹-X it reads the battery's charge), and the table stages are
 reported as not run on Adreno 300 series GPUs, where they hang the GPU.
 Results with 2.3 (scene `sfos-2.3`), by the author, one full run per device
+(the Pro¹-X: the second of two, and two more on a second Pro¹-X agree within
+±3 %)
 on the evening of the release (2026-11-19), every stage within a few percent
 between the two halves of its measurement. The new boats draw on every GPU
-here; the XA2 gained most (Benchy small 2.5 times, One million 1.7 times).
+here, the Mesa driver of the Pro¹-X mainline port included; the XA2 gained most (Benchy small 2.5 times, One million 1.7 times).
 
-| stage | Jolla Phone 2026 (5.2, Mali-G610) | Jolla C2 (5.2, Mali-G57) | Xperia XA2 (5.1, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) | Xperia X (4.6, Adreno 510, armv7hl) | Nexus 5 (5.1, Adreno 330, armv7hl) |
-|---|---|---|---|---|---|---|
-| Benchy large | 9061 boats/s | 1068 boats/s | 18221 boats/s | 2606 boats/s | 20764 boats/s | 10298 boats/s |
-| Benchy small | 19792 boats/s | 2792 boats/s | 32436 boats/s | 6243 boats/s | 28674 boats/s | 16279 boats/s |
-| Benchy glow | 268 Mpx/s | 38.5 Mpx/s | 47.0 Mpx/s | 19.4 Mpx/s | 62.9 Mpx/s | 31.8 Mpx/s |
-| Shader light | 241 Mpx/s | 47.9 Mpx/s | 50.5 Mpx/s | 30.4 Mpx/s | 32.5 Mpx/s | 54.6 Mpx/s |
-| Shader heavy | 42.3 Mpx/s | 8.6 Mpx/s | 17.4 Mpx/s | 7.3 Mpx/s | 12.7 Mpx/s | 20.3 Mpx/s |
-| Table from UBO | 2128 M reads/s | 414 M reads/s | 635 M reads/s | 326 M reads/s | 952 M reads/s | – (not run on Adreno 300) |
-| Table from SSBO | 2398 M reads/s | 415 M reads/s | 615 M reads/s | – (needs OpenGL ES 3.1) | 923 M reads/s | – (needs OpenGL ES 3.1) |
-| Table from texture | 3742 M reads/s | 975 M reads/s | 638 M reads/s | 146 M reads/s | 546 M reads/s | – (not run on Adreno 300) |
-| Overdraw | 6942 layers/s | 930 layers/s | 2281 layers/s | 767 layers/s | 2515 layers/s | 2208 layers/s |
-| Cascade | 515048 squares/s | 85685 squares/s | 103390 squares/s | 90310 squares/s | 120693 squares/s | 53520 squares/s |
-| Icon storm | 102980 icons/s | 30739 icons/s | 19519 icons/s | 16998 icons/s | 29471 icons/s | 11128 icons/s |
-| CPU prime | 16219 events/s (8 threads) | 9853 events/s (8 threads) | 7853 events/s (8 threads) | 1297 events/s (4 threads) | 6659 events/s (6 threads) | 4020 events/s (4 threads) |
-| CPU single core | 2860 events/s | 1713 events/s | 1354 events/s | 358 events/s | 1726 events/s | 946 events/s |
-| Memory throughput | 6586 MB/s | 622 MB/s | 1497 MB/s | 957 MB/s | 3051 MB/s | 807 MB/s |
-| One million | 351 M/s | 265 M/s | 90.0 M/s | 304 M/s | 249 M/s | 190 M/s |
-| Storage R/W | 47/40 MB/s | 26/24 MB/s | 38/27 MB/s | 42/30 MB/s | 13/12 MB/s | 31/10 MB/s |
+| stage | Jolla Phone 2026 (5.2, Mali-G610) | Jolla C2 (5.2, Mali-G57) | Xperia XA2 (5.1, Adreno 508, armv7hl) | Jolla Tablet (4.6, Intel HD BayTrail) | Xperia X (4.6, Adreno 510, armv7hl) | Nexus 5 (5.1, Adreno 330, armv7hl) | F(x)tec Pro¹-X (5.2, mainline port, Adreno 610 Mesa) |
+|---|---|---|---|---|---|---|---|
+| Benchy large | 9061 boats/s | 1068 boats/s | 18221 boats/s | 2606 boats/s | 20764 boats/s | 10298 boats/s | 17929 boats/s |
+| Benchy small | 19792 boats/s | 2792 boats/s | 32436 boats/s | 6243 boats/s | 28674 boats/s | 16279 boats/s | 34525 boats/s |
+| Benchy glow | 268 Mpx/s | 38.5 Mpx/s | 47.0 Mpx/s | 19.4 Mpx/s | 62.9 Mpx/s | 31.8 Mpx/s | 53.8 Mpx/s |
+| Shader light | 241 Mpx/s | 47.9 Mpx/s | 50.5 Mpx/s | 30.4 Mpx/s | 32.5 Mpx/s | 54.6 Mpx/s | 72.9 Mpx/s |
+| Shader heavy | 42.3 Mpx/s | 8.6 Mpx/s | 17.4 Mpx/s | 7.3 Mpx/s | 12.7 Mpx/s | 20.3 Mpx/s | 3.0 Mpx/s |
+| Table from UBO | 2128 M reads/s | 414 M reads/s | 635 M reads/s | 326 M reads/s | 952 M reads/s | – (not run on Adreno 300) | 657 M reads/s |
+| Table from SSBO | 2398 M reads/s | 415 M reads/s | 615 M reads/s | – (needs OpenGL ES 3.1) | 923 M reads/s | – (needs OpenGL ES 3.1) | 591 M reads/s |
+| Table from texture | 3742 M reads/s | 975 M reads/s | 638 M reads/s | 146 M reads/s | 546 M reads/s | – (not run on Adreno 300) | 846 M reads/s |
+| Overdraw | 6942 layers/s | 930 layers/s | 2281 layers/s | 767 layers/s | 2515 layers/s | 2208 layers/s | 1924 layers/s |
+| Cascade | 515048 squares/s | 85685 squares/s | 103390 squares/s | 90310 squares/s | 120693 squares/s | 53520 squares/s | 118852 squares/s |
+| Icon storm | 102980 icons/s | 30739 icons/s | 19519 icons/s | 16998 icons/s | 29471 icons/s | 11128 icons/s | 34132 icons/s |
+| CPU prime | 16219 events/s (8 threads) | 9853 events/s (8 threads) | 7853 events/s (8 threads) | 1297 events/s (4 threads) | 6659 events/s (6 threads) | 4020 events/s (4 threads) | 12197 events/s (8 threads) |
+| CPU single core | 2860 events/s | 1713 events/s | 1354 events/s | 358 events/s | 1726 events/s | 946 events/s | 1909 events/s |
+| Memory throughput | 6586 MB/s | 622 MB/s | 1497 MB/s | 957 MB/s | 3051 MB/s | 807 MB/s | 2452 MB/s |
+| One million | 351 M/s | 265 M/s | 90.0 M/s | 304 M/s | 249 M/s | 190 M/s | 280 M/s |
+| Storage R/W | 47/40 MB/s | 26/24 MB/s | 38/27 MB/s | 42/30 MB/s | 13/12 MB/s | 31/10 MB/s | 77/76 MB/s |
 
 The JSON of each run is in [`results/mosen/`](results/mosen/) (the
 `run-20261119-*` files). The tablet's Share image comes out black (its
